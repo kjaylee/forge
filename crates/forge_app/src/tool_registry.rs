@@ -112,7 +112,9 @@ impl<S: Services> ToolRegistry<S> {
                     .services
                     .fs_read_service()
                     .read(input.path.clone(), input.start_line, input.end_line)
-                    .await?;
+                    .await;
+                let output = send_if_error(context, output).await?;
+
                 let env = self.services.environment_service().get_environment();
                 let display_path = display_path(&env, Path::new(&input.path));
                 let is_truncated = output.total_lines > output.end_line;
@@ -134,10 +136,11 @@ impl<S: Services> ToolRegistry<S> {
                     .fs_create_service()
                     .create(input.path.clone(), input.content, input.overwrite, true)
                     .await;
-                send_write_context(context, out.as_ref(), &input.path, self.services.as_ref())
-                    .await?;
+                let out = send_if_error(context, out).await?;
 
-                Ok(crate::execution_result::ExecutionResult::from(out?))
+                send_write_context(context, &out, &input.path, self.services.as_ref()).await?;
+
+                Ok(crate::execution_result::ExecutionResult::from(out))
             }
             Tools::ForgeToolFsSearch(input) => {
                 let output = self
@@ -148,7 +151,8 @@ impl<S: Services> ToolRegistry<S> {
                         input.regex.clone(),
                         input.file_pattern.clone(),
                     )
-                    .await?;
+                    .await;
+                let output = send_if_error(context, output).await?;
 
                 send_fs_search_context(self.services.as_ref(), context, &input, &output).await?;
 
@@ -160,7 +164,8 @@ impl<S: Services> ToolRegistry<S> {
                     .services
                     .fs_remove_service()
                     .remove(input.path.clone())
-                    .await?;
+                    .await;
+                let output = send_if_error(context, output).await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
@@ -174,7 +179,9 @@ impl<S: Services> ToolRegistry<S> {
                         input.operation,
                         input.content,
                     )
-                    .await?;
+                    .await;
+                let output = send_if_error(context, output).await?;
+
                 send_fs_patch_context(context, &input.path, &output, self.services.as_ref())
                     .await?;
 
@@ -182,7 +189,8 @@ impl<S: Services> ToolRegistry<S> {
             }
             Tools::ForgeToolFsUndo(input) => {
                 send_fs_undo_context(context, input.clone(), self.services.as_ref()).await?;
-                let output = self.services.fs_undo_service().undo(input.path).await?;
+                let output = self.services.fs_undo_service().undo(input.path).await;
+                let output = send_if_error(context, output).await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
@@ -197,7 +205,8 @@ impl<S: Services> ToolRegistry<S> {
                     .services
                     .shell_service()
                     .execute(input.command, input.cwd, input.keep_ansi)
-                    .await?;
+                    .await;
+                let output = send_if_error(context, output).await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
@@ -206,7 +215,8 @@ impl<S: Services> ToolRegistry<S> {
                     .services
                     .net_fetch_service()
                     .fetch(input.url.clone(), input.raw)
-                    .await?;
+                    .await;
+                let output = send_if_error(context, output).await?;
 
                 send_net_fetch_context(context, &output, &input.url).await?;
 
@@ -228,7 +238,8 @@ impl<S: Services> ToolRegistry<S> {
                             .collect(),
                         input.multiple,
                     )
-                    .await?;
+                    .await;
+                let output = send_if_error(context, output).await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
@@ -481,45 +492,47 @@ async fn send_fs_search_context<S: Services>(
     Ok(())
 }
 
+async fn send_if_error<T>(
+    ctx: &mut ToolCallContext,
+    result: anyhow::Result<T>,
+) -> anyhow::Result<T> {
+    if let Err(e) = &result {
+        ctx.send_text(TitleFormat::error(e.to_string())).await?;
+    }
+
+    result
+}
+
 async fn send_write_context<S: Services>(
     ctx: &mut ToolCallContext,
-    out: Result<&FsCreateOutput, &anyhow::Error>,
+    out: &FsCreateOutput,
     path: &str,
     services: &S,
 ) -> anyhow::Result<()> {
     let env = services.environment_service().get_environment();
-    let formatted_path = display_path(&env, Path::new(path));
-    match out {
-        Ok(out) => {
-            let new_content = services
-                .fs_read_service()
-                .read(path.to_string(), None, None)
-                .await?;
-            let exists = out.previous.is_some();
+    let formatted_path = display_path(&env, Path::new(&out.path));
+    let new_content = services
+        .fs_read_service()
+        .read(path.to_string(), None, None)
+        .await?;
+    let exists = out.previous.is_some();
 
-            let title = if exists { "Overwrite" } else { "Create" };
+    let title = if exists { "Overwrite" } else { "Create" };
 
-            ctx.send_text(format!(
-                "{}",
-                TitleFormat::debug(title).sub_title(formatted_path)
-            ))
-            .await?;
+    ctx.send_text(format!(
+        "{}",
+        TitleFormat::debug(title).sub_title(formatted_path)
+    ))
+    .await?;
 
-            if let Some(old_content) = out.previous.as_ref() {
-                match new_content.content {
-                    Content::File(new_content) => {
-                        let diff = DiffFormat::format(old_content, &new_content);
-                        ctx.send_text(diff).await?;
-                    }
-                }
+    if let Some(old_content) = out.previous.as_ref() {
+        match new_content.content {
+            Content::File(new_content) => {
+                let diff = DiffFormat::format(old_content, &new_content);
+                ctx.send_text(diff).await?;
             }
         }
-        Err(_) => {
-            ctx.send_text(TitleFormat::error("Write Failed").sub_title(formatted_path))
-                .await?;
-        }
     }
-
     Ok(())
 }
 
