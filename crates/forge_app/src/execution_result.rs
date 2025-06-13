@@ -164,8 +164,13 @@ impl ExecutionResult {
                 forge_domain::ToolOutput::text(elm)
             }
             (_, ExecutionResult::Shell(output)) => {
-                let mut elem = Element::new("shell_output").attr("command", &output.output.command);
-                elem = elem.attr_if_some("exit_code", output.output.exit_code);
+                let mut parent_elem = Element::new("shell_output");
+                let metadata_elem = Element::new("metadata")
+                    .attr("command", &output.output.command)
+                    .attr_if_some("exit_code", output.output.exit_code)
+                    .attr("shell", &output.shell);
+                parent_elem = parent_elem.append(metadata_elem);
+
                 let truncated_output = truncate_shell_output(
                     &output.output.stdout,
                     &output.output.stderr,
@@ -176,49 +181,47 @@ impl ExecutionResult {
                 let stdout_lines = output.output.stdout.lines().count();
                 let stderr_lines = output.output.stderr.lines().count();
 
-                elem = elem.attr_if_some(
-                    "total_stdout_lines",
-                    truncated_output.stdout_truncated.then_some(stdout_lines),
-                );
-
-                elem = elem.attr_if_some(
-                    "total_stderr_lines",
-                    truncated_output.stderr_truncated.then_some(stderr_lines),
-                );
+                let mut full_content_file = Element::new("full_content_file");
 
                 if truncated_output.stdout_truncated || truncated_output.stderr_truncated {
-                    elem = elem.attr_if_some(
-                        "temp_file",
-                        truncation_path.as_ref().map(|v| v.display().to_string()),
+                    full_content_file = full_content_file.attr_if_some(
+                        "path",
+                        truncation_path.as_ref().map(|p| p.display().to_string()),
                     );
                 }
 
                 if truncated_output.stdout_truncated {
-                    elem = elem
-                        .attr("stdout_start_line", 1)
-                        .attr("stdout_end_line", stdout_lines)
+                    full_content_file = full_content_file.append(
+                        Element::new("stdout_line_range")
+                            .attr("start", 2)
+                            .attr("end", stdout_lines + 1),
+                    );
                 }
 
                 if truncated_output.stderr_truncated {
-                    let start = stdout_lines + 1;
-                    let end = stdout_lines + stderr_lines + 1;
-                    elem = elem
-                        .attr("stderr_start_line", start)
-                        .attr("stderr_end_line", end);
+                    let start = stdout_lines + 2;
+                    let end = stdout_lines + stderr_lines + 2;
+                    full_content_file = full_content_file.append(
+                        Element::new("stdout_line_range")
+                            .attr("start", start)
+                            .attr("end", end),
+                    );
                 }
 
-                elem = elem.append(
+                parent_elem = parent_elem.append(full_content_file);
+
+                parent_elem = parent_elem.append(
                     Element::new("stdout")
                         .cdata(truncated_output.stdout)
                         .attr("truncated", truncated_output.stdout_truncated),
                 );
-                elem = elem.append(
+                parent_elem = parent_elem.append(
                     Element::new("stderr")
                         .cdata(truncated_output.stderr)
                         .attr("truncated", truncated_output.stderr_truncated),
                 );
 
-                forge_domain::ToolOutput::text(elem)
+                forge_domain::ToolOutput::text(parent_elem)
             }
             (_, ExecutionResult::FollowUp(output)) => match output {
                 None => {

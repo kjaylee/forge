@@ -2,7 +2,7 @@
 source: crates/forge_app/src/execution_result.rs
 expression: to_value(actual)
 ---
-<shell_output command="long_command" exit_code="0" total_stdout_lines="25" temp_file="/tmp/shell_output.md" stdout_start_line="1" stdout_end_line="25"><stdout truncated="true"><![CDATA[<stdout lines="1-10">
+<shell_output><metadata command="long_command" exit_code="0" shell="/bin/bash"></metadata><full_content_file path="/tmp/shell_output.md"><stdout_line_range start="2" end="26"></stdout_line_range></full_content_file><stdout truncated="true"><![CDATA[<stdout lines="1-10">
 stdout line 1
 stdout line 2
 stdout line 3
