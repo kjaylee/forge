@@ -567,16 +567,6 @@ impl<F: API> UI<F> {
             .write_workflow(self.cli.workflow.as_deref(), &workflow)
             .await?;
 
-        // register the user templates.
-        let template_path = base_workflow.templates.clone().unwrap_or(
-            self.api
-                .environment()
-                .templates()
-                .to_string_lossy()
-                .to_string(),
-        );
-        self.api.register_template(template_path).await?;
-
         self.command.register_all(&base_workflow);
         self.state = UIState::new(base_workflow).provider(self.api.environment().provider);
 
