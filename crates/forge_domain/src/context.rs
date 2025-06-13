@@ -7,7 +7,7 @@ use super::{ToolCallFull, ToolResult};
 use crate::temperature::Temperature;
 use crate::top_k::TopK;
 use crate::top_p::TopP;
-use crate::{ConversationId, Image, ModelId, ToolChoice, ToolDefinition};
+use crate::{ConversationId, Image, ModelId, ToolChoice, ToolDefinition, ToolValue};
 
 /// Represents a message being sent to the LLM provider
 /// NOTE: ToolResults message are part of the larger Request object and not part
@@ -21,6 +21,46 @@ pub enum ContextMessage {
 }
 
 impl ContextMessage {
+    /// Estimates the number of tokens in a message using character-based
+    /// approximation.
+    /// ref: https://github.com/openai/codex/blob/main/codex-cli/src/utils/approximate-tokens-used.ts
+    pub fn count_tokens(&self) -> u64 {
+        let char_count = match self {
+            ContextMessage::Text(text_message)
+                if matches!(text_message.role, Role::User | Role::Assistant) =>
+            {
+                text_message.content.chars().count()
+                    + text_message
+                        .tool_calls
+                        .as_ref()
+                        .map(|tool_calls| {
+                            tool_calls
+                                .iter()
+                                .map(|tc| {
+                                    tc.arguments
+                                        .to_string()
+                                        .chars()
+                                        .count()
+                                        + tc.name.as_str().chars().count()
+                                })
+                                .sum()
+                        })
+                        .unwrap_or(0)
+            }
+            ContextMessage::Tool(tool_result) => tool_result
+                .output
+                .values
+                .iter()
+                .map(|result| match result {
+                    ToolValue::Text(text) => text.chars().count(),
+                    _ => 0,
+                })
+                .sum(),
+            _ => 0,
+        };
+        (char_count as f64 / 4.0).ceil() as u64
+    }
+
     pub fn to_text(&self) -> String {
         let mut lines = String::new();
         match self {
