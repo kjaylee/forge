@@ -344,9 +344,7 @@ impl<S: AgentService> Orchestrator<S> {
 
             debug!(agent_id = %agent.id, tool_call_count = tool_calls.len(), "Tool call count");
 
-            is_complete = tool_calls
-                .iter()
-                .any(|call| Tools::is_complete(&call.name));
+            is_complete = tool_calls.iter().any(|call| Tools::is_complete(&call.name));
 
             if !is_complete {
                 // If task is completed we would have already displayed a message so we can
