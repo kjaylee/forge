@@ -4,6 +4,7 @@ use anyhow::Context;
 use forge_app::TemplateService;
 use handlebars::Handlebars;
 use rust_embed::Embed;
+use std::path::Path;
 use tokio::sync::RwLock;
 
 use crate::{FsReadService, Infrastructure};
@@ -34,15 +35,37 @@ impl<F: Infrastructure> ForgeTemplateService<F> {
 #[async_trait::async_trait]
 impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
     async fn register_template(&self, path: String) -> anyhow::Result<()> {
-        // Load templates from filesystem using glob pattern
-        for entry in glob::glob(&path).with_context(|| format!("Invalid glob pattern: {path}"))? {
-            let path = entry.with_context(|| "Failed to read glob entry")?;
-            let template_content = self.infra.file_read_service().read_utf8(&path).await?;
+        let path_buf = Path::new(&path).to_path_buf();
+
+        let template_paths: Vec<std::path::PathBuf> = if path_buf.is_dir() {
+            // If it's a directory, scan for all files recursively
+            let dir_pattern = format!("{path}/**/*");
+            glob::glob(&dir_pattern)
+                .with_context(|| format!("Failed to scan directory for templates: {path}"))?
+                .collect::<Result<Vec<_>, _>>()
+                .with_context(|| "Failed to read directory entries")?
+                .into_iter()
+                .filter(|p| p.is_file()) // Only include files, not directories
+                .collect()
+        } else {
+            // If it's not a directory, treat it as a glob pattern (original behavior)
+            glob::glob(&path)
+                .with_context(|| format!("Invalid glob pattern: {path}"))?
+                .collect::<Result<Vec<_>, _>>()
+                .with_context(|| "Failed to read glob entries")?
+        };
+
+        for template_path in &template_paths {
+            let template_content = self
+                .infra
+                .file_read_service()
+                .read_utf8(template_path)
+                .await?;
             // Use the filename (without extension) as the template name
-            let template_name = path
+            let template_name = template_path
                 .file_stem()
                 .and_then(|name| name.to_str())
-                .with_context(|| format!("Invalid filename: {}", path.display()))?;
+                .with_context(|| format!("Invalid filename: {}", template_path.display()))?;
             self.hb
                 .write()
                 .await
