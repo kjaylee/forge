@@ -54,9 +54,9 @@ impl ExecutionResult {
                     let diff =
                         console::strip_ansi_codes(&DiffFormat::format(&before, &input.content))
                             .to_string();
-                    Element::new("file_diff").cdata(diff)
+                    Element::new("file_overwritten").append(Element::new("file_diff").cdata(diff))
                 } else {
-                    Element::new("file_content").cdata(&input.content)
+                    Element::new("file_created")
                 };
 
                 elm = elm
@@ -333,6 +333,7 @@ mod tests {
             },
             max_search_lines: 25,
             fetch_truncation_limit: 55,
+            max_read_size: 10,
         }
     }
 

@@ -13,7 +13,6 @@ use forge_display::{MarkdownFormat, TitleFormat};
 use forge_domain::{McpConfig, McpServerConfig, Scope};
 use forge_fs::ForgeFS;
 use forge_spinner::SpinnerManager;
-use forge_tracker::ToolCallPayload;
 use inquire::error::InquireError;
 use inquire::ui::{RenderConfig, Styled};
 use inquire::Select;
@@ -83,7 +82,6 @@ impl<F: API> UI<F> {
     async fn on_new(&mut self) -> Result<()> {
         self.init_state().await?;
         banner::display()?;
-
         Ok(())
     }
 
@@ -390,15 +388,14 @@ impl<F: API> UI<F> {
                     .agents
                     .into_iter()
                     .map(|agent| {
-                        if let Some(title) = &agent.title {
+                        let title = &agent.title.unwrap_or("<Missing agent.title>".to_string());
+                        {
                             let label = format!(
                                 "{:<n$} {}",
                                 agent.id.as_str().to_case(Case::UpperSnake).bold(),
                                 title.lines().collect::<Vec<_>>().join(" ").dimmed()
                             );
-                            Agent { label, id: agent.id }
-                        } else {
-                            Agent { id: agent.id, label: "<Missing agent title>".to_string() }
+                            Agent { label, id: agent.id.clone() }
                         }
                     })
                     .collect::<Vec<_>>();
@@ -657,27 +654,6 @@ impl<F: API> UI<F> {
                     }
 
                     self.writeln(text)?;
-                }
-            }
-            ChatResponse::ToolCallStart(_) => {
-                self.spinner.stop(None)?;
-            }
-            ChatResponse::ToolCallEnd(toolcall_result) => {
-                // Only track toolcall name in case of success else track the error.
-                let payload = if toolcall_result.is_error() {
-                    let mut r = ToolCallPayload::new(toolcall_result.name.to_string());
-                    if let Some(cause) = toolcall_result.output.as_str() {
-                        r = r.with_cause(cause.to_string());
-                    }
-                    r
-                } else {
-                    ToolCallPayload::new(toolcall_result.name.to_string())
-                };
-                tokio::spawn(TRACKER.dispatch(forge_tracker::EventKind::ToolCall(payload)));
-
-                self.spinner.start(None)?;
-                if !self.cli.verbose {
-                    return Ok(());
                 }
             }
             ChatResponse::Usage(mut usage) => {

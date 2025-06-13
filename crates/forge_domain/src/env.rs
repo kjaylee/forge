@@ -36,6 +36,8 @@ pub struct Environment {
 
     /// Maximum characters for fetch content
     pub fetch_truncation_limit: usize,
+    /// Maximum number of lines to read from a file
+    pub max_read_size: u64,
 }
 
 impl Environment {
@@ -55,6 +57,10 @@ impl Environment {
     }
     pub fn mcp_user_config(&self) -> PathBuf {
         self.base_path.join(".mcp.json")
+    }
+
+    pub fn templates(&self) -> PathBuf {
+        self.base_path.join("templates")
     }
 
     pub fn mcp_local_config(&self) -> PathBuf {
