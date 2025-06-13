@@ -214,8 +214,41 @@ impl ExecutionResult {
                     parent_elem = parent_elem.append(full_content_file);
                 }
 
-                parent_elem = parent_elem.append(truncated_output.stdout);
-                parent_elem = parent_elem.append(truncated_output.stderr);
+                let total_stdout = output.output.stdout.lines().count();
+                let suffix_stdout = total_stdout - truncated_output.stdout_suffix_start_line + 1;
+                parent_elem = parent_elem.append(
+                    Element::new("stdout")
+                        .append(Element::new("truncated").text("true"))
+                        .append(
+                            Element::new("displayed_lines")
+                                .text(truncated_output.stdout_prefix_count + suffix_stdout),
+                        )
+                        .append(Element::new("total_lines").text(total_stdout))
+                        .append(create_truncation_info(
+                            truncated_output.stdout_prefix_count,
+                            suffix_stdout,
+                            truncated_output.stdout_hidden_count,
+                        ))
+                        .append(Element::new("content").cdata(truncated_output.stdout)),
+                );
+                let total_stderr = output.output.stdout.lines().count();
+                let suffix_stderr = total_stderr - truncated_output.stderr_suffix_start_line + 1;
+
+                parent_elem = parent_elem.append(
+                    Element::new("stderr")
+                        .append(Element::new("truncated").text("true"))
+                        .append(
+                            Element::new("displayed_lines")
+                                .text(truncated_output.stderr_prefix_count + suffix_stderr),
+                        )
+                        .append(Element::new("total_lines").text(total_stderr))
+                        .append(create_truncation_info(
+                            truncated_output.stderr_prefix_count,
+                            suffix_stderr,
+                            truncated_output.stderr_hidden_count,
+                        ))
+                        .append(Element::new("content").cdata(truncated_output.stderr)),
+                );
 
                 forge_domain::ToolOutput::text(parent_elem)
             }
@@ -300,6 +333,17 @@ impl ExecutionResult {
             ExecutionResult::AttemptCompletion => Ok(None),
         }
     }
+}
+
+fn create_truncation_info(
+    prefix_count: usize,
+    suffix_count: usize,
+    hidden_count: usize,
+) -> Element {
+    Element::new("truncation_info")
+        .append(Element::new("head_lines").text(prefix_count))
+        .append(Element::new("tail_lines").text(suffix_count))
+        .append(Element::new("omitted_lines").text(hidden_count))
 }
 
 #[cfg(test)]

@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use forge_domain::Environment;
-use forge_template::Element;
 
 use crate::utils::format_match;
 use crate::{FsCreateService, Match, Services};
@@ -66,14 +65,13 @@ fn clip_by_lines(
 /// Helper to process a stream and return (formatted_output, is_truncated)
 fn process_stream(
     content: &str,
-    tag: &str,
     prefix_lines: usize,
     suffix_lines: usize,
-) -> (Element, bool) {
+) -> ((String, usize, usize, usize), bool) {
     let (lines, truncation_info) = clip_by_lines(content, prefix_lines, suffix_lines);
     let is_truncated = truncation_info.is_some();
     let total_lines = content.lines().count();
-    let output = tag_output(lines, truncation_info, tag, total_lines);
+    let output = tag_output(lines, truncation_info, total_lines);
 
     (output, is_truncated)
 }
@@ -82,9 +80,8 @@ fn process_stream(
 fn tag_output(
     lines: Vec<String>,
     truncation_info: Option<(usize, usize)>,
-    tag: &str,
     total_lines: usize,
-) -> Element {
+) -> (String, usize, usize, usize) {
     match truncation_info {
         Some((prefix_count, hidden_count)) => {
             let suffix_start_line = prefix_count + hidden_count + 1;
@@ -106,16 +103,7 @@ fn tag_output(
                 output.push('\n');
             }
 
-            Element::new(tag)
-                .append(Element::new("truncated").text("true"))
-                .append(Element::new("displayed_lines").text(prefix_count))
-                .append(Element::new("total_lines").text(total_lines))
-                .append(create_truncation_info(
-                    prefix_count,
-                    total_lines - suffix_start_line,
-                    hidden_count,
-                ))
-                .append(Element::new("content").cdata(output))
+            (output, prefix_count, suffix_start_line, hidden_count)
         }
         None => {
             // No truncation, output all lines
@@ -126,24 +114,9 @@ fn tag_output(
                     output.push('\n');
                 }
             }
-            Element::new(tag)
-                .append(Element::new("truncated").text("false"))
-                .append(Element::new("total_lines").text(total_lines))
-                .append(create_truncation_info(output.len(), 0, 0))
-                .append(Element::new("content").cdata(output))
+            (output, total_lines, 0, 0)
         }
     }
-}
-
-fn create_truncation_info(
-    prefix_count: usize,
-    suffix_count: usize,
-    hidden_count: usize,
-) -> Element {
-    Element::new("truncation_info")
-        .append(Element::new("head_lines").text(prefix_count))
-        .append(Element::new("tail_lines").text(suffix_count))
-        .append(Element::new("omitted_lines").text(hidden_count))
 }
 
 /// Truncates shell output and creates a temporary file if needed
@@ -153,25 +126,41 @@ pub fn truncate_shell_output(
     prefix_lines: usize,
     suffix_lines: usize,
 ) -> TruncatedShellOutput {
-    let (stdout_output, stdout_truncated) =
-        process_stream(stdout, "stdout", prefix_lines, suffix_lines);
-    let (stderr_output, stderr_truncated) =
-        process_stream(stderr, "stderr", prefix_lines, suffix_lines);
+    let (
+        (stdout_output, stdout_prefix_count, stdout_suffix_start_line, stdout_hidden_count),
+        stdout_truncated,
+    ) = process_stream(stdout, prefix_lines, suffix_lines);
+    let (
+        (stderr_output, stderr_prefix_count, stderr_suffix_start_line, stderr_hidden_count),
+        stderr_truncated,
+    ) = process_stream(stderr, prefix_lines, suffix_lines);
 
     TruncatedShellOutput {
         stdout: stdout_output,
         stderr: stderr_output,
         stdout_truncated,
         stderr_truncated,
+        stdout_prefix_count,
+        stdout_suffix_start_line,
+        stdout_hidden_count,
+        stderr_prefix_count,
+        stderr_hidden_count,
+        stderr_suffix_start_line,
     }
 }
 
 /// Result of shell output truncation
 pub struct TruncatedShellOutput {
-    pub stdout: Element,
-    pub stderr: Element,
+    pub stdout: String,
+    pub stderr: String,
     pub stdout_truncated: bool,
     pub stderr_truncated: bool,
+    pub stdout_prefix_count: usize,
+    pub stdout_suffix_start_line: usize,
+    pub stdout_hidden_count: usize,
+    pub stderr_prefix_count: usize,
+    pub stderr_hidden_count: usize,
+    pub stderr_suffix_start_line: usize,
 }
 
 /// Represents the result of fetch content truncation
