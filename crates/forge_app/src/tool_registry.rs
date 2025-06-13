@@ -59,8 +59,11 @@ impl<S: Services> ToolRegistry<S> {
     ) -> anyhow::Result<ToolOutput> {
         context
             .send_text(
-                TitleFormat::debug(agent_id.as_str().to_case(Case::UpperSnake))
-                    .sub_title(task.as_str()),
+                TitleFormat::debug(format!(
+                    "{} (Agent)",
+                    agent_id.as_str().to_case(Case::UpperSnake)
+                ))
+                .sub_title(task.as_str()),
             )
             .await?;
 
