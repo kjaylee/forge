@@ -81,7 +81,7 @@ impl<S: Services> ToolRegistry<S> {
             ))
             .await?;
 
-        // // Collect responses from the agent
+        // Collect responses from the agent
         let mut agent_result = String::new();
         while let Some(message) = response_stream.next().await {
             let message = message?;
