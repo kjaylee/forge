@@ -190,12 +190,12 @@ impl<S: Services> ForgeApp<S> {
                 compacted_messages,
             ))
         } else {
-            return Ok(CompactionResult::new(
+            Ok(CompactionResult::new(
                 original_tokens,
                 original_tokens,
                 original_messages,
                 original_messages,
-            ));
+            ))
         }
     }
 

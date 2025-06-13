@@ -143,7 +143,10 @@ impl Compact {
 /// Finds a sequence in the context for compaction, starting from the first
 /// assistant message and including all messages up to the last possible message
 /// (respecting preservation window)
-pub fn find_sequence_preserving_last_n(context: &Context, preserve_last_n: usize) -> Option<(usize, usize)> {
+pub fn find_sequence_preserving_last_n(
+    context: &Context,
+    preserve_last_n: usize,
+) -> Option<(usize, usize)> {
     let messages = &context.messages;
     if messages.is_empty() {
         return None;
