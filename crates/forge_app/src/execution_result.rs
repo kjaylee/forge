@@ -187,11 +187,12 @@ impl ExecutionResult {
                 let mut full_content_file = Element::new("full_content_file")
                     .append(Element::new("total_lines").text(stdout_lines + stderr_lines));
 
-                if truncated_output.stdout_truncated || truncated_output.stderr_truncated {
-                    if let Some(path) = truncation_path.as_ref().map(|p| p.display().to_string()) {
-                        full_content_file =
-                            full_content_file.append(Element::new("path").text(path))
-                    }
+                if let Some(path) = (truncated_output.stdout_truncated
+                    || truncated_output.stderr_truncated)
+                    .then(|| truncation_path.as_ref().map(|p| p.display().to_string()))
+                    .flatten()
+                {
+                    full_content_file = full_content_file.append(Element::new("path").text(path))
                 }
 
                 if truncated_output.stdout_truncated {
@@ -208,7 +209,7 @@ impl ExecutionResult {
                     full_content_file = full_content_file.append(
                         Element::new("stdout_line_range")
                             .attr("start", start)
-                            .attr("end", end)
+                            .attr("end", end),
                     );
                 }
 
