@@ -310,8 +310,7 @@ impl<S: AgentService> Orchestrator<S> {
         while !is_complete {
             // Set context for the current loop iteration
             self.conversation.context = Some(context.clone());
-            self
-                .services
+            self.services
                 .sync_conversation(self.conversation.clone())
                 .await?;
 
@@ -407,8 +406,7 @@ impl<S: AgentService> Orchestrator<S> {
 
             // Update context in the conversation
             self.conversation.context = Some(context.clone());
-            self
-                .services
+            self.services
                 .sync_conversation(self.conversation.clone())
                 .await?;
         }
