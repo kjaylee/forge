@@ -135,6 +135,7 @@ impl ForgeEnvironmentService {
             max_read_size: 500,
             stdout_max_prefix_length: 200,
             stdout_max_suffix_length: 200,
+            max_file_size: 256 << 10, // 256 KiB
         }
     }
 

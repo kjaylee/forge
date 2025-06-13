@@ -32,6 +32,7 @@ where
 /// This function checks if the error is a retryable domain error.
 /// Currently, only `Error::Retryable` errors will trigger retries.
 fn should_retry(error: &anyhow::Error) -> bool {
+    println!("{}",error);
     error
         .downcast_ref::<Error>()
         .is_some_and(|error| matches!(error, Error::Retryable(_)))

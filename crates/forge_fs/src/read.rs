@@ -1,23 +1,45 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use tokio::io::AsyncReadExt;
 
 impl crate::ForgeFS {
-    pub async fn read_utf8<T: AsRef<Path>>(path: T) -> Result<String> {
-        Self::read(path)
+    pub async fn read_utf8<T: AsRef<Path>>(path: T, max_limit: u64) -> Result<String> {
+        Self::read(path, max_limit)
             .await
             .map(|bytes| String::from_utf8_lossy(&bytes).to_string())
     }
 
-    pub async fn read<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
-        tokio::fs::read(path.as_ref())
+    pub async fn read<T: AsRef<Path>>(path: T, max_limit: u64) -> Result<Vec<u8>> {
+        let mut file = tokio::fs::File::open(path.as_ref())
             .await
-            .with_context(|| format!("Failed to read file {}", path.as_ref().display()))
+            .with_context(|| format!("Failed to open file {}", path.as_ref().display()))?;
+        if let Ok(metadata) = file.metadata().await {
+            if metadata.len() > max_limit {
+                return Err(anyhow::anyhow!(
+                    "File size exceeds maximum limit: {} > {}",
+                    metadata.len(),
+                    max_limit
+                ));
+            }
+        }
+
+        let mut buffer = vec![];
+
+        file.read(&mut buffer)
+            .await
+            .with_context(|| format!("Failed to read file {}", path.as_ref().display()))?;
+
+        Ok(buffer)
     }
 
-    pub async fn read_to_string<T: AsRef<Path>>(path: T) -> Result<String> {
-        tokio::fs::read_to_string(path.as_ref())
-            .await
-            .with_context(|| format!("Failed to read file as string {}", path.as_ref().display()))
+    pub async fn read_to_string<T: AsRef<Path>>(path: T, max_limit: u64) -> Result<String> {
+        let bytes = Self::read(path, max_limit).await?;
+        String::from_utf8(bytes).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to convert bytes to string: {}. File may not be UTF-8 encoded.",
+                e
+            )
+        })
     }
 }
