@@ -379,7 +379,7 @@ impl<S: AgentService> Orchestrator<S> {
                 let content = self
                     .services
                     .render(
-                        "{{> partial-tool-required.hbs}}",
+                        "{{> forge-partial-tool-required.hbs}}",
                         &serde_json::json!({
                             "tool_supported": tool_supported
                         }),

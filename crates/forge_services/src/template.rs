@@ -133,7 +133,7 @@ mod tests {
 
         // Actual: Render the partial-system-info template
         let actual = service
-            .render("{{> partial-system-info.hbs }}", &data)
+            .render("{{> forge-partial-system-info.hbs }}", &data)
             .await
             .unwrap();
 

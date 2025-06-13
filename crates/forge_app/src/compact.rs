@@ -73,7 +73,7 @@ impl<S: AgentService> Compactor<S> {
         let summary = self
             .services
             .render(
-                "{{> partial-summary-frame.hbs}}",
+                "{{> forge-partial-summary-frame.hbs}}",
                 &serde_json::json!({ "summary": summary }),
             )
             .await?;
@@ -108,7 +108,7 @@ impl<S: AgentService> Compactor<S> {
                 compact
                     .prompt
                     .as_deref()
-                    .unwrap_or("{{> system-prompt-context-summarizer.hbs}}"),
+                    .unwrap_or("{{> forge-system-prompt-context-summarizer.hbs}}"),
                 &ctx,
             )
             .await?;
