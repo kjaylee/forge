@@ -5,6 +5,7 @@ use chrono::Local;
 use forge_domain::*;
 use forge_stream::MpscStream;
 
+use crate::compact::CompactStrategy;
 use crate::orch::Orchestrator;
 use crate::tool_registry::ToolRegistry;
 use crate::{
@@ -152,10 +153,43 @@ impl<S: Services> ForgeApp<S> {
             .ok_or_else(|| anyhow::anyhow!("No agents found in conversation"))?
             .clone();
 
-        // Check if the agent has compaction configured
-        if agent.compact.is_none() {
-            // No compaction configured, return original metrics as both original and
-            // compacted
+        if let Some(compact) = &agent.compact {
+            // Apply compaction using the Compactor
+            let compactor = Compactor::new(self.services.clone());
+
+            let compacted_context = compactor
+                .compact_context(
+                    &agent,
+                    context,
+                    CompactStrategy::preserve_last_n(compact.retention_window),
+                )
+                .await?;
+
+            // Calculate compacted metrics
+            let compacted_messages = compacted_context.messages.len();
+            let compacted_tokens = compacted_context
+                .messages
+                .iter()
+                .map(|m| m.count_tokens() as usize)
+                .sum();
+
+            // Update the conversation with the compacted context
+            conversation.context = Some(compacted_context);
+
+            // Save the updated conversation
+            self.services
+                .conversation_service()
+                .upsert(conversation)
+                .await?;
+
+            // Return the compaction metrics
+            Ok(CompactionResult::new(
+                original_tokens,
+                compacted_tokens,
+                original_messages,
+                compacted_messages,
+            ))
+        } else {
             return Ok(CompactionResult::new(
                 original_tokens,
                 original_tokens,
@@ -163,36 +197,8 @@ impl<S: Services> ForgeApp<S> {
                 original_messages,
             ));
         }
-
-        // Apply compaction using the Compactor
-        let compactor = Compactor::new(self.services.clone());
-        let compacted_context = compactor.compact_context(&agent, context, None).await?;
-
-        // Calculate compacted metrics
-        let compacted_messages = compacted_context.messages.len();
-        let compacted_tokens = compacted_context
-            .messages
-            .iter()
-            .map(|m| m.count_tokens() as usize)
-            .sum();
-
-        // Update the conversation with the compacted context
-        conversation.context = Some(compacted_context);
-
-        // Save the updated conversation
-        self.services
-            .conversation_service()
-            .upsert(conversation)
-            .await?;
-
-        // Return the compaction metrics
-        Ok(CompactionResult::new(
-            original_tokens,
-            compacted_tokens,
-            original_messages,
-            compacted_messages,
-        ))
     }
+
     pub async fn list_tools(&self) -> Result<Vec<ToolDefinition>> {
         self.tool_registry.list().await
     }

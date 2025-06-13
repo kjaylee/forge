@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use forge_domain::{
     Agent, ChatCompletionMessage, ChatCompletionMessageFull, Compact, Context, ContextMessage,
-    ResultStreamExt, extract_tag_content,
+    ResultStreamExt, extract_tag_content, find_sequence_preserving_last_n,
 };
 use futures::Stream;
 use tracing::{debug, info};
@@ -15,6 +15,32 @@ pub struct Compactor<S> {
     services: Arc<S>,
 }
 
+pub enum CompactStrategy {
+    Percentage(f64),
+    PreserveLastN(usize),
+}
+
+impl CompactStrategy {
+    pub fn percentage(percentage: f64) -> Self {
+        Self::Percentage(percentage)
+    }
+
+    pub fn preserve_last_n(preserve_last_n: usize) -> Self {
+        Self::PreserveLastN(preserve_last_n)
+    }
+
+    pub fn compact(&self, context: &Context) -> Option<(usize, usize)> {
+        match self {
+            CompactStrategy::Percentage(percentage) => {
+                find_sequence_by_token_percentage(context, *percentage)
+            }
+            CompactStrategy::PreserveLastN(preserve_last_n) => {
+                find_sequence_preserving_last_n(context, *preserve_last_n)
+            }
+        }
+    }
+}
+
 impl<S: AgentService> Compactor<S> {
     pub fn new(services: Arc<S>) -> Self {
         Self { services }
@@ -25,15 +51,12 @@ impl<S: AgentService> Compactor<S> {
         &self,
         agent: &Agent,
         context: Context,
-        percentage: Option<f64>,
+        strategy: CompactStrategy,
     ) -> anyhow::Result<Context> {
         if let Some(ref compact) = agent.compact {
             debug!(agent_id = %agent.id, "Context compaction triggered");
 
-            match find_sequence(&context, percentage.unwrap_or(compact.percentage))
-                .into_iter()
-                .next()
-            {
+            match strategy.compact(&context) {
                 Some(sequence) => {
                     debug!(agent_id = %agent.id, "Compressing sequence");
                     self.compress_single_sequence(compact, context, sequence)
@@ -149,7 +172,7 @@ impl<S: AgentService> Compactor<S> {
 
 /// Find the first sequence of messages that should be compacted based on token
 /// percentage.
-fn find_sequence(context: &Context, percentage: f64) -> Option<(usize, usize)> {
+fn find_sequence_by_token_percentage(context: &Context, percentage: f64) -> Option<(usize, usize)> {
     let messages = &context.messages;
     if messages.is_empty() || percentage <= 0.0 || percentage > 1.0 {
         return None;
@@ -243,7 +266,7 @@ mod tests {
             }
         }
 
-        let sequence = find_sequence(&context, percentage);
+        let sequence = find_sequence_by_token_percentage(&context, percentage);
 
         let mut result = pattern.clone();
         if let Some((start, end)) = sequence {

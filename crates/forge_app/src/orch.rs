@@ -10,7 +10,7 @@ use serde_json::Value;
 use tracing::{debug, info, warn};
 
 use crate::agent::AgentService;
-use crate::compact::Compactor;
+use crate::compact::{CompactStrategy, Compactor};
 use crate::template::Templates;
 
 pub type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<ChatResponse>>>;
@@ -333,7 +333,15 @@ impl<S: AgentService> Orchestrator<S> {
             if agent.should_compact(&context, max(usage.prompt_tokens, usage.estimated_tokens)) {
                 info!(agent_id = %agent.id, "Compaction needed, applying compaction");
                 let compactor = Compactor::new(self.services.clone());
-                context = compactor.compact_context(&agent, context, None).await?;
+                let percentage = agent
+                    .compact
+                    .as_ref()
+                    .map(|compact| compact.percentage)
+                    .unwrap_or(0.2);
+                let compaction_strategy = CompactStrategy::percentage(percentage);
+                context = compactor
+                    .compact_context(&agent, context, compaction_strategy)
+                    .await?;
             } else {
                 debug!(agent_id = %agent.id, "Compaction not needed");
             }
@@ -404,7 +412,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         // agent has yielded and so now compact everything.
         Compactor::new(self.services.clone())
-            .compact_context(&agent, context, Some(1.0))
+            .compact_context(&agent, context, CompactStrategy::percentage(1.0))
             .await?;
 
         Ok(())

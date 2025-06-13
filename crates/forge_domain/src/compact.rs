@@ -9,6 +9,11 @@ use crate::{Context, ModelId, Role};
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option, into)]
 pub struct Compact {
+    /// Number of most recent messages to preserve during compaction
+    /// These messages won't be considered for summarization
+    #[merge(strategy = crate::merge::std::overwrite)]
+    pub retention_window: usize,
+
     /// Maximum percentage of the context that can be summarized during
     /// compaction. Valid values are between 0.0 and 1.0, where 0.0 means no
     /// compaction and 1.0 allows summarizing all messages.
@@ -95,6 +100,7 @@ impl Compact {
             summary_tag: None,
             model,
             percentage: 0.2, // Default to 20% compaction
+            retention_window: 0,
         }
     }
 
@@ -137,7 +143,7 @@ impl Compact {
 /// Finds a sequence in the context for compaction, starting from the first
 /// assistant message and including all messages up to the last possible message
 /// (respecting preservation window)
-pub fn find_compact_sequence(context: &Context, preserve_last_n: usize) -> Option<(usize, usize)> {
+pub fn find_sequence_preserving_last_n(context: &Context, preserve_last_n: usize) -> Option<(usize, usize)> {
     let messages = &context.messages;
     if messages.is_empty() {
         return None;
@@ -245,7 +251,7 @@ mod tests {
             }
         }
 
-        let sequence = find_compact_sequence(&context, preserve_last_n);
+        let sequence = find_sequence_preserving_last_n(&context, preserve_last_n);
 
         let mut result = pattern.clone();
         if let Some((start, end)) = sequence {

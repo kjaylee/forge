@@ -28,6 +28,7 @@ agents:
       model: *advanced_model
       percentage: 0.2
       message_threshold: 200
+      retention_window: 6
       prompt: "{{> system-prompt-context-summarizer.hbs }}"
     model: *advanced_model
     system_prompt: |-
@@ -68,6 +69,7 @@ agents:
       model: *advanced_model
       percentage: 0.2
       message_threshold: 200
+      retention_window: 6
       prompt: "{{> system-prompt-context-summarizer.hbs }}"
     model: *advanced_model
     system_prompt: |-
