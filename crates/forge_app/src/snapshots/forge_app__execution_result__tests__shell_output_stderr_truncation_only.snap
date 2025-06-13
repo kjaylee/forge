@@ -18,13 +18,11 @@ expression: to_value(actual)
 </stderr_line_range>
 </full_content_file>
 <stdout>
-<truncated>true</truncated>
 <displayed_lines>0</displayed_lines>
 <total_lines>0</total_lines>
 <content><![CDATA[]]></content>
 </stdout>
 <stderr>
-<truncated>true</truncated>
 <displayed_lines>20</displayed_lines>
 <total_lines>25</total_lines>
 <content><![CDATA[stderr line 1

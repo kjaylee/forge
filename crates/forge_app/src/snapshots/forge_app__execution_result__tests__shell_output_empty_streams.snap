@@ -9,13 +9,11 @@ expression: to_value(actual)
 <exit_code>0</exit_code>
 </metadata>
 <stdout>
-<truncated>true</truncated>
 <displayed_lines>0</displayed_lines>
 <total_lines>0</total_lines>
 <content><![CDATA[]]></content>
 </stdout>
 <stderr>
-<truncated>true</truncated>
 <displayed_lines>0</displayed_lines>
 <total_lines>0</total_lines>
 <content><![CDATA[]]></content>
