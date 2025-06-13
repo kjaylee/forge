@@ -55,7 +55,7 @@ custom_rules: |-
   Running Tests:
   - We use `insta` to run tests:
   ```
-  cargo insta test --accept --unreferenced=delete
+  cargo insta test --accept --unreferenced=delete --force-update-snapshots
   ```
 
   Verification:
