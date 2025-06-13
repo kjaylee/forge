@@ -85,23 +85,18 @@ impl<S: Services> ToolRegistry<S> {
             .await?;
 
         // Collect responses from the agent
-        let mut agent_result = String::new();
         while let Some(message) = response_stream.next().await {
             let message = message?;
             match &message {
-                ChatResponse::Text { text, is_complete, .. } if *is_complete => {
-                    agent_result.push_str(text);
+                ChatResponse::Text { text, is_summary, .. } if *is_summary => {
+                    return Ok(ToolOutput::text(text));
                 }
-                _ => {}
+                _ => {
+                    context.send(message).await?;
+                }
             }
-            context.send(message).await?;
         }
-
-        if agent_result.is_empty() {
-            return Ok(ToolOutput::text("No response from agent"));
-        }
-
-        Ok(ToolOutput::text(agent_result))
+        Err(Error::EmptyToolResponse.into())
     }
 
     async fn call_internal(
