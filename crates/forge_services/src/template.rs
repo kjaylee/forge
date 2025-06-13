@@ -1,10 +1,10 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
 use forge_app::TemplateService;
 use handlebars::Handlebars;
 use rust_embed::Embed;
-use std::path::Path;
 use tokio::sync::RwLock;
 
 use crate::{FsReadService, Infrastructure};
