@@ -2,7 +2,22 @@
 source: crates/forge_app/src/execution_result.rs
 expression: to_value(actual)
 ---
-<shell_output><metadata><command><![CDATA[line_test_command]]></command><shell>/bin/bash</shell><exit_code>0</exit_code></metadata><stdout><truncated>true</truncated><displayed_lines>30</displayed_lines><total_lines>15</total_lines><truncation_info><head_lines>15</head_lines><tail_lines>15</tail_lines><omitted_lines>0</omitted_lines></truncation_info><content><![CDATA[stdout 1
+<shell_output>
+<metadata>
+<command><![CDATA[line_test_command]]></command>
+<shell>/bin/bash</shell>
+<exit_code>0</exit_code>
+</metadata>
+<stdout>
+<truncated>true</truncated>
+<displayed_lines>30</displayed_lines>
+<total_lines>15</total_lines>
+<truncation_info>
+<head_lines>15</head_lines>
+<tail_lines>15</tail_lines>
+<omitted_lines>0</omitted_lines>
+</truncation_info>
+<content><![CDATA[stdout 1
 stdout 2
 stdout 3
 stdout 4
@@ -16,7 +31,18 @@ stdout 11
 stdout 12
 stdout 13
 stdout 14
-stdout 15]]></content></stdout><stderr><truncated>true</truncated><displayed_lines>24</displayed_lines><total_lines>12</total_lines><truncation_info><head_lines>12</head_lines><tail_lines>12</tail_lines><omitted_lines>0</omitted_lines></truncation_info><content><![CDATA[stderr 1
+stdout 15]]></content>
+</stdout>
+<stderr>
+<truncated>true</truncated>
+<displayed_lines>24</displayed_lines>
+<total_lines>12</total_lines>
+<truncation_info>
+<head_lines>12</head_lines>
+<tail_lines>12</tail_lines>
+<omitted_lines>0</omitted_lines>
+</truncation_info>
+<content><![CDATA[stderr 1
 stderr 2
 stderr 3
 stderr 4
@@ -27,4 +53,6 @@ stderr 8
 stderr 9
 stderr 10
 stderr 11
-stderr 12]]></content></stderr></shell_output>
+stderr 12]]></content>
+</stderr>
+</shell_output>
