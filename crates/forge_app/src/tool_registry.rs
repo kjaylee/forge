@@ -87,7 +87,7 @@ impl<S: Services> ToolRegistry<S> {
             let message = message?;
             match &message {
                 ChatResponse::Text { text, is_complete, .. } if *is_complete => {
-                    agent_result.push_str(&text);
+                    agent_result.push_str(text);
                 }
                 _ => {}
             }
