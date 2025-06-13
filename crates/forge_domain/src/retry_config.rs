@@ -76,7 +76,7 @@ impl RetryConfig {
 fn should_retry(error: &anyhow::Error) -> bool {
     let retry = error
         .downcast_ref::<Error>()
-        .is_some_and(|error| matches!(error, Error::Retryable(_, _)));
+        .is_some_and(|error| matches!(error, Error::Retryable(_)));
 
     warn!(error = ?error, retry = retry, "Retrying on error");
     retry
@@ -131,10 +131,9 @@ mod tests {
             .retry(|| async {
                 let mut count = call_count_clone.lock().unwrap();
                 *count += 1;
-                Err(anyhow::anyhow!(Error::Retryable(
-                    1,
-                    anyhow::anyhow!("Test retryable error")
-                )))
+                Err(anyhow::anyhow!(Error::Retryable(anyhow::anyhow!(
+                    "Test retryable error"
+                ))))
             })
             .await;
 
