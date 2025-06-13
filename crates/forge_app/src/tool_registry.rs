@@ -133,10 +133,11 @@ impl<S: Services> ToolRegistry<S> {
                     .services
                     .fs_create_service()
                     .create(input.path.clone(), input.content, input.overwrite, true)
+                    .await;
+                send_write_context(context, out.as_ref(), &input.path, self.services.as_ref())
                     .await?;
-                send_write_context(context, &out, &input.path, self.services.as_ref()).await?;
 
-                Ok(crate::execution_result::ExecutionResult::from(out))
+                Ok(crate::execution_result::ExecutionResult::from(out?))
             }
             Tools::ForgeToolFsSearch(input) => {
                 let output = self
@@ -482,34 +483,43 @@ async fn send_fs_search_context<S: Services>(
 
 async fn send_write_context<S: Services>(
     ctx: &mut ToolCallContext,
-    out: &FsCreateOutput,
+    out: Result<&FsCreateOutput, &anyhow::Error>,
     path: &str,
     services: &S,
 ) -> anyhow::Result<()> {
     let env = services.environment_service().get_environment();
-    let formatted_path = display_path(&env, Path::new(&out.path));
-    let new_content = services
-        .fs_read_service()
-        .read(path.to_string(), None, None)
-        .await?;
-    let exists = out.previous.is_some();
+    let formatted_path = display_path(&env, Path::new(path));
+    match out {
+        Ok(out) => {
+            let new_content = services
+                .fs_read_service()
+                .read(path.to_string(), None, None)
+                .await?;
+            let exists = out.previous.is_some();
 
-    let title = if exists { "Overwrite" } else { "Create" };
+            let title = if exists { "Overwrite" } else { "Create" };
 
-    ctx.send_text(format!(
-        "{}",
-        TitleFormat::debug(title).sub_title(formatted_path)
-    ))
-    .await?;
+            ctx.send_text(format!(
+                "{}",
+                TitleFormat::debug(title).sub_title(formatted_path)
+            ))
+            .await?;
 
-    if let Some(old_content) = out.previous.as_ref() {
-        match new_content.content {
-            Content::File(new_content) => {
-                let diff = DiffFormat::format(old_content, &new_content);
-                ctx.send_text(diff).await?;
+            if let Some(old_content) = out.previous.as_ref() {
+                match new_content.content {
+                    Content::File(new_content) => {
+                        let diff = DiffFormat::format(old_content, &new_content);
+                        ctx.send_text(diff).await?;
+                    }
+                }
             }
         }
+        Err(_) => {
+            ctx.send_text(TitleFormat::error("Write Failed").sub_title(formatted_path))
+                .await?;
+        }
     }
+
     Ok(())
 }
 
