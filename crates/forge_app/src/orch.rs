@@ -191,7 +191,10 @@ impl<S: AgentService> Orchestrator<S> {
                 supports_parallel_tool_calls,
             };
 
-            let system_message = self.services.render(system_prompt.template.as_str(), &ctx).await?;
+            let system_message = self
+                .services
+                .render(system_prompt.template.as_str(), &ctx)
+                .await?;
 
             context.set_first_system_message(system_message)
         } else {
@@ -262,7 +265,9 @@ impl<S: AgentService> Orchestrator<S> {
         context = self.set_system_prompt(context, &agent, &variables).await?;
 
         // Render user prompts
-        context = self.set_user_prompt(context, &agent, &variables, event).await?;
+        context = self
+            .set_user_prompt(context, &agent, &variables, event)
+            .await?;
 
         if let Some(temperature) = agent.temperature {
             context = context.temperature(temperature);
@@ -371,12 +376,15 @@ impl<S: AgentService> Orchestrator<S> {
             if empty_tool_calls {
                 // No tool calls present, which doesn't mean task is complete so reprompt the
                 // agent to ensure the task complete.
-                let content = self.services.render(
-                    "{{> partial-tool-required.hbs}}",
-                    &serde_json::json!({
-                        "tool_supported": tool_supported
-                    }),
-                ).await?;
+                let content = self
+                    .services
+                    .render(
+                        "{{> partial-tool-required.hbs}}",
+                        &serde_json::json!({
+                            "tool_supported": tool_supported
+                        }),
+                    )
+                    .await?;
                 context =
                     context.add_message(ContextMessage::user(content, model_id.clone().into()));
 
@@ -423,7 +431,9 @@ impl<S: AgentService> Orchestrator<S> {
                         .to_string(),
                 );
             debug!(event_context = ?event_context, "Event context");
-            self.services.render(user_prompt.template.as_str(), &event_context).await?
+            self.services
+                .render(user_prompt.template.as_str(), &event_context)
+                .await?
         } else {
             // Use the raw event value as content if no user_prompt is provided
             event.value.to_string()
