@@ -21,7 +21,7 @@ impl SnapshotService {
 
 impl SnapshotService {
     pub async fn create_snapshot(&self, path: PathBuf) -> Result<Snapshot> {
-        let snapshot = Snapshot::create(path).await?;
+        let snapshot = Snapshot::create(path)?;
 
         // Create intermediary directories if they don't exist
         let snapshot_path = snapshot.snapshot_path(Some(self.snapshots_directory.clone()));
@@ -57,7 +57,7 @@ impl SnapshotService {
     }
 
     pub async fn undo_snapshot(&self, path: PathBuf) -> Result<()> {
-        let snapshot = Snapshot::create(path.clone()).await?;
+        let snapshot = Snapshot::create(path.clone())?;
 
         // All the snaps for `path` are stored in `snapshot.path_hash()` directory.
         let snapshot_dir = self.snapshots_directory.join(snapshot.path_hash());

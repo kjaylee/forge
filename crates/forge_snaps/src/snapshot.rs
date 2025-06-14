@@ -63,7 +63,7 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
-    pub async fn create(path: PathBuf) -> anyhow::Result<Self> {
+    pub fn create(path: PathBuf) -> anyhow::Result<Self> {
         let path = path.canonicalize()?;
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?;
 
