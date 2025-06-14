@@ -64,7 +64,13 @@ pub struct Snapshot {
 
 impl Snapshot {
     pub fn create(path: PathBuf) -> anyhow::Result<Self> {
-        let path = path.canonicalize()?;
+        let path = path.canonicalize().unwrap_or_else(|_| {
+            if path.is_absolute() {
+            path.clone()
+            } else {
+            std::env::current_dir().unwrap().join(&path)
+            }
+        });
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?;
 
         Ok(Self {
