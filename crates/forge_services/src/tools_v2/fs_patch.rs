@@ -64,13 +64,13 @@ enum Error {
 }
 
 fn apply_replacement(
-    source: String,
+    haystack: String,
     search: Option<String>,
     operation: &PatchOperation,
     content: &str,
 ) -> Result<String, Error> {
     // Handle empty search string - only certain operations make sense here
-    if let Some(search) = search.and_then(|content| {
+    if let Some(needle) = search.and_then(|content| {
         if content.is_empty() {
             None // Empty search is not valid for matching
         } else {
@@ -78,39 +78,39 @@ fn apply_replacement(
         }
     }) {
         // Find the exact match to operate on
-        let patch = Range::find_exact(&source, search.as_str())
-            .ok_or_else(|| Error::NoMatch(search.to_string()))?;
+        let patch = Range::find_exact(&haystack, needle.as_str())
+            .ok_or_else(|| Error::NoMatch(needle.to_string()))?;
 
         // Apply the operation based on its type
         match operation {
             // Prepend content before the matched text
             PatchOperation::Prepend => Ok(format!(
-                "{}{}{}",
-                &source[..patch.start],
+                "{}\n{}\n{}",
+                &haystack[..patch.start],
                 content,
-                &source[patch.start..]
+                &haystack[patch.start..]
             )),
 
             // Append content after the matched text
             PatchOperation::Append => Ok(format!(
-                "{}{}{}",
-                &source[..patch.end()],
+                "{}\n{}\n{}",
+                &haystack[..patch.end()],
                 content,
-                &source[patch.end()..]
+                &haystack[patch.end()..]
             )),
 
             // Replace matched text with new content
             PatchOperation::Replace => Ok(format!(
-                "{}{}{}",
-                &source[..patch.start],
+                "{}\n{}\n{}",
+                &haystack[..patch.start],
                 content,
-                &source[patch.end()..]
+                &haystack[patch.end()..]
             )),
 
             // Swap with another text in the source
             PatchOperation::Swap => {
                 // Find the target text to swap with
-                let target_patch = Range::find_exact(&source, content)
+                let target_patch = Range::find_exact(&haystack, content)
                     .ok_or_else(|| Error::NoSwapTarget(content.to_string()))?;
 
                 // Handle the case where patches overlap
@@ -119,10 +119,10 @@ fn apply_replacement(
                 {
                     // For overlapping ranges, we just do an ordinary replacement
                     return Ok(format!(
-                        "{}{}{}",
-                        &source[..patch.start],
+                        "{}\n{}\n{}",
+                        &haystack[..patch.start],
                         content,
-                        &source[patch.end()..]
+                        &haystack[patch.end()..]
                     ));
                 }
 
@@ -130,22 +130,22 @@ fn apply_replacement(
                 if patch.start < target_patch.start {
                     // Original text comes first
                     Ok(format!(
-                        "{}{}{}{}{}",
-                        &source[..patch.start],
+                        "{}\n{}\n{}\n{}\n{}",
+                        &haystack[..patch.start],
                         content,
-                        &source[patch.end()..target_patch.start],
-                        &source[patch.start..patch.end()],
-                        &source[target_patch.end()..]
+                        &haystack[patch.end()..target_patch.start],
+                        &haystack[patch.start..patch.end()],
+                        &haystack[target_patch.end()..]
                     ))
                 } else {
                     // Target text comes first
                     Ok(format!(
-                        "{}{}{}{}{}",
-                        &source[..target_patch.start],
-                        &source[patch.start..patch.end()],
-                        &source[target_patch.end()..patch.start],
+                        "{}\n{}\n{}\n{}\n{}",
+                        &haystack[..target_patch.start],
+                        &haystack[patch.start..patch.end()],
+                        &haystack[target_patch.end()..patch.start],
                         content,
-                        &source[patch.end()..]
+                        &haystack[patch.end()..]
                     ))
                 }
             }
@@ -153,13 +153,13 @@ fn apply_replacement(
     } else {
         match operation {
             // Append to the end of the file
-            PatchOperation::Append => Ok(format!("{source}{content}")),
+            PatchOperation::Append => Ok(format!("{haystack}\n{content}")),
             // Prepend to the beginning of the file
-            PatchOperation::Prepend => Ok(format!("{content}{source}")),
+            PatchOperation::Prepend => Ok(format!("{content}\n{haystack}")),
             // Replace is equivalent to completely replacing the file
             PatchOperation::Replace => Ok(content.to_string()),
             // Swap doesn't make sense with empty search - keep source unchanged
-            PatchOperation::Swap => Ok(source),
+            PatchOperation::Swap => Ok(haystack),
         }
     }
 }

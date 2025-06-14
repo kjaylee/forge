@@ -191,19 +191,19 @@ pub enum PatchOperation {
     Swap,
 }
 
-/// Modifies files with targeted text operations on matched patterns. Supports
+/// Modifies files with targeted line operations on matched patterns. Supports
 /// prepend, append, replace, swap, delete operations on first pattern
 /// occurrence. Ideal for precise changes to configs, code, or docs while
 /// preserving context. Not suitable for complex refactoring or modifying all
-/// pattern occurrences - use forge_tool_fs_create instead for complete
-/// rewrites and forge_tool_fs_undo for undoing the last operation. Fails if
+/// pattern occurrences - use `forge_tool_fs_create` instead for complete
+/// rewrites and `forge_tool_fs_undo` for undoing the last operation. Fails if
 /// search pattern isn't found.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
 pub struct FSPatch {
     /// The path to the file to modify
     pub path: String,
 
-    /// The exact text including new lines to search for in the file. When
+    /// The exact line to search for in the file. When
     /// skipped the patch operation applies to the entire content. `Append` adds
     /// the new content to the end, `Prepend` adds it to the beginning, and
     /// `Replace` fully overwrites the original content. `Swap` requires a
@@ -214,8 +214,8 @@ pub struct FSPatch {
     /// 'prepend', 'append', 'replace', and 'swap'.
     pub operation: PatchOperation,
 
-    /// The content to use for the operation (replacement text, text to
-    /// prepend/append, or target text for swap operations)
+    /// The content to use for the operation (replacement text, line to
+    /// prepend/append, or target line for swap operations)
     pub content: String,
 
     /// One sentence explanation as to why this tool is being used, and how it
