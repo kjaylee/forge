@@ -48,7 +48,6 @@ impl crate::ForgeFS {
         let content = tokio::fs::read_to_string(path_ref)
             .await
             .with_context(|| format!("Failed to read file content from {}", path_ref.display()))?;
-
         if start_line < 2 && content.is_empty() {
             // If the file is empty, return empty content
             return Ok((String::new(), FileInfo::new(start_line, end_line, 0)));
