@@ -243,4 +243,211 @@ mod tests {
         let result = super::apply_replacement(source.to_string(), search, &operation, &content);
         assert_eq!(result.unwrap(), "a\nb\nc\nd");
     }
+
+    #[test]
+    fn test_apply_replacement_prepend_no_search() {
+        let source = "hello world";
+        let search = None;
+        let operation = PatchOperation::Prepend;
+        let content = "prefix ";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "prefix hello world");
+    }
+
+    #[test]
+    fn test_apply_replacement_append() {
+        let source = "hello world";
+        let search = Some("hello".to_string());
+        let operation = PatchOperation::Append;
+        let content = " there";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "hello there world");
+    }
+
+    #[test]
+    fn test_apply_replacement_append_no_search() {
+        let source = "hello world";
+        let search = None;
+        let operation = PatchOperation::Append;
+        let content = " suffix";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "hello world suffix");
+    }
+
+    #[test]
+    fn test_apply_replacement_replace() {
+        let source = "hello world";
+        let search = Some("world".to_string());
+        let operation = PatchOperation::Replace;
+        let content = "universe";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "hello universe");
+    }
+
+    #[test]
+    fn test_apply_replacement_replace_no_search() {
+        let source = "hello world";
+        let search = None;
+        let operation = PatchOperation::Replace;
+        let content = "new content";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "new content");
+    }
+
+    #[test]
+    fn test_apply_replacement_swap() {
+        let source = "apple banana cherry";
+        let search = Some("apple".to_string());
+        let operation = PatchOperation::Swap;
+        let content = "banana";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "banana apple cherry");
+    }
+
+    #[test]
+    fn test_apply_replacement_swap_reverse_order() {
+        let source = "apple banana cherry";
+        let search = Some("banana".to_string());
+        let operation = PatchOperation::Swap;
+        let content = "apple";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "banana apple cherry");
+    }
+
+    #[test]
+    fn test_apply_replacement_swap_overlapping() {
+        let source = "abcdef";
+        let search = Some("abc".to_string());
+        let operation = PatchOperation::Swap;
+        let content = "cde";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "cdedef");
+    }
+
+    #[test]
+    fn test_apply_replacement_swap_no_search() {
+        let source = "hello world";
+        let search = None;
+        let operation = PatchOperation::Swap;
+        let content = "anything";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_apply_replacement_multiline() {
+        let source = "line1\nline2\nline3";
+        let search = Some("line2".to_string());
+        let operation = PatchOperation::Replace;
+        let content = "replaced_line";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "line1\nreplaced_line\nline3");
+    }
+
+    #[test]
+    fn test_apply_replacement_with_special_chars() {
+        let source = "hello $world @test";
+        let search = Some("$world".to_string());
+        let operation = PatchOperation::Replace;
+        let content = "$universe";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "hello $universe @test");
+    }
+
+    #[test]
+    fn test_apply_replacement_empty_content() {
+        let source = "hello world test";
+        let search = Some("world ".to_string());
+        let operation = PatchOperation::Replace;
+        let content = "";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "hello test");
+    }
+
+    #[test]
+    fn test_apply_replacement_first_occurrence_only() {
+        let source = "test test test";
+        let search = Some("test".to_string());
+        let operation = PatchOperation::Replace;
+        let content = "replaced";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "replaced test test");
+    }
+
+    // Error cases
+    #[test]
+    fn test_apply_replacement_no_match() {
+        let source = "hello world";
+        let search = Some("missing".to_string());
+        let operation = PatchOperation::Replace;
+        let content = "replacement";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find match for search text: missing"));
+    }
+
+    #[test]
+    fn test_apply_replacement_swap_no_target() {
+        let source = "hello world";
+        let search = Some("hello".to_string());
+        let operation = PatchOperation::Swap;
+        let content = "missing";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find swap target text: missing"));
+    }
+
+    #[test]
+    fn test_apply_replacement_edge_case_same_text() {
+        let source = "hello hello";
+        let search = Some("hello".to_string());
+        let operation = PatchOperation::Swap;
+        let content = "hello";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "hello hello");
+    }
+
+    #[test]
+    fn test_apply_replacement_whitespace_handling() {
+        let source = "  hello   world  ";
+        let search = Some("hello   world".to_string());
+        let operation = PatchOperation::Replace;
+        let content = "test";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "  test  ");
+    }
+
+    #[test]
+    fn test_apply_replacement_unicode() {
+        let source = "héllo wørld 🌍";
+        let search = Some("wørld".to_string());
+        let operation = PatchOperation::Replace;
+        let content = "univérse";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "héllo univérse 🌍");
+    }
 }
