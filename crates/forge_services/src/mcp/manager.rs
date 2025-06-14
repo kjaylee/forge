@@ -22,7 +22,7 @@ impl<I: Infrastructure> ForgeMcpManager<I> {
         let config = self
             .infra
             .file_read_service()
-            .read_utf8(path, u64::MAX)
+            .read_utf8(path)
             .await?;
         Ok(serde_json::from_str(&config)?)
     }

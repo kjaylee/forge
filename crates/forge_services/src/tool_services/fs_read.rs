@@ -74,9 +74,16 @@ impl<F: Infrastructure> FsReadService for ForgeFsRead<F> {
         let (content, file_info) = self
             .0
             .file_read_service()
-            .range_read_utf8(path, start_line, end_line, env.max_file_size)
+            .range_read_utf8(path, start_line, end_line)
             .await
             .with_context(|| format!("Failed to read file content from {}", path.display()))?;
+
+        if content.len() > env.max_file_size as usize {
+            return Err(anyhow::anyhow!(
+                "File size exceeds the maximum allowed size of {} bytes",
+                env.max_file_size
+            ));
+        }
 
         Ok(ReadOutput {
             content: Content::File(content),

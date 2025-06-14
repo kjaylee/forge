@@ -73,7 +73,7 @@ impl SnapshotService {
             .context(format!("No valid snapshots found for {path:?}"))?;
 
         // Restore the content
-        let content = ForgeFS::read(&snapshot_path, u64::MAX).await?;
+        let content = ForgeFS::read(&snapshot_path).await?;
         ForgeFS::write(&path, content).await?;
 
         // Remove the used snapshot
@@ -122,7 +122,7 @@ mod tests {
         }
 
         async fn read_content(&self) -> Result<String> {
-            let content = ForgeFS::read(&self.test_file, u64::MAX).await?;
+            let content = ForgeFS::read(&self.test_file).await?;
             Ok(String::from_utf8(content)?)
         }
 
@@ -146,7 +146,7 @@ mod tests {
         let snapshot = ctx.create_snapshot().await?;
 
         // Assert
-        let snapshot_content = ForgeFS::read(&snapshot.path, u64::MAX).await?;
+        let snapshot_content = ForgeFS::read(&snapshot.path).await?;
         assert_eq!(String::from_utf8(snapshot_content)?, test_content);
 
         Ok(())

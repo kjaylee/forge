@@ -25,11 +25,11 @@ impl<F: Infrastructure> FsUndoService for ForgeFsUndo<F> {
         let path = Path::new(&path);
         assert_absolute_path(path)?;
         if self.0.file_meta_service().exists(path).await? {
-            output.before_undo = Some(self.0.file_read_service().read_utf8(path, u64::MAX).await?);
+            output.before_undo = Some(self.0.file_read_service().read_utf8(path).await?);
         }
         self.0.file_snapshot_service().undo_snapshot(path).await?;
         if self.0.file_meta_service().exists(path).await? {
-            output.after_undo = Some(self.0.file_read_service().read_utf8(path, u64::MAX).await?);
+            output.after_undo = Some(self.0.file_read_service().read_utf8(path).await?);
         }
 
         Ok(output)

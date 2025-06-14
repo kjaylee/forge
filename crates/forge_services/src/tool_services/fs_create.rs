@@ -61,7 +61,7 @@ impl<F: Infrastructure> FsCreateService for ForgeFsCreate<F> {
 
         // record the file content before they're modified
         let old_content = if file_exists && overwrite {
-            Some(self.0.file_read_service().read_utf8(path, u64::MAX).await?)
+            Some(self.0.file_read_service().read_utf8(path).await?)
         } else {
             None
         };

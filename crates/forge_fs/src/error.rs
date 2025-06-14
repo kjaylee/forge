@@ -17,9 +17,6 @@ pub enum Error {
     #[error("Start position {start} is greater than end position {end}")]
     StartGreaterThanEnd { start: u64, end: u64 },
 
-    #[error("File size {size} exceeds the maximum allowed size of {max} bytes")]
-    FileTooLarge { size: u64, max: u64 },
-
     #[error("UTF-8 validation failed: {0}")]
     Utf8ValidationFailed(#[from] FromUtf8Error),
 

@@ -22,7 +22,6 @@ impl crate::ForgeFS {
         path: T,
         start_line: u64,
         end_line: u64,
-        max_limit: u64,
     ) -> Result<(String, FileInfo)> {
         let path_ref = path.as_ref();
 
@@ -35,13 +34,6 @@ impl crate::ForgeFS {
         let mut file = tokio::fs::File::open(path_ref)
             .await
             .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
-
-        // First try to get metadata to check file size
-        if let Ok(metadata) = file.metadata().await {
-            if metadata.len() > max_limit {
-                return Err(Error::FileTooLarge { size: metadata.len(), max: max_limit }.into());
-            }
-        }
 
         if start_line == 0 || end_line == 0 {
             return Err(Error::IndexStartingWithZero { start: start_line, end: end_line }.into());
@@ -56,12 +48,6 @@ impl crate::ForgeFS {
         let content = tokio::fs::read_to_string(path_ref)
             .await
             .with_context(|| format!("Failed to read file content from {}", path_ref.display()))?;
-
-        // In case we were unable to extract metadata, we can still check the content
-        // length
-        if content.len() > max_limit as usize {
-            return Err(Error::FileTooLarge { size: content.len() as u64, max: max_limit }.into());
-        }
 
         if start_line < 2 && content.is_empty() {
             // If the file is empty, return empty content
@@ -103,7 +89,6 @@ mod test {
     use anyhow::Result;
     use pretty_assertions::assert_eq;
     use tokio::fs;
-    const MAX_FILE_SIZE: u64 = 256 << 10; // 256 KB
 
     // Helper to create a temporary file with test content
     async fn create_test_file(content: &str) -> Result<tempfile::NamedTempFile> {
@@ -119,65 +104,53 @@ mod test {
         let file = create_test_file(content).await?;
 
         // Test reading a range of lines
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), 2, 5, MAX_FILE_SIZE).await?;
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), 2, 5).await?;
         assert_eq!(result, "Line 2\nLine 3\nLine 4\nLine 5");
         assert_eq!(info.start_line, 2);
         assert_eq!(info.end_line, 5);
         assert_eq!(info.total_lines, 10);
 
         // Test reading from start
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), 1, 3, MAX_FILE_SIZE).await?;
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), 1, 3).await?;
         assert_eq!(result, "Line 1\nLine 2\nLine 3");
         assert_eq!(info.start_line, 1);
         assert_eq!(info.end_line, 3);
 
         // Test reading to end
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), 8, 10, MAX_FILE_SIZE).await?;
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), 8, 10).await?;
         assert_eq!(result, "Line 8\nLine 9\nLine 10");
         assert_eq!(info.start_line, 8);
         assert_eq!(info.end_line, 10);
 
         // Test reading entire file
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), 1, 10, MAX_FILE_SIZE).await?;
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), 1, 10).await?;
         assert_eq!(result, content);
         assert_eq!(info.start_line, 1);
         assert_eq!(info.end_line, 10);
 
         // Test single line
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), 5, 5, MAX_FILE_SIZE).await?;
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), 5, 5).await?;
         assert_eq!(result, "Line 5");
         assert_eq!(info.start_line, 5);
         assert_eq!(info.end_line, 5);
 
         // Test first line specifically
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), 1, 1, MAX_FILE_SIZE).await?;
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), 1, 1).await?;
         assert_eq!(result, "Line 1");
         assert_eq!(info.start_line, 1);
         assert_eq!(info.end_line, 1);
         assert_eq!(info.total_lines, 10);
 
         // Test invalid ranges
-        assert!(
-            crate::ForgeFS::read_range_utf8(file.path(), 8, 5, MAX_FILE_SIZE)
-                .await
-                .is_err()
-        );
-        assert!(
-            crate::ForgeFS::read_range_utf8(file.path(), 15, 10, MAX_FILE_SIZE)
-                .await
-                .is_err()
-        );
-        assert!(
-            crate::ForgeFS::read_range_utf8(file.path(), 0, 5, MAX_FILE_SIZE)
-                .await
-                .is_err()
-        );
+        assert!(crate::ForgeFS::read_range_utf8(file.path(), 8, 5)
+            .await
+            .is_err());
+        assert!(crate::ForgeFS::read_range_utf8(file.path(), 15, 10)
+            .await
+            .is_err());
+        assert!(crate::ForgeFS::read_range_utf8(file.path(), 0, 5)
+            .await
+            .is_err());
 
         Ok(())
     }
@@ -188,8 +161,7 @@ mod test {
         let file = create_test_file(content).await?;
 
         // Test reading a range that includes multi-byte characters
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), 2, 3, MAX_FILE_SIZE).await?;
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), 2, 3).await?;
         assert_eq!(result, "こんにちは 世界!\nПривет мир!");
         assert_eq!(info.start_line, 2);
         assert_eq!(info.end_line, 3);

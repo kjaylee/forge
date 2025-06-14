@@ -55,14 +55,11 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
         //NOTE: Attachments should not be truncated since they are provided by the user
         let content = match mime_type {
             Some(mime_type) => AttachmentContent::Image(Image::new_bytes(
-                self.infra.file_read_service().read(&path, u64::MAX).await?,
+                self.infra.file_read_service().read(&path).await?,
                 mime_type,
             )),
             None => AttachmentContent::FileContent(
-                self.infra
-                    .file_read_service()
-                    .read_utf8(&path, u64::MAX)
-                    .await?,
+                self.infra.file_read_service().read_utf8(&path).await?,
             ),
         };
 
@@ -162,7 +159,7 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl FsReadService for MockFileService {
-        async fn read_utf8(&self, path: &Path, _: u64) -> anyhow::Result<String> {
+        async fn read_utf8(&self, path: &Path) -> anyhow::Result<String> {
             let files = self.files.lock().unwrap();
             match files.iter().find(|v| v.0 == path) {
                 Some((_, content)) => {
@@ -174,7 +171,7 @@ pub mod tests {
             }
         }
 
-        async fn read(&self, path: &Path, _: u64) -> anyhow::Result<Vec<u8>> {
+        async fn read(&self, path: &Path) -> anyhow::Result<Vec<u8>> {
             let files = self.files.lock().unwrap();
             match files.iter().find(|v| v.0 == path) {
                 Some((_, content)) => Ok(content.to_vec()),
@@ -187,10 +184,9 @@ pub mod tests {
             path: &Path,
             _start_line: u64,
             _end_line: u64,
-            max_size: u64,
         ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
             // For tests, we'll just read the entire file and return it
-            let content = self.read_utf8(path, max_size).await?;
+            let content = self.read_utf8(path).await?;
             let lines: Vec<&str> = content.lines().collect();
             let total_lines = lines.len() as u64;
 

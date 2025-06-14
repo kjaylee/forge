@@ -530,7 +530,7 @@ impl<F: API> UI<F> {
                 // We need to try and get the conversation ID first before fetching the model
                 let id = if let Some(ref path) = self.cli.conversation {
                     let conversation: Conversation = serde_json::from_str(
-                        ForgeFS::read_utf8(path.as_os_str(), u64::MAX)
+                        ForgeFS::read_utf8(path.as_os_str())
                             .await?
                             .as_str(),
                     )

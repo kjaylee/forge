@@ -109,7 +109,7 @@ impl Snapshot {
     }
 
     pub async fn save(&self, path: Option<PathBuf>) -> anyhow::Result<()> {
-        let content = ForgeFS::read(&self.path, u64::MAX).await?;
+        let content = ForgeFS::read(&self.path).await?;
         let path = self.snapshot_path(path);
         ForgeFS::write(path, content).await?;
         Ok(())
