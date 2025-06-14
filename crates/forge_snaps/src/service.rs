@@ -101,7 +101,12 @@ mod tests {
         async fn new() -> Result<Self> {
             let temp_dir = TempDir::new()?;
             let snapshots_dir = temp_dir.path().join("snapshots");
-            let test_file = temp_dir.path().join("test.txt");
+            // Canonicalize the temp directory path to ensure consistency
+            let temp_path = temp_dir
+                .path()
+                .canonicalize()
+                .unwrap_or_else(|_| temp_dir.path().to_path_buf());
+            let test_file = temp_path.join("test.txt");
             let service = SnapshotService::new(snapshots_dir.clone());
 
             Ok(Self {
@@ -196,13 +201,9 @@ mod tests {
         ctx.create_snapshot().await?;
         ForgeFS::remove_file(&ctx.test_file).await?;
 
-        // Assert
-        let result = ctx.undo_snapshot().await;
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("No snapshots found"));
+        // Assert - undo should succeed and recreate the file from snapshot
+        ctx.undo_snapshot().await?;
+        assert_eq!(ctx.read_content().await?, initial_content);
 
         Ok(())
     }
