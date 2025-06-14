@@ -244,10 +244,13 @@ impl<S: Services> ToolRegistry<S> {
     ) -> anyhow::Result<ToolOutput> {
         let tool_input = Tools::try_from(input).map_err(Error::CallArgument)?;
 
-        let out = self.call_internal(tool_input.clone(), context).await?;
+        let out = self.call_internal(tool_input.clone(), context).await;
+        if let Err(ref e) = out {
+            context.send_text(TitleFormat::error(e.to_string())).await?;
+        }
+        let out = out?;
         let truncation_path = out.to_create_temp(self.services.as_ref()).await?;
         let env = self.services.environment_service().get_environment();
-
         Ok(out.into_tool_output(tool_input, truncation_path, &env))
     }
 
@@ -294,9 +297,10 @@ impl<S: Services> ToolRegistry<S> {
         } else if self
             .services
             .mcp_service()
-            .find(&input.name)
+            .list()
             .await?
-            .is_some()
+            .iter()
+            .any(|tool| tool.name == input.name)
         {
             context
                 .send_text(TitleFormat::info("MCP").sub_title(input.name.as_str()))
