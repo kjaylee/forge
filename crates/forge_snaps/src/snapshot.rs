@@ -64,13 +64,16 @@ pub struct Snapshot {
 
 impl Snapshot {
     pub fn create(path: PathBuf) -> anyhow::Result<Self> {
-        let path = path.canonicalize().unwrap_or_else(|_| {
-            if path.is_absolute() {
-                path.clone()
-            } else {
-                std::env::current_dir().unwrap().join(&path)
+        let path = match path.canonicalize() {
+            Ok(p) => p,
+            Err(_) => {
+                if path.is_absolute() {
+                    path
+                } else {
+                    anyhow::bail!("Path must be absolute. Please provide an absolute path starting with '/' (Unix) or 'C:\\' (Windows)");
+                }
             }
-        });
+        };
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?;
 
         Ok(Self {
