@@ -3,6 +3,7 @@ use std::path::Path;
 use anyhow::Result;
 use forge_services::FsReadService;
 
+#[derive(Default)]
 pub struct ForgeFileReadService {}
 
 impl Default for ForgeFileReadService {

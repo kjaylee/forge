@@ -19,10 +19,10 @@ use tokio::time::timeout;
 use crate::error::Error;
 use crate::utils::{display_path, format_match};
 use crate::{
-    Content, ConversationService, EnvironmentService, FollowUpService, FsCreateOutput,
-    FsCreateService, FsPatchService, FsReadService, FsRemoveService, FsSearchService,
-    FsUndoService, HttpResponse, McpService, NetFetchService, PatchOutput, ReadOutput,
-    SearchResult, Services, ShellService, WorkflowService,
+    ConversationService, EnvironmentService, FollowUpService, FsCreateOutput, FsCreateService,
+    FsPatchService, FsReadService, FsRemoveService, FsSearchService, FsUndoService, HttpResponse,
+    McpService, NetFetchService, PatchOutput, ReadOutput, SearchResult, Services, ShellService,
+    WorkflowService,
 };
 
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
@@ -132,9 +132,9 @@ impl<S: Services> ToolRegistry<S> {
                 let out = self
                     .services
                     .fs_create_service()
-                    .create(input.path.clone(), input.content, input.overwrite, true)
+                    .create(input.path, input.content.clone(), input.overwrite, true)
                     .await?;
-                send_write_context(context, &out, &input.path, self.services.as_ref()).await?;
+                send_write_context(context, &out, &input.content, self.services.as_ref()).await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(out))
             }
@@ -487,15 +487,11 @@ async fn send_fs_search_context<S: Services>(
 async fn send_write_context<S: Services>(
     ctx: &mut ToolCallContext,
     out: &FsCreateOutput,
-    path: &str,
+    new_content: &str,
     services: &S,
 ) -> anyhow::Result<()> {
     let env = services.environment_service().get_environment();
     let formatted_path = display_path(&env, Path::new(&out.path));
-    let new_content = services
-        .fs_read_service()
-        .read(path.to_string(), None, None)
-        .await?;
     let exists = out.previous.is_some();
 
     let title = if exists { "Overwrite" } else { "Create" };
@@ -507,12 +503,8 @@ async fn send_write_context<S: Services>(
     .await?;
 
     if let Some(old_content) = out.previous.as_ref() {
-        match new_content.content {
-            Content::File(new_content) => {
-                let diff = DiffFormat::format(old_content, &new_content);
-                ctx.send_text(diff).await?;
-            }
-        }
+        let diff = DiffFormat::format(old_content, new_content);
+        ctx.send_text(diff).await?;
     }
     Ok(())
 }
