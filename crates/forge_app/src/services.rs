@@ -201,7 +201,7 @@ pub trait FsPatchService: Send + Sync {
     async fn patch(
         &self,
         path: String,
-        search: String,
+        search: Option<String>,
         operation: PatchOperation,
         content: String,
     ) -> anyhow::Result<PatchOutput>;

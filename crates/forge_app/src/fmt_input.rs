@@ -1,7 +1,8 @@
+use std::convert::AsRef;
+use std::path::Path;
+
 use forge_display::TitleFormat;
 use forge_domain::{Environment, Tools};
-use std::path::Path;
-use std::convert::AsRef;
 
 use crate::utils::display_path;
 

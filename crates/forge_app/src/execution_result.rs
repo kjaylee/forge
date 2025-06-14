@@ -981,7 +981,7 @@ mod tests {
 
         let input = Tools::ForgeToolFsPatch(forge_domain::FSPatch {
             path: "/home/user/test.txt".to_string(),
-            search: "world".to_string(),
+            search: Some("world".to_string()),
             operation: forge_domain::PatchOperation::Replace,
             content: "universe".to_string(),
             explanation: Some("Replacing world with universe".to_string()),
@@ -1004,7 +1004,7 @@ mod tests {
 
         let input = Tools::ForgeToolFsPatch(forge_domain::FSPatch {
             path: "/home/user/large_file.txt".to_string(),
-            search: "line1".to_string(),
+            search: Some("line1".to_string()),
             operation: forge_domain::PatchOperation::Append,
             content: "\nnew line".to_string(),
             explanation: Some("Adding new line after line1".to_string()),

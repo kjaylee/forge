@@ -204,7 +204,7 @@ pub struct FSPatch {
     pub path: String,
 
     /// The text to search for in the file. Skip to prepend at the beginning or
-    /// to append to the end of the file.
+    /// to append at the end of the file.
     pub search: Option<String>,
 
     /// The operation to perform on the matched text. Possible options are only
