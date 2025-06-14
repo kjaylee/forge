@@ -4,7 +4,7 @@ mod app;
 mod compact;
 mod error;
 mod execution_result;
-mod input_title;
+mod fmt_input;
 mod mcp_executor;
 mod orch;
 mod retry;

@@ -5,23 +5,23 @@ use forge_domain::{Environment, Tools};
 
 use crate::utils::display_path;
 
-pub enum Content {
+pub enum InputFormat {
     Title(TitleFormat),
     Summary(String),
 }
 
-impl From<TitleFormat> for Content {
+impl From<TitleFormat> for InputFormat {
     fn from(title: TitleFormat) -> Self {
-        Content::Title(title)
+        InputFormat::Title(title)
     }
 }
 
-pub trait InputTitle {
-    fn to_content(&self, env: &Environment) -> Content;
+pub trait FormatInput {
+    fn to_content(&self, env: &Environment) -> InputFormat;
 }
 
-impl InputTitle for Tools {
-    fn to_content(&self, env: &Environment) -> Content {
+impl FormatInput for Tools {
+    fn to_content(&self, env: &Environment) -> InputFormat {
         let display_path_for = |path: &str| display_path(env, Path::new(path));
 
         match self {
@@ -79,7 +79,7 @@ impl InputTitle for Tools {
             Tools::ForgeToolFollowup(input) => TitleFormat::debug("Follow-up")
                 .sub_title(&input.question)
                 .into(),
-            Tools::ForgeToolAttemptCompletion(input) => Content::Summary(input.result.clone()),
+            Tools::ForgeToolAttemptCompletion(input) => InputFormat::Summary(input.result.clone()),
         }
     }
 }
@@ -92,13 +92,13 @@ mod tests {
     use forge_domain::{Environment, FSRead, FSWrite, Shell, Tools};
     use pretty_assertions::assert_eq;
 
-    use super::{Content, InputTitle};
+    use super::{FormatInput, InputFormat};
 
-    impl Content {
+    impl InputFormat {
         pub fn render(&self, with_timestamp: bool) -> String {
             match self {
-                Content::Title(title) => title.render(with_timestamp),
-                Content::Summary(summary) => summary.clone(),
+                InputFormat::Title(title) => title.render(with_timestamp),
+                InputFormat::Summary(summary) => summary.clone(),
             }
         }
     }

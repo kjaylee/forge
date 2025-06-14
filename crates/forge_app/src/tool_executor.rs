@@ -5,7 +5,7 @@ use forge_domain::{ToolCallContext, ToolCallFull, ToolOutput, Tools};
 
 use crate::error::Error;
 use crate::execution_result::ExecutionResult;
-use crate::input_title::{Content, InputTitle};
+use crate::fmt_input::{FormatInput, InputFormat};
 use crate::{
     EnvironmentService, FollowUpService, FsCreateService, FsPatchService, FsReadService,
     FsRemoveService, FsSearchService, FsUndoService, NetFetchService, Services, ShellService,
@@ -110,8 +110,8 @@ impl<S: Services> ToolExecutor<S> {
         let tool_input = Tools::try_from(input).map_err(Error::CallArgument)?;
         let env = self.services.environment_service().get_environment();
         match tool_input.to_content(&env) {
-            Content::Title(title) => context.send_text(title).await?,
-            Content::Summary(summary) => context.send_summary(summary).await?,
+            InputFormat::Title(title) => context.send_text(title).await?,
+            InputFormat::Summary(summary) => context.send_summary(summary).await?,
         };
 
         // Send tool call information
