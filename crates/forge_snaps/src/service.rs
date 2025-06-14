@@ -186,6 +186,28 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_undo_snapshot_after_file_deletion() -> Result<()> {
+        // Arrange
+        let ctx = TestContext::new().await?;
+        let initial_content = "Initial content";
+
+        // Act
+        ctx.write_content(initial_content).await?;
+        ctx.create_snapshot().await?;
+        ForgeFS::remove_file(&ctx.test_file).await?;
+
+        // Assert
+        let result = ctx.undo_snapshot().await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("No snapshots found"));
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_multiple_snapshots() -> Result<()> {
         // Arrange
         let ctx = TestContext::new().await?;
