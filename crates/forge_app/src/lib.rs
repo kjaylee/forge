@@ -5,6 +5,7 @@ mod compact;
 mod error;
 mod execution_result;
 mod fmt_input;
+mod fmt_output;
 mod mcp_executor;
 mod orch;
 mod retry;
@@ -15,4 +16,5 @@ mod truncation;
 mod utils;
 
 pub use app::*;
+pub use fmt_output::*;
 pub use services::*;

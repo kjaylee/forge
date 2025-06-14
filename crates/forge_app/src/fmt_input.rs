@@ -28,12 +28,14 @@ impl FormatInput for Tools {
             Tools::ForgeToolFsRead(input) => {
                 let display_path = display_path_for(&input.path);
                 let is_explicit_range = input.start_line.is_some() || input.end_line.is_some();
-                let title = if is_explicit_range {
-                    "Read (Range)"
+                let subtitle = if is_explicit_range {
+                    let start = input.start_line.map_or("~".to_string(), |n| n.to_string());
+                    let end = input.end_line.map_or("~".to_string(), |n| n.to_string());
+                    format!("{} [Range {}-{}]", display_path, start, end)
                 } else {
-                    "Read"
+                    format!("{}", display_path)
                 };
-                TitleFormat::debug(title).sub_title(display_path).into()
+                TitleFormat::debug("Read").sub_title(subtitle).into()
             }
             Tools::ForgeToolFsCreate(input) => {
                 let display_path = display_path_for(&input.path);
@@ -162,7 +164,7 @@ mod tests {
         let actual_content = fixture.to_content(&env);
         let rendered = actual_content.render(false);
         let actual = strip_ansi_codes(&rendered);
-        let expected = "⏺ Read (Range) src/main.rs";
+        let expected = "⏺ Read src/main.rs [Range 10-20]";
 
         assert_eq!(actual, expected);
     }
