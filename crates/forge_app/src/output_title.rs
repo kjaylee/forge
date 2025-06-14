@@ -1,9 +1,10 @@
-use crate::execution_result::ExecutionResult;
-use crate::input_title::Content;
-use crate::utils::format_match;
 use forge_display::{DiffFormat, GrepFormat};
 use forge_domain::{Environment, Tools};
 use regex::Regex;
+
+use crate::execution_result::ExecutionResult;
+use crate::input_title::Content;
+use crate::utils::format_match;
 
 pub trait OutputTitle {
     fn to_content(&self, input: Tools, env: &Environment) -> Content;
@@ -27,7 +28,7 @@ impl OutputTitle for ExecutionResult {
                         output
                             .matches
                             .iter()
-                            .map(|v| format_match(v, &env))
+                            .map(|v| format_match(v, env))
                             .collect::<Vec<_>>(),
                     );
                     if let Some(regex) = input.regex.as_ref().and_then(|v| Regex::new(v).ok()) {

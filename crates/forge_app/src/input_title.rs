@@ -8,7 +8,7 @@ use crate::utils::display_path;
 pub enum Content {
     Title(TitleFormat),
     Summary(String),
-    None
+    None,
 }
 
 impl From<TitleFormat> for Content {
