@@ -112,3 +112,49 @@ impl Snapshot {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    use super::*;
+
+    #[test]
+    fn test_create_with_nonexistent_absolute_path() {
+        // Test with a non-existent absolute path
+        let nonexistent_path = PathBuf::from("/this/path/does/not/exist/file.txt");
+        let snapshot = Snapshot::create(nonexistent_path.clone()).unwrap();
+
+        assert!(!snapshot.id.to_string().is_empty());
+        assert!(snapshot.timestamp.as_secs() > 0);
+        // Should use the original absolute path since canonicalize fails
+        assert_eq!(snapshot.path, nonexistent_path.display().to_string());
+    }
+
+    #[test]
+    fn test_create_with_nonexistent_relative_path() {
+        // Test with a non-existent relative path
+        let nonexistent_path = PathBuf::from("nonexistent/file.txt");
+        let snapshot = Snapshot::create(nonexistent_path.clone()).unwrap();
+
+        assert!(!snapshot.id.to_string().is_empty());
+        assert!(snapshot.timestamp.as_secs() > 0);
+
+        // Should join with current directory since canonicalize fails and path is
+        // relative
+        let expected_path = env::current_dir().unwrap().join(&nonexistent_path);
+        assert_eq!(snapshot.path, expected_path.display().to_string());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_create_with_nonexistent_absolute_windows_path() {
+        // Test with Windows-style absolute path that doesn't exist
+        let nonexistent_path = PathBuf::from("C:\\nonexistent\\windows\\path\\file.txt");
+        let snapshot = Snapshot::create(nonexistent_path.clone()).unwrap();
+
+        assert!(!snapshot.id.to_string().is_empty());
+        assert!(snapshot.timestamp.as_secs() > 0);
+        assert_eq!(snapshot.path, nonexistent_path.display().to_string());
+    }
+}
