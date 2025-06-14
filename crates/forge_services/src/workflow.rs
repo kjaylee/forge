@@ -72,7 +72,11 @@ impl<F: Infrastructure> ForgeWorkflowService<F> {
 
             Ok(workflow)
         } else {
-            let content = self.infra.file_read_service().read_utf8(path, u64::MAX).await?;
+            let content = self
+                .infra
+                .file_read_service()
+                .read_utf8(path, u64::MAX)
+                .await?;
             let workflow: Workflow = serde_yml::from_str(&content)
                 .with_context(|| format!("Failed to parse workflow from {}", path.display()))?;
             Ok(workflow)

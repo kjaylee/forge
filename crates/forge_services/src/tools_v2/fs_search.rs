@@ -128,8 +128,9 @@ impl ForgeFsSearch {
                         matches.push(Match {
                             path: path_string.clone(),
                             result: Some(MatchResult::Found {
-                                line_number: line_num as usize, /* grep_searcher already returns
-                                                                 * 1-based line numbers */
+                                line_number: line_num as usize,    /* grep_searcher already
+                                                                    * returns
+                                                                    * 1-based line numbers */
                                 line: line.trim_end().to_string(), // Remove trailing newline
                             }),
                         });

@@ -5,6 +5,12 @@ use forge_services::FsReadService;
 
 pub struct ForgeFileReadService {}
 
+impl Default for ForgeFileReadService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ForgeFileReadService {
     pub fn new() -> Self {
         Self {}

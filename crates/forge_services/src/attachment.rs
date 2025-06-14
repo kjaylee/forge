@@ -59,7 +59,10 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
                 mime_type,
             )),
             None => AttachmentContent::FileContent(
-                self.infra.file_read_service().read_utf8(&path, u64::MAX).await?,
+                self.infra
+                    .file_read_service()
+                    .read_utf8(&path, u64::MAX)
+                    .await?,
             ),
         };
 
