@@ -118,8 +118,6 @@ impl Snapshot {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-
     use super::*;
 
     #[test]
