@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use strum::IntoEnumIterator;
-use strum_macros::{Display, EnumDiscriminants, EnumIter};
+use strum_macros::{AsRefStr, Display, EnumDiscriminants, EnumIter};
 
 use crate::{ToolCallFull, ToolDefinition, ToolDescription, ToolName};
 
@@ -173,7 +173,7 @@ pub struct FSRemove {
 }
 
 /// Operation types that can be performed on matched text
-#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, AsRefStr)]
 #[serde(rename_all = "snake_case")]
 pub enum PatchOperation {
     /// Prepend content before the matched text
@@ -203,9 +203,9 @@ pub struct FSPatch {
     /// The path to the file to modify
     pub path: String,
 
-    /// The text to search for in the source. If empty, operation applies to the
-    /// end of the file.
-    pub search: String,
+    /// The text to search for in the file. Skip to prepend at the beginning or
+    /// to append to the end of the file.
+    pub search: Option<String>,
 
     /// The operation to perform on the matched text. Possible options are only
     /// 'prepend', 'append', 'replace', and 'swap'.
