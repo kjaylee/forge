@@ -153,7 +153,7 @@ impl ForgeProvider {
                             Some(Err(error).with_context(|| format!("Http Status: {status_code}")))
                         }
                         error => {
-                            debug!(error = %error, "Failed to receive chat completion event");
+                            tracing::error!(error = ?error, "Failed to receive chat completion event");
                             Some(Err(error.into()))
                         }
                     },
