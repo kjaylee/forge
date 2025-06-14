@@ -78,12 +78,10 @@ fn apply_replacement(
     if let Some(needle) = search.and_then(|needle| {
         if needle.is_empty() {
             None // Empty search is not valid for matching
+        } else if needle.ends_with('\n') {
+            Some(needle)
         } else {
-            if needle.ends_with('\n') {
-                Some(needle)
-            } else {
-                Some(format!("{needle}\n")) // Ensure newline for appending
-            }
+            Some(format!("{needle}\n")) // Ensure newline for appending
         }
     }) {
         // Find the exact match to operate on
