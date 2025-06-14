@@ -23,9 +23,9 @@ impl<F: Infrastructure> FsUndoService for ForgeFsUndo<F> {
     async fn undo(&self, path: String) -> anyhow::Result<FsUndoOutput> {
         let path = Path::new(&path);
         assert_absolute_path(path)?;
-        let before_undo = self.0.file_read_service().read_utf8(path).await?;
+        let before_undo = self.0.file_read_service().read_utf8(path, u64::MAX).await?;
         self.0.file_snapshot_service().undo_snapshot(path).await?;
-        let after_undo = self.0.file_read_service().read_utf8(path).await?;
+        let after_undo = self.0.file_read_service().read_utf8(path, u64::MAX).await?;
 
         Ok(FsUndoOutput { before_undo, after_undo })
     }

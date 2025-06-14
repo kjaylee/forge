@@ -61,7 +61,7 @@ impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
             let content = self
                 .infra
                 .file_read_service()
-                .read_utf8(template_path)
+                .read_utf8(template_path, u64::MAX)
                 .await?;
             Ok::<_, anyhow::Error>((template_name.to_string(), content))
         });

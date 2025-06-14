@@ -57,7 +57,8 @@ impl crate::ForgeFS {
             .await
             .with_context(|| format!("Failed to read file content from {}", path_ref.display()))?;
 
-        // In case we were unable to extract metadata, we can still check the content length
+        // In case we were unable to extract metadata, we can still check the content
+        // length
         if content.len() > max_limit as usize {
             return Err(Error::FileTooLarge { size: content.len() as u64, max: max_limit }.into());
         }

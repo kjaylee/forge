@@ -34,7 +34,7 @@ impl ForgeInfra {
         let env = environment_service.get_environment();
         let file_snapshot_service = Arc::new(ForgeFileSnapshotService::new(env.clone()));
         Self {
-            file_read_service: Arc::new(ForgeFileReadService::new_with_limit(env.max_read_size)),
+            file_read_service: Arc::new(ForgeFileReadService::new()),
             file_write_service: Arc::new(ForgeFileWriteService::new(file_snapshot_service.clone())),
             file_meta_service: Arc::new(ForgeFileMetaService),
             file_remove_service: Arc::new(ForgeFileRemoveService::new(

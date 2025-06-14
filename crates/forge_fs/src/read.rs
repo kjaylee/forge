@@ -26,20 +26,10 @@ impl crate::ForgeFS {
 
         let mut buffer = vec![];
 
-        file.read(&mut buffer)
+        file.read_to_end(&mut buffer)
             .await
             .with_context(|| format!("Failed to read file {}", path.as_ref().display()))?;
 
         Ok(buffer)
-    }
-
-    pub async fn read_to_string<T: AsRef<Path>>(path: T, max_limit: u64) -> Result<String> {
-        let bytes = Self::read(path, max_limit).await?;
-        String::from_utf8(bytes).map_err(|e| {
-            anyhow::anyhow!(
-                "Failed to convert bytes to string: {}. File may not be UTF-8 encoded.",
-                e
-            )
-        })
     }
 }

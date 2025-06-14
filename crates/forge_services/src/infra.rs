@@ -16,11 +16,11 @@ use forge_snaps::Snapshot;
 pub trait FsReadService: Send + Sync {
     /// Reads the content of a file at the specified path.
     /// Returns the file content as a UTF-8 string.
-    async fn read_utf8(&self, path: &Path) -> anyhow::Result<String>;
+    async fn read_utf8(&self, path: &Path, max_size: u64) -> anyhow::Result<String>;
 
     /// Reads the content of a file at the specified path.
     /// Returns the file content as raw bytes.
-    async fn read(&self, path: &Path) -> anyhow::Result<Vec<u8>>;
+    async fn read(&self, path: &Path, max_size: u64) -> anyhow::Result<Vec<u8>>;
 
     /// Reads a specific line range from a file at the specified path.
     /// Returns the file content within the range as a UTF-8 string along with
@@ -41,6 +41,7 @@ pub trait FsReadService: Send + Sync {
         path: &Path,
         start_line: u64,
         end_line: u64,
+        max_size: u64,
     ) -> anyhow::Result<(String, forge_fs::FileInfo)>;
 }
 
