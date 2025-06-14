@@ -11,8 +11,6 @@ use tokio::fs;
 use crate::utils::assert_absolute_path;
 use crate::{FsWriteService, Infrastructure};
 
-// Removed fuzzy matching threshold as we only use exact matching now
-
 /// A match found in the source text. Represents a range in the source text that
 /// can be used for extraction or replacement operations. Stores the position
 /// and length to allow efficient substring operations.
@@ -69,19 +67,12 @@ fn apply_replacement(
     operation: &PatchOperation,
     content: &str,
 ) -> Result<String, Error> {
-    let content = if content.ends_with('\n') {
-        content.to_string() // No need to add newline if already present
-    } else {
-        format!("{content}\n") // Ensure newline for appending
-    };
     // Handle empty search string - only certain operations make sense here
     if let Some(needle) = search.and_then(|needle| {
         if needle.is_empty() {
             None // Empty search is not valid for matching
-        } else if needle.ends_with('\n') {
-            Some(needle)
         } else {
-            Some(format!("{needle}\n")) // Ensure newline for appending
+            Some(needle)
         }
     }) {
         // Find the exact match to operate on
@@ -117,7 +108,7 @@ fn apply_replacement(
             // Swap with another text in the source
             PatchOperation::Swap => {
                 // Find the target text to swap with
-                let target_patch = Range::find_exact(&haystack, content.as_str())
+                let target_patch = Range::find_exact(&haystack, content)
                     .ok_or_else(|| Error::NoSwapTarget(content.to_string()))?;
 
                 // Handle the case where patches overlap
@@ -201,6 +192,7 @@ impl<F: Infrastructure> FsPatchService for ForgeFsPatch<F> {
     ) -> anyhow::Result<PatchOutput> {
         let path = Path::new(&input_path);
         assert_absolute_path(path)?;
+
         // Read the original content once
         // TODO: use forge_fs
         let mut current_content = fs::read_to_string(path)
