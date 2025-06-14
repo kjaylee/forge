@@ -28,12 +28,20 @@ impl FormatInput for Tools {
             Tools::ForgeToolFsRead(input) => {
                 let display_path = display_path_for(&input.path);
                 let is_explicit_range = input.start_line.is_some() || input.end_line.is_some();
-                let subtitle = if is_explicit_range {
-                    let start = input.start_line.map_or("~".to_string(), |n| n.to_string());
-                    let end = input.end_line.map_or("~".to_string(), |n| n.to_string());
-                    format!("{} [Range {}-{}]", display_path, start, end)
-                } else {
-                    format!("{}", display_path)
+                let mut subtitle = display_path;
+                if is_explicit_range {
+                    match (&input.start_line, &input.end_line) {
+                        (Some(start), Some(end)) => {
+                            subtitle.push_str(&format!(" [Range {start}-{end}]"));
+                        }
+                        (Some(start), None) => {
+                            subtitle.push_str(&format!(" [Range {start}-]"));
+                        }
+                        (None, Some(end)) => {
+                            subtitle.push_str(&format!(" [Range -{end}]"));
+                        }
+                        (None, None) => {}
+                    }
                 };
                 TitleFormat::debug("Read").sub_title(subtitle).into()
             }

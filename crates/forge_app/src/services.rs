@@ -68,7 +68,7 @@ pub enum ResponseContext {
 pub struct FsCreateOutput {
     pub path: String,
     // Set when the file already exists
-    pub previous: Option<String>,
+    pub before: Option<String>,
     pub warning: Option<String>,
 }
 

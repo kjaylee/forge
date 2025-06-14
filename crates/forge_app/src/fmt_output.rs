@@ -14,7 +14,7 @@ impl FormatOutput for ExecutionResult {
             ExecutionResult::FsRead(_) => None,
             ExecutionResult::FsCreate(_) => None,
             ExecutionResult::FsRemove(_) => None,
-            ExecutionResult::FsSearch(result) => result.as_ref().map(|result| {
+            ExecutionResult::FsSearch(output) => output.as_ref().map(|result| {
                 GrepFormat::new(
                     result
                         .matches
@@ -116,7 +116,7 @@ mod tests {
     fn test_fs_create_new_file() {
         let fixture = ExecutionResult::FsCreate(FsCreateOutput {
             path: "/home/user/project/new_file.txt".to_string(),
-            previous: None,
+            before: None,
             warning: None,
         });
         let env = fixture_environment();
@@ -131,7 +131,7 @@ mod tests {
     fn test_fs_create_overwrite() {
         let fixture = ExecutionResult::FsCreate(FsCreateOutput {
             path: "/home/user/project/existing_file.txt".to_string(),
-            previous: Some("old content".to_string()),
+            before: Some("old content".to_string()),
             warning: None,
         });
         let env = fixture_environment();
@@ -146,7 +146,7 @@ mod tests {
     fn test_fs_create_with_warning() {
         let fixture = ExecutionResult::FsCreate(FsCreateOutput {
             path: "/home/user/project/file.txt".to_string(),
-            previous: None,
+            before: None,
             warning: Some("File created outside project directory".to_string()),
         });
         let env = fixture_environment();

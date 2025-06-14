@@ -50,7 +50,7 @@ impl ExecutionResult {
                 }
             },
             (Tools::ForgeToolFsCreate(input), ExecutionResult::FsCreate(output)) => {
-                let mut elm = if let Some(before) = output.previous {
+                let mut elm = if let Some(before) = output.before {
                     let diff =
                         console::strip_ansi_codes(&DiffFormat::format(&before, &input.content))
                             .to_string();
@@ -496,7 +496,7 @@ mod tests {
     fn test_fs_create_basic() {
         let fixture = ExecutionResult::FsCreate(FsCreateOutput {
             path: "/home/user/new_file.txt".to_string(),
-            previous: None,
+            before: None,
             warning: None,
         });
 
@@ -518,7 +518,7 @@ mod tests {
     fn test_fs_create_overwrite() {
         let fixture = ExecutionResult::FsCreate(FsCreateOutput {
             path: "/home/user/existing_file.txt".to_string(),
-            previous: Some("Old content".to_string()),
+            before: Some("Old content".to_string()),
             warning: None,
         });
 
@@ -880,7 +880,7 @@ mod tests {
     fn test_fs_create_with_warning() {
         let fixture = ExecutionResult::FsCreate(FsCreateOutput {
             path: "/home/user/file_with_warning.txt".to_string(),
-            previous: None,
+            before: None,
             warning: Some("File created in non-standard location".to_string()),
         });
 
