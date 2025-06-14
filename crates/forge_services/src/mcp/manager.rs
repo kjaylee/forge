@@ -19,11 +19,7 @@ impl<I: Infrastructure> ForgeMcpManager<I> {
     }
 
     async fn read_config(&self, path: &Path) -> anyhow::Result<McpConfig> {
-        let config = self
-            .infra
-            .file_read_service()
-            .read_utf8(path)
-            .await?;
+        let config = self.infra.file_read_service().read_utf8(path).await?;
         Ok(serde_json::from_str(&config)?)
     }
     async fn config_path(&self, scope: &Scope) -> anyhow::Result<PathBuf> {
