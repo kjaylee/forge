@@ -25,27 +25,18 @@ use crate::{FsReadService as _, Infrastructure};
 /// - If range exceeds max_size, adjusts end_line to stay within limits
 /// - Always ensures start_line >= 1
 pub fn resolve_range(start_line: Option<u64>, end_line: Option<u64>, max_size: u64) -> (u64, u64) {
-    let start = start_line.unwrap_or(1).max(1);
-    let end = match end_line {
-        Some(end) => end,
-        None => start + max_size - 1,
-    };
+    // 1. Normalise incoming values
+    let s0 = start_line.unwrap_or(1).max(1);
+    let e0 = end_line.unwrap_or(s0.saturating_add(max_size.saturating_sub(1)));
 
-    // Ensure start <= end by swapping if necessary
-    let (start, end) = if start > end {
-        (end.max(1), start)
-    } else {
-        (start, end)
-    };
+    // 2. Sort them (min → start, max → end) and force start ≥ 1
+    let start = s0.min(e0).max(1);
+    let mut end = s0.max(e0);
 
-    // Ensure the range doesn't exceed max_size
-    let adjusted_end = if end.saturating_sub(start) >= max_size {
-        start + max_size - 1
-    } else {
-        end
-    };
+    // 3. Clamp the range length to `max_size`
+    end = end.min(start.saturating_add(max_size - 1));
 
-    (start, adjusted_end)
+    (start, end)
 }
 
 /// Reads file contents from the specified absolute path. Ideal for analyzing
