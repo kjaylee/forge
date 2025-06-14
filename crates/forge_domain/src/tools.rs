@@ -203,8 +203,11 @@ pub struct FSPatch {
     /// The path to the file to modify
     pub path: String,
 
-    /// The text to search for in the file. Skip to prepend at the beginning or
-    /// to append at the end of the file.
+    /// The exact text including new lines to search for in the file. When
+    /// skipped the patch operation applies to the entire content. `Append` adds
+    /// the new content to the end, `Prepend` adds it to the beginning, and
+    /// `Replace` fully overwrites the original content. `Swap` requires a
+    /// search target, so without one, it makes no changes.
     pub search: Option<String>,
 
     /// The operation to perform on the matched text. Possible options are only
