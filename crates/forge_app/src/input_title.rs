@@ -8,6 +8,7 @@ use crate::utils::display_path;
 pub enum Content {
     Title(TitleFormat),
     Summary(String),
+    None
 }
 
 impl From<TitleFormat> for Content {
@@ -99,6 +100,7 @@ mod tests {
             match self {
                 Content::Title(title) => title.render(with_timestamp),
                 Content::Summary(summary) => summary.clone(),
+                _ => "".to_string(),
             }
         }
     }

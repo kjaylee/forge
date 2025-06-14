@@ -13,6 +13,7 @@ mod tool_executor;
 mod tool_registry;
 mod truncation;
 mod utils;
+mod output_title;
 
 pub use app::*;
 pub use services::*;

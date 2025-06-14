@@ -6,6 +6,7 @@ use forge_domain::{ToolCallContext, ToolCallFull, ToolOutput, Tools};
 use crate::error::Error;
 use crate::execution_result::ExecutionResult;
 use crate::input_title::{Content, InputTitle};
+use crate::output_title::OutputTitle;
 use crate::{
     EnvironmentService, FollowUpService, FsCreateService, FsPatchService, FsReadService,
     FsRemoveService, FsSearchService, FsUndoService, NetFetchService, Services, ShellService,
@@ -112,6 +113,7 @@ impl<S: Services> ToolExecutor<S> {
         match tool_input.to_content(&env) {
             Content::Title(title) => context.send_text(title).await?,
             Content::Summary(summary) => context.send_summary(summary).await?,
+            Content::None => (),
         };
 
         // Send tool call information
@@ -123,6 +125,11 @@ impl<S: Services> ToolExecutor<S> {
         }
 
         let execution_result = execution_result?;
+        match execution_result.to_content(tool_input.clone(), &env) {
+            Content::Title(title) => context.send_text(title).await?,
+            Content::Summary(summary) => context.send_summary(summary).await?,
+            Content::None => (),
+        }
         let truncation_path = execution_result
             .to_create_temp(self.services.as_ref())
             .await?;
