@@ -129,7 +129,6 @@ impl FsSearchService for ForgeFsSearch {
                     &file,
                     UTF8(|line_num, line| {
                         found_match = true;
-                        // Format match in ripgrep style: filepath:line_num:content
                         matches.push(Match {
                             path: path_string.clone(),
                             result: Some(MatchResult::Found {

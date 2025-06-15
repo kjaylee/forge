@@ -39,17 +39,22 @@ pub fn resolve_range(start_line: Option<u64>, end_line: Option<u64>, max_size: u
     (start, end)
 }
 
-/// Validates that content size does not exceed the maximum allowed file size.
-fn validate_file_size(content: &str, max_file_size: u64) -> anyhow::Result<()> {
-    if content.len() > max_file_size as usize {
+/// Validates that file size does not exceed the maximum allowed file size.
+///
+/// # Arguments
+/// * `path` - The file path to check
+/// * `max_file_size` - Maximum allowed file size in bytes
+///
+/// # Returns
+/// * `Ok(())` if file size is within limits
+/// * `Err(anyhow::Error)` if file exceeds max_file_size
+async fn validate_file_size(path: &Path, max_file_size: u64) -> anyhow::Result<()> {
+    let file_size = forge_fs::ForgeFS::get_file_size(path).await?;
+    if file_size > max_file_size {
         return Err(anyhow::anyhow!(
-            "File size exceeds the maximum allowed size of {}",
-            if max_file_size > (1 << 10) {
-                // Convert bytes to KiB for better readability
-                format!("{} KiB", max_file_size >> 10)
-            } else {
-                format!("{max_file_size} B")
-            }
+            "File size ({} bytes) exceeds the maximum allowed size of {} bytes",
+            file_size,
+            max_file_size
         ));
     }
     Ok(())
@@ -85,6 +90,9 @@ impl<F: Infrastructure> FsReadService for ForgeFsRead<F> {
         assert_absolute_path(path)?;
         let env = self.0.environment_service().get_environment();
 
+        // Validate file size before reading content
+        validate_file_size(path, env.max_file_size).await?;
+
         let (start_line, end_line) = resolve_range(start_line, end_line, env.max_read_size);
 
         let (content, file_info) = self
@@ -93,8 +101,6 @@ impl<F: Infrastructure> FsReadService for ForgeFsRead<F> {
             .range_read_utf8(path, start_line, end_line)
             .await
             .with_context(|| format!("Failed to read file content from {}", path.display()))?;
-
-        validate_file_size(&content, env.max_file_size)?;
 
         Ok(ReadOutput {
             content: Content::File(content),
@@ -108,70 +114,90 @@ impl<F: Infrastructure> FsReadService for ForgeFsRead<F> {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use tempfile::NamedTempFile;
+    use tokio::fs;
 
     use super::*;
 
-    #[test]
-    fn test_validate_file_size_within_limit() {
-        let fixture = ("Hello, world!", 20u64);
-        let actual = validate_file_size(fixture.0, fixture.1);
+    // Helper to create a temporary file with specific content size
+    async fn create_test_file_with_size(size: usize) -> anyhow::Result<NamedTempFile> {
+        let file = NamedTempFile::new()?;
+        let content = "x".repeat(size);
+        fs::write(file.path(), content).await?;
+        Ok(file)
+    }
+
+    #[tokio::test]
+    async fn test_validate_file_size_within_limit() {
+        let fixture = create_test_file_with_size(13).await.unwrap(); // "Hello, world!" length
+        let actual = validate_file_size(fixture.path(), 20u64).await;
         assert!(actual.is_ok());
     }
 
-    #[test]
-    fn test_validate_file_size_exactly_at_limit() {
-        let fixture = ("Hello!", 6u64);
-        let actual = validate_file_size(fixture.0, fixture.1);
+    #[tokio::test]
+    async fn test_validate_file_size_exactly_at_limit() {
+        let fixture = create_test_file_with_size(6).await.unwrap(); // "Hello!" length
+        let actual = validate_file_size(fixture.path(), 6u64).await;
         assert!(actual.is_ok());
     }
 
-    #[test]
-    fn test_validate_file_size_exceeds_limit() {
-        let fixture = ("This is a long string that exceeds the limit", 10u64);
-        let actual = validate_file_size(fixture.0, fixture.1);
+    #[tokio::test]
+    async fn test_validate_file_size_exceeds_limit() {
+        let fixture = create_test_file_with_size(45).await.unwrap(); // Long string length
+        let actual = validate_file_size(fixture.path(), 10u64).await;
         assert!(actual.is_err());
     }
 
-    #[test]
-    fn test_validate_file_size_empty_content() {
-        let fixture = ("", 100u64);
-        let actual = validate_file_size(fixture.0, fixture.1);
+    #[tokio::test]
+    async fn test_validate_file_size_empty_content() {
+        let fixture = create_test_file_with_size(0).await.unwrap(); // Empty file
+        let actual = validate_file_size(fixture.path(), 100u64).await;
         assert!(actual.is_ok());
     }
 
-    #[test]
-    fn test_validate_file_size_zero_limit() {
-        let fixture = ("a", 0u64);
-        let actual = validate_file_size(fixture.0, fixture.1);
+    #[tokio::test]
+    async fn test_validate_file_size_zero_limit() {
+        let fixture = create_test_file_with_size(1).await.unwrap(); // Single character
+        let actual = validate_file_size(fixture.path(), 0u64).await;
         assert!(actual.is_err());
     }
 
-    #[test]
-    fn test_validate_file_size_large_content() {
-        let fixture = ("x".repeat(1000), 999u64);
-        let actual = validate_file_size(&fixture.0, fixture.1);
+    #[tokio::test]
+    async fn test_validate_file_size_large_content() {
+        let fixture = create_test_file_with_size(1000).await.unwrap();
+        let actual = validate_file_size(fixture.path(), 999u64).await;
         assert!(actual.is_err());
     }
 
-    #[test]
-    fn test_validate_file_size_unicode_content() {
-        let fixture = ("🚀🚀🚀", 12u64); // Each emoji is 4 bytes in UTF-8
-        let actual = validate_file_size(fixture.0, fixture.1);
+    #[tokio::test]
+    async fn test_validate_file_size_large_content_within_limit() {
+        let fixture = create_test_file_with_size(1000).await.unwrap();
+        let actual = validate_file_size(fixture.path(), 1000u64).await;
         assert!(actual.is_ok());
     }
 
-    #[test]
-    fn test_validate_file_size_unicode_content_exceeds() {
-        let fixture = ("🚀🚀🚀🚀", 12u64); // 4 emojis = 16 bytes, exceeds 12 byte limit
-        let actual = validate_file_size(fixture.0, fixture.1);
+    #[tokio::test]
+    async fn test_validate_file_size_unicode_content() {
+        let file = NamedTempFile::new().unwrap();
+        fs::write(file.path(), "🚀🚀🚀").await.unwrap(); // Each emoji is 4 bytes in UTF-8 = 12 bytes total
+        let actual = validate_file_size(file.path(), 12u64).await;
+        assert!(actual.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_validate_file_size_unicode_content_exceeds() {
+        let file = NamedTempFile::new().unwrap();
+        fs::write(file.path(), "🚀🚀🚀🚀").await.unwrap(); // 4 emojis = 16 bytes, exceeds 12 byte limit
+        let actual = validate_file_size(file.path(), 12u64).await;
         assert!(actual.is_err());
     }
 
-    #[test]
-    fn test_validate_file_size_error_message() {
-        let fixture = ("too long content", 5u64);
-        let actual = validate_file_size(fixture.0, fixture.1);
-        let expected = "File size exceeds the maximum allowed size of 5 bytes";
+    #[tokio::test]
+    async fn test_validate_file_size_error_message() {
+        let file = NamedTempFile::new().unwrap();
+        fs::write(file.path(), "too long content").await.unwrap(); // 16 bytes
+        let actual = validate_file_size(file.path(), 5u64).await;
+        let expected = "File size (16 bytes) exceeds the maximum allowed size of 5 bytes";
         assert!(actual.is_err());
         assert_eq!(actual.unwrap_err().to_string(), expected);
     }
