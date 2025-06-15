@@ -511,6 +511,14 @@ impl Tools {
         .iter()
         .any(|v| v.to_string().to_case(Case::Snake).eq(tool_name.as_str()))
     }
+
+    pub fn completion() -> ToolDefinition {
+        // TODO: There should be a type-safe way to get the completion tool
+        Tools::iter()
+            .find(|tool| tool.to_string() == ToolCompletion::ForgeToolAttemptCompletion.to_string())
+            .map(|tool| tool.definition())
+            .expect("Forge tool completion definition not found")
+    }
 }
 
 impl TryFrom<ToolCallFull> for Tools {
