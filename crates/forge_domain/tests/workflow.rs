@@ -9,7 +9,7 @@ async fn generate_workflow_schema() -> anyhow::Result<()> {
     
     // Use the crate root directory for the schema file
     let crate_root = env!("CARGO_MANIFEST_DIR");
-    let schema_path = Path::new(crate_root).join("../../workflow_schema.json");
+    let schema_path = Path::new(crate_root).join("../../forge.schema.json");
 
     if is_ci::uncached() {
         // On CI: validate that the generated schema matches the committed file
