@@ -73,7 +73,12 @@ impl ForgeFsSearch {
     pub fn new() -> Self {
         Self
     }
+}
+
+#[async_trait::async_trait]
+impl FsSearchService for ForgeFsSearch {
     async fn search(
+        &self,
         input_path: String,
         input_regex: Option<String>,
         file_pattern: Option<String>,
@@ -151,18 +156,6 @@ impl ForgeFsSearch {
         }
 
         Ok(Some(SearchResult { matches }))
-    }
-}
-
-#[async_trait::async_trait]
-impl FsSearchService for ForgeFsSearch {
-    async fn search(
-        &self,
-        input_path: String,
-        input_regex: Option<String>,
-        file_pattern: Option<String>,
-    ) -> anyhow::Result<Option<SearchResult>> {
-        Self::search(input_path, input_regex, file_pattern).await
     }
 }
 
