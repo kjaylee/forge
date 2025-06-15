@@ -17,9 +17,11 @@ pub enum Scope {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
 #[serde(rename_all = "camelCase")]
-// TODO: Needs review, we can not directly untag enums since the server could be SSE or StreamableHttp.
-// however to auto detect, we can either check route, since SSE servers typically have a `/sse` route,
-// and StreamableHttp servers typically have a `/mcp` route. Or we can try connecting to both and see which one succeeds.
+// TODO: Needs review, we can not directly untag enums since the server could be
+// SSE or StreamableHttp. however to auto detect, we can either check route,
+// since SSE servers typically have a `/sse` route, and StreamableHttp servers
+// typically have a `/mcp` route. Or we can try connecting to both and see which
+// one succeeds.
 pub enum McpServerConfig {
     Stdio(McpStdioServer),
     Sse(McpSseServer),
