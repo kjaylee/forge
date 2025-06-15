@@ -48,7 +48,7 @@ fn validate_file_size(content: &str, max_file_size: u64) -> anyhow::Result<()> {
                 // Convert bytes to KiB for better readability
                 format!("{} KiB", max_file_size >> 10)
             } else {
-                format!("{} B", max_file_size)
+                format!("{max_file_size} B")
             }
         ));
     }
