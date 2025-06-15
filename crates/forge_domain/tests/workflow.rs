@@ -1,12 +1,13 @@
+use std::path::Path;
+
 use forge_domain::Workflow;
 use pretty_assertions::assert_eq;
-use std::path::Path;
 
 #[tokio::test]
 async fn generate_workflow_schema() -> anyhow::Result<()> {
     let schema = schemars::schema_for!(Workflow);
     let generated_schema = serde_json::to_string_pretty(&schema)?;
-    
+
     // Use the crate root directory for the schema file
     let crate_root = env!("CARGO_MANIFEST_DIR");
     let schema_path = Path::new(crate_root).join("../../forge.schema.json");
