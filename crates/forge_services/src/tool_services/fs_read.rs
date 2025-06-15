@@ -39,6 +39,22 @@ pub fn resolve_range(start_line: Option<u64>, end_line: Option<u64>, max_size: u
     (start, end)
 }
 
+/// Validates that content size does not exceed the maximum allowed file size.
+fn validate_file_size(content: &str, max_file_size: u64) -> anyhow::Result<()> {
+    if content.len() > max_file_size as usize {
+        return Err(anyhow::anyhow!(
+            "File size exceeds the maximum allowed size of {}",
+            if max_file_size > (1 << 10) {
+                // Convert bytes to KiB for better readability
+                format!("{} KiB", max_file_size >> 10)
+            } else {
+                format!("{} B", max_file_size)
+            }
+        ));
+    }
+    Ok(())
+}
+
 /// Reads file contents from the specified absolute path. Ideal for analyzing
 /// code, configuration files, documentation, or textual data. Automatically
 /// extracts text from PDF and DOCX files, preserving the original formatting.
@@ -78,12 +94,7 @@ impl<F: Infrastructure> FsReadService for ForgeFsRead<F> {
             .await
             .with_context(|| format!("Failed to read file content from {}", path.display()))?;
 
-        if content.len() > env.max_file_size as usize {
-            return Err(anyhow::anyhow!(
-                "File size exceeds the maximum allowed size of {} bytes",
-                env.max_file_size
-            ));
-        }
+        validate_file_size(&content, env.max_file_size)?;
 
         Ok(ReadOutput {
             content: Content::File(content),
@@ -99,6 +110,71 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    #[test]
+    fn test_validate_file_size_within_limit() {
+        let fixture = ("Hello, world!", 20u64);
+        let actual = validate_file_size(fixture.0, fixture.1);
+        assert!(actual.is_ok());
+    }
+
+    #[test]
+    fn test_validate_file_size_exactly_at_limit() {
+        let fixture = ("Hello!", 6u64);
+        let actual = validate_file_size(fixture.0, fixture.1);
+        assert!(actual.is_ok());
+    }
+
+    #[test]
+    fn test_validate_file_size_exceeds_limit() {
+        let fixture = ("This is a long string that exceeds the limit", 10u64);
+        let actual = validate_file_size(fixture.0, fixture.1);
+        assert!(actual.is_err());
+    }
+
+    #[test]
+    fn test_validate_file_size_empty_content() {
+        let fixture = ("", 100u64);
+        let actual = validate_file_size(fixture.0, fixture.1);
+        assert!(actual.is_ok());
+    }
+
+    #[test]
+    fn test_validate_file_size_zero_limit() {
+        let fixture = ("a", 0u64);
+        let actual = validate_file_size(fixture.0, fixture.1);
+        assert!(actual.is_err());
+    }
+
+    #[test]
+    fn test_validate_file_size_large_content() {
+        let fixture = ("x".repeat(1000), 999u64);
+        let actual = validate_file_size(&fixture.0, fixture.1);
+        assert!(actual.is_err());
+    }
+
+    #[test]
+    fn test_validate_file_size_unicode_content() {
+        let fixture = ("🚀🚀🚀", 12u64); // Each emoji is 4 bytes in UTF-8
+        let actual = validate_file_size(fixture.0, fixture.1);
+        assert!(actual.is_ok());
+    }
+
+    #[test]
+    fn test_validate_file_size_unicode_content_exceeds() {
+        let fixture = ("🚀🚀🚀🚀", 12u64); // 4 emojis = 16 bytes, exceeds 12 byte limit
+        let actual = validate_file_size(fixture.0, fixture.1);
+        assert!(actual.is_err());
+    }
+
+    #[test]
+    fn test_validate_file_size_error_message() {
+        let fixture = ("too long content", 5u64);
+        let actual = validate_file_size(fixture.0, fixture.1);
+        let expected = "File size exceeds the maximum allowed size of 5 bytes";
+        assert!(actual.is_err());
+        assert_eq!(actual.unwrap_err().to_string(), expected);
+    }
 
     #[test]
     fn test_resolve_range_with_defaults() {
