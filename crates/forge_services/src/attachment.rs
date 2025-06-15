@@ -151,7 +151,7 @@ pub mod tests {
             }
         }
 
-        fn add_file(&self, path: PathBuf, content: String) {
+        pub fn add_file(&self, path: PathBuf, content: String) {
             let mut files = self.files.lock().unwrap();
             files.push((path, Bytes::from_owner(content)));
         }
@@ -201,7 +201,7 @@ pub mod tests {
     #[derive(Debug, Clone)]
     pub struct MockInfrastructure {
         env_service: Arc<MockEnvironmentService>,
-        file_service: Arc<MockFileService>,
+        pub file_service: Arc<MockFileService>,
         file_snapshot_service: Arc<MockSnapService>,
     }
 
@@ -299,6 +299,15 @@ pub mod tests {
 
         async fn exists(&self, path: &Path) -> anyhow::Result<bool> {
             Ok(self.files.lock().unwrap().iter().any(|(p, _)| p == path))
+        }
+
+        async fn file_size(&self, path: &Path) -> anyhow::Result<u64> {
+            let files = self.files.lock().unwrap();
+            if let Some((_, content)) = files.iter().find(|(p, _)| p == path) {
+                Ok(content.len() as u64)
+            } else {
+                Err(anyhow::anyhow!("File not found: {}", path.display()))
+            }
         }
     }
 
