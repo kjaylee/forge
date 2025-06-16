@@ -734,11 +734,11 @@ impl Display for CliModel {
         write!(info, "[ ")?;
         if let Some(limit) = self.0.context_length {
             if limit > 1000_000 {
-                write!(info, "{}M", (limit / 1000_000).to_string())?;
+                write!(info, "{}M", (limit / 1000_000))?;
             } else if limit > 1000 {
-                write!(info, "{}k", (limit / 1000).to_string())?;
+                write!(info, "{}k", (limit / 1000))?;
             } else {
-                write!(info, "{}", (limit).to_string())?;
+                write!(info, "{}", (limit))?;
             }
         }
         if self.0.tools_supported.unwrap_or_default() {
