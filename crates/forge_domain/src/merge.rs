@@ -1,6 +1,5 @@
 use ::std::collections::HashMap;
 use ::std::hash::Hash;
-
 use merge::Merge;
 
 pub mod std {
@@ -13,9 +12,8 @@ pub mod vec {
 
     pub use merge::vec::*;
 
-    use crate::merge::ForgeMerge;
-
     use super::Key;
+    use crate::merge::ForgeMerge;
 
     pub fn unify_by_key<T: ForgeMerge + Key>(base: &mut Vec<T>, other: Vec<T>) {
         for other_agent in other {
