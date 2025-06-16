@@ -55,7 +55,7 @@ impl Conversation {
 
     /// Sets the model for all agents in the conversation
     pub fn set_model(&mut self, model: &ModelId) -> Result<()> {
-        for agent in &mut self.agents {
+        for agent in self.agents.iter_mut() {
             agent.model = Some(model.clone());
             if let Some(ref mut compact) = agent.compact {
                 compact.model = model.clone();
