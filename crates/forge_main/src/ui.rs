@@ -167,7 +167,7 @@ impl<F: API> UI<F> {
             Ok(_) => {}
             Err(error) => {
                 tracing::error!(error = ?error);
-                eprintln!("{}", TitleFormat::error(format!("{error}")));
+                eprintln!("{}", TitleFormat::error(format!("{error:?}")));
             }
         }
     }
@@ -218,7 +218,7 @@ impl<F: API> UI<F> {
                             );
                             tracing::error!(error = ?error);
                             self.spinner.stop(None)?;
-                            eprintln!("{}", TitleFormat::error(format!("{error}")));
+                            eprintln!("{}", TitleFormat::error(format!("{error:?}")));
                         },
                     }
                 }
@@ -491,7 +491,7 @@ impl<F: API> UI<F> {
 
         if let Some(mut conversation) = self.api.conversation(&conversation_id).await? {
             // Update the model in the conversation
-            conversation.set_main_model(model.clone())?;
+            conversation.set_model(&model)?;
 
             // Upsert the updated conversation
             self.api.upsert_conversation(conversation).await?;
@@ -529,10 +529,9 @@ impl<F: API> UI<F> {
                 let workflow = self.init_state().await?;
                 // We need to try and get the conversation ID first before fetching the model
                 let id = if let Some(ref path) = self.cli.conversation {
-                    let conversation: Conversation = serde_json::from_str(
-                        ForgeFS::read_to_string(path.as_os_str()).await?.as_str(),
-                    )
-                    .context("Failed to parse Conversation")?;
+                    let conversation: Conversation =
+                        serde_json::from_str(ForgeFS::read_utf8(path.as_os_str()).await?.as_str())
+                            .context("Failed to parse Conversation")?;
 
                     let conversation_id = conversation.id.clone();
                     self.state.conversation_id = Some(conversation_id.clone());
@@ -728,10 +727,27 @@ struct CliModel(Model);
 
 impl Display for CliModel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+
         write!(f, "{}", self.0.id)?;
-        if self.0.tools_supported.unwrap_or_default() {
-            write!(f, " {}", "(tool_use)".dimmed())?;
+        let mut info = String::new();
+        write!(info, "[ ")?;
+        if let Some(limit) = self.0.context_length {
+            if limit > 1_000_000 {
+                write!(info, "{}M", (limit / 1_000_000))?;
+            } else if limit > 1000 {
+                write!(info, "{}k", (limit / 1000))?;
+            } else {
+                write!(info, "{}", (limit))?;
+            }
         }
+        if self.0.tools_supported.unwrap_or_default() {
+            write!(info, " 🛠️")?;
+        }
+
+        write!(info, " ]")?;
+
+        write!(f, " {}", info.dimmed())?;
         Ok(())
     }
 }

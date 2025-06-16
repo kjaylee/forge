@@ -104,18 +104,22 @@ impl<S: AgentService> Orchestrator<S> {
 
     /// Get the allowed tools for an agent
     fn get_allowed_tools(&mut self, agent: &Agent) -> anyhow::Result<Vec<ToolDefinition>> {
-        if self.tool_definitions.is_empty() {
-            // If no tools are defined, return an empty vector
-            Ok(vec![])
-        } else {
+        let completion = ToolsDiscriminants::ForgeToolAttemptCompletion;
+        let mut tools = vec![];
+        if !self.tool_definitions.is_empty() {
             let allowed = agent.tools.iter().flatten().collect::<HashSet<_>>();
-            Ok(self
-                .tool_definitions
-                .iter()
-                .filter(|tool| allowed.contains(&tool.name))
-                .cloned()
-                .collect())
+            tools.extend(
+                self.tool_definitions
+                    .iter()
+                    .filter(|tool| tool.name != completion.name())
+                    .filter(|tool| allowed.contains(&tool.name))
+                    .cloned(),
+            );
         }
+
+        tools.push(completion.definition());
+
+        Ok(tools)
     }
 
     /// Checks if parallel tool calls is supported by agent
@@ -279,6 +283,10 @@ impl<S: AgentService> Orchestrator<S> {
 
         if let Some(top_k) = agent.top_k {
             context = context.top_k(top_k);
+        }
+
+        if let Some(max_tokens) = agent.max_tokens {
+            context = context.max_tokens(max_tokens.value() as usize);
         }
 
         // Process attachments from the event if they exist

@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use merge::Merge;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::compact::Compact;
@@ -10,12 +11,12 @@ use crate::merge::Key;
 use crate::temperature::Temperature;
 use crate::template::Template;
 use crate::{
-    Context, Error, EventContext, ModelId, Result, SystemContext, ToolDefinition, ToolName, TopK,
-    TopP,
+    Context, Error, EventContext, MaxTokens, ModelId, Result, SystemContext, ToolDefinition,
+    ToolName, TopK, TopP,
 };
 
 // Unique identifier for an agent
-#[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
+#[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
 pub struct AgentId(Cow<'static, str>);
 impl AgentId {
@@ -39,7 +40,7 @@ impl Default for AgentId {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
+#[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, JsonSchema)]
 #[setters(strip_option, into)]
 pub struct Agent {
     /// Flag to enable/disable tool support for this agent.
@@ -148,6 +149,18 @@ pub struct Agent {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub top_k: Option<TopK>,
+
+    /// Maximum number of tokens the model can generate
+    ///
+    /// Controls the maximum length of the model's response.
+    /// - Lower values (e.g., 100) limit response length for concise outputs
+    /// - Higher values (e.g., 4000) allow for longer, more detailed responses
+    /// - Valid range is 1 to 100,000
+    /// - If not specified, the model provider's default will be used
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub max_tokens: Option<MaxTokens>,
 }
 
 fn merge_opt_vec<T>(base: &mut Option<Vec<T>>, other: Option<Vec<T>>) {
@@ -180,6 +193,7 @@ impl Agent {
             temperature: Default::default(),
             top_p: Default::default(),
             top_k: Default::default(),
+            max_tokens: Default::default(),
         }
     }
 
@@ -197,6 +211,15 @@ impl Agent {
             compact.should_compact(context, token_count)
         } else {
             false
+        }
+    }
+
+    pub fn add_subscription(&mut self, event: impl ToString) {
+        let event_string = event.to_string();
+
+        let subscribe_list = self.subscribe.get_or_insert_with(Vec::new);
+        if !subscribe_list.contains(&event_string) {
+            subscribe_list.push(event_string);
         }
     }
 }
@@ -465,5 +488,112 @@ mod tests {
 
         let agent: Agent = serde_json::from_value(json).unwrap();
         assert_eq!(agent.top_k, None);
+    }
+
+    #[test]
+    fn test_max_tokens_validation() {
+        // Valid max_tokens values should deserialize correctly
+        let valid_values = [1, 100, 1000, 4000, 8000, 100_000];
+        for value in valid_values {
+            let json = json!({
+                "id": "test-agent",
+                "max_tokens": value
+            });
+
+            let agent: std::result::Result<Agent, serde_json::Error> = serde_json::from_value(json);
+            assert!(agent.is_ok(), "Valid max_tokens {value} should deserialize");
+            assert_eq!(agent.unwrap().max_tokens.unwrap().value(), value);
+        }
+
+        // Invalid max_tokens values should fail deserialization
+        let invalid_values = [0, 100_001, 200_000, 1_000_000];
+        for value in invalid_values {
+            let json = json!({
+                "id": "test-agent",
+                "max_tokens": value
+            });
+
+            let agent: std::result::Result<Agent, serde_json::Error> = serde_json::from_value(json);
+            assert!(
+                agent.is_err(),
+                "Invalid max_tokens {value} should fail deserialization"
+            );
+            let err = agent.unwrap_err().to_string();
+            assert!(
+                err.contains("max_tokens must be between 1 and 100000"),
+                "Error should mention valid range: {err}"
+            );
+        }
+
+        // No max_tokens should deserialize to None
+        let json = json!({
+            "id": "test-agent"
+        });
+
+        let agent: Agent = serde_json::from_value(json).unwrap();
+        assert_eq!(agent.max_tokens, None);
+    }
+
+    #[test]
+    fn test_add_subscription_to_empty_agent() {
+        let mut fixture = Agent::new("test-agent");
+        fixture.add_subscription("test-event");
+
+        let actual = fixture.subscribe.as_ref().unwrap();
+        let expected = vec!["test-event".to_string()];
+        assert_eq!(actual, &expected);
+    }
+
+    #[test]
+    fn test_add_subscription_to_existing_list() {
+        let mut fixture = Agent::new("test-agent").subscribe(vec!["existing-event".to_string()]);
+        fixture.add_subscription("new-event");
+
+        let actual = fixture.subscribe.as_ref().unwrap();
+        let expected = vec!["existing-event".to_string(), "new-event".to_string()];
+        assert_eq!(actual, &expected);
+    }
+
+    #[test]
+    fn test_add_subscription_duplicate_prevention() {
+        let mut fixture = Agent::new("test-agent").subscribe(vec!["existing-event".to_string()]);
+        fixture.add_subscription("existing-event");
+
+        let actual = fixture.subscribe.as_ref().unwrap();
+        let expected = vec!["existing-event".to_string()];
+        assert_eq!(actual, &expected);
+    }
+
+    #[test]
+    fn test_add_subscription_multiple_events() {
+        let mut fixture = Agent::new("test-agent");
+        fixture.add_subscription("event1");
+        fixture.add_subscription("event2");
+        fixture.add_subscription("event1"); // duplicate
+        fixture.add_subscription("event3");
+
+        let actual = fixture.subscribe.as_ref().unwrap();
+        let expected = vec![
+            "event1".to_string(),
+            "event2".to_string(),
+            "event3".to_string(),
+        ];
+        assert_eq!(actual, &expected);
+    }
+
+    #[test]
+    fn test_add_subscription_with_string_types() {
+        let mut fixture = Agent::new("test-agent");
+        fixture.add_subscription("string_literal");
+        fixture.add_subscription(String::from("owned_string"));
+        fixture.add_subscription(&"string_ref".to_string());
+
+        let actual = fixture.subscribe.as_ref().unwrap();
+        let expected = vec![
+            "string_literal".to_string(),
+            "owned_string".to_string(),
+            "string_ref".to_string(),
+        ];
+        assert_eq!(actual, &expected);
     }
 }

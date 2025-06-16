@@ -1,12 +1,13 @@
 use derive_setters::Setters;
 use merge::Merge;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 use crate::{Context, ModelId, Role};
 
 /// Configuration for automatic context compaction
-#[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
+#[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, JsonSchema)]
 #[setters(strip_option, into)]
 pub struct Compact {
     /// Number of most recent messages to preserve during compaction
@@ -71,7 +72,7 @@ where
     Ok(value)
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(transparent)]
 pub struct SummaryTag(String);
 
