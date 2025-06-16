@@ -1,4 +1,5 @@
 use derive_setters::Setters;
+use forge_template::Element;
 use serde::{Deserialize, Serialize};
 
 use crate::{Image, Pdf, ToolCallFull, ToolCallId, ToolName};
@@ -41,7 +42,19 @@ impl ToolResult {
                 self.output = output;
             }
             Err(err) => {
-                self.output = ToolOutput::text(format!("{err:?}")).is_error(true);
+                let mut message = vec![err.to_string()];
+                let mut source = err.source();
+                if source.is_some() {
+                    message.push("\nCaused by:".to_string());
+                }
+                let mut i = 0;
+                while let Some(err) = source {
+                    message.push(format!("    {i}: {err}"));
+                    source = err.source();
+                    i += 1;
+                }
+                self.output = ToolOutput::text(Element::new("error").cdata(message.join("\n")))
+                    .is_error(true);
             }
         }
         self
@@ -61,23 +74,23 @@ impl From<ToolCallFull> for ToolResult {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Setters)]
 #[setters(into, strip_option)]
 pub struct ToolOutput {
-    pub values: Vec<ToolOutputValue>,
     pub is_error: bool,
+    pub values: Vec<ToolValue>,
 }
 
 impl ToolOutput {
-    pub fn text(tool: String) -> Self {
+    pub fn text(tool: impl ToString) -> Self {
         ToolOutput {
             is_error: Default::default(),
-            values: vec![ToolOutputValue::Text(tool)],
+            values: vec![ToolValue::Text(tool.to_string())],
         }
     }
 
     pub fn image(img: Image) -> Self {
-        ToolOutput { is_error: false, values: vec![ToolOutputValue::Image(img)] }
+        ToolOutput { is_error: false, values: vec![ToolValue::Image(img)] }
     }
     pub fn pdf(pdf: Pdf) -> Self {
-        ToolOutput { is_error: false, values: vec![ToolOutputValue::Pdf(pdf)] }
+        ToolOutput { is_error: false, values: vec![ToolValue::Pdf(pdf)] }
     }
 
     pub fn combine(self, other: ToolOutput) -> Self {
@@ -101,8 +114,11 @@ where
     }
 }
 
+/// Like serde_json::Value, ToolValue represents all the primitive values that
+/// tools can produce.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub enum ToolOutputValue {
+#[serde(rename_all = "camelCase")]
+pub enum ToolValue {
     Text(String),
     Image(Image),
     Pdf(Pdf),
@@ -110,21 +126,21 @@ pub enum ToolOutputValue {
     Empty,
 }
 
-impl ToolOutputValue {
+impl ToolValue {
     pub fn text(text: String) -> Self {
-        ToolOutputValue::Text(text)
+        ToolValue::Text(text)
     }
 
     pub fn image(img: Image) -> Self {
-        ToolOutputValue::Image(img)
+        ToolValue::Image(img)
     }
 
     pub fn as_str(&self) -> Option<&str> {
         match self {
-            ToolOutputValue::Text(text) => Some(text),
-            ToolOutputValue::Image(_) => None,
-            ToolOutputValue::Pdf(_) => None,
-            ToolOutputValue::Empty => None,
+            ToolValue::Text(text) => Some(text),
+            ToolValue::Image(_) => None,
+            ToolValue::Empty => None,
+            ToolValue::Pdf(_) => None,
         }
     }
 }
@@ -141,12 +157,12 @@ mod tests {
         assert!(!success.is_error());
         assert_eq!(success.output.as_str().unwrap(), "success message");
 
-        let failure =
-            ToolResult::new(ToolName::new("test_tool")).failure(anyhow::anyhow!("error message"));
+        let failure = ToolResult::new(ToolName::new("test_tool")).failure(
+            anyhow::anyhow!("error 1")
+                .context("error 2")
+                .context("error 3"),
+        );
         assert!(failure.is_error());
-        // The actual error format from anyhow::Error is "Error: error message"
-        // Don't test the exact string format as it might change
-        let error_message = failure.output.as_str().unwrap();
-        assert!(error_message.contains("error message"));
+        insta::assert_snapshot!(failure.output.as_str().unwrap());
     }
 }

@@ -3,10 +3,10 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use bytes::Bytes;
+use forge_app::{EnvironmentService, McpConfigManager};
 use forge_domain::{McpConfig, Scope};
 use merge::Merge;
 
-use crate::services::{EnvironmentService, McpConfigManager};
 use crate::{FsMetaService, FsReadService, FsWriteService, Infrastructure};
 
 pub struct ForgeMcpManager<I> {
@@ -66,6 +66,7 @@ impl<I: Infrastructure> McpConfigManager for ForgeMcpManager<I> {
             .write(
                 self.config_path(scope).await?.as_path(),
                 Bytes::from(serde_json::to_string(config)?),
+                true,
             )
             .await
     }

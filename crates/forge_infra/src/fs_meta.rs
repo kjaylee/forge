@@ -16,6 +16,10 @@ impl FsMetaService for ForgeFileMetaService {
         Ok(forge_fs::ForgeFS::exists(path))
     }
 
+    async fn file_size(&self, path: &Path) -> Result<u64> {
+        forge_fs::ForgeFS::file_size(path).await
+    }
+
     async fn mime_type(&self, path: &Path) -> anyhow::Result<DomainMimeType> {
         Ok(forge_fs::ForgeFS::mime_type(path)
             .await?

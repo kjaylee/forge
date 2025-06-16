@@ -1,9 +1,13 @@
 use std::collections::BTreeMap;
+use std::fmt::Display;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use colored::Colorize;
+use convert_case::{Case, Casing};
 use forge_api::{
-    ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId, Workflow, API,
+    AgentId, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
+    Workflow, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_domain::{McpConfig, McpServerConfig, Scope};
@@ -22,7 +26,7 @@ use crate::cli::{Cli, McpCommand, TopLevelCommand, Transport};
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
-use crate::state::{Mode, UIState};
+use crate::state::UIState;
 use crate::update::on_update;
 use crate::{banner, TRACKER};
 
@@ -79,61 +83,62 @@ impl<F: API> UI<F> {
     async fn on_new(&mut self) -> Result<()> {
         self.init_state().await?;
         banner::display()?;
-
         Ok(())
     }
 
+    async fn active_workflow(&self) -> Result<Workflow> {
+        // Read the current workflow to validate the agent
+        let workflow = self.api.read_workflow(self.cli.workflow.as_deref()).await?;
+        let mut base_workflow = Workflow::default();
+        base_workflow.merge(workflow.clone());
+        Ok(base_workflow)
+    }
+
     // Set the current mode and update conversation variable
-    async fn on_mode_change(&mut self, mode: Mode) -> Result<()> {
-        // Set the mode variable in the conversation if a conversation exists
+    async fn on_agent_change(&mut self, agent_id: AgentId) -> Result<()> {
+        let workflow = self.active_workflow().await?;
+
+        // Convert string to AgentId for validation
+        let agent = workflow.get_agent(&AgentId::new(agent_id))?;
+
         let conversation_id = self.init_conversation().await?;
-
-        // Override the mode that was reset by the conversation
-        self.state.mode = mode.clone();
-
-        // Retrieve the conversation, update it, and save it back
         if let Some(mut conversation) = self.api.conversation(&conversation_id).await? {
-            conversation.set_variable("mode".to_string(), Value::from(mode.to_string()));
+            conversation.set_variable("operating_agent".into(), Value::from(agent.id.as_str()));
             self.api.upsert_conversation(conversation).await?;
         }
 
-        // Update the workflow with the new mode
+        // Reset is_first to true when switching agents
+        self.state.is_first = true;
+        self.state.operating_agent = agent.id.clone();
+
+        // Update the workflow with the new operating agent.
         self.api
             .update_workflow(self.cli.workflow.as_deref(), |workflow| {
-                workflow
-                    .variables
-                    .insert("mode".to_string(), Value::from(mode.to_string()));
+                workflow.variables.insert(
+                    "operating_agent".to_string(),
+                    Value::from(agent.id.as_str()),
+                );
             })
             .await?;
 
         self.writeln(TitleFormat::action(format!(
-            "Switched to '{}' mode",
-            self.state.mode
+            "Switched to agent {}",
+            agent.id.as_str().to_case(Case::UpperSnake).bold()
         )))?;
 
         Ok(())
     }
-    // Helper functions for creating events with the specific event names
-    fn create_task_init_event<V: Into<Value>>(&self, content: V) -> Event {
-        Event::new(
-            format!(
-                "{}/{}",
-                self.state.mode.to_string().to_lowercase(),
-                EVENT_USER_TASK_INIT
-            ),
-            content,
-        )
-    }
 
-    fn create_task_update_event<V: Into<Value>>(&self, content: V) -> Event {
-        Event::new(
-            format!(
-                "{}/{}",
-                self.state.mode.to_string().to_lowercase(),
-                EVENT_USER_TASK_UPDATE
-            ),
+    fn create_task_event<V: Into<Value>>(
+        &self,
+        content: V,
+        event_name: &str,
+    ) -> anyhow::Result<Event> {
+        let operating_agent = &self.state.operating_agent;
+        Ok(Event::new(
+            format!("{operating_agent}/{event_name}"),
             content,
-        )
+        ))
     }
 
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
@@ -154,13 +159,14 @@ impl<F: API> UI<F> {
 
     async fn prompt(&self) -> Result<Command> {
         // Prompt the user for input
-        self.console.prompt(Some(self.state.clone().into())).await
+        self.console.prompt(self.state.clone().into()).await
     }
 
     pub async fn run(&mut self) {
         match self.run_inner().await {
             Ok(_) => {}
             Err(error) => {
+                tracing::error!(error = ?error);
                 eprintln!("{}", TitleFormat::error(format!("{error:?}")));
             }
         }
@@ -210,6 +216,7 @@ impl<F: API> UI<F> {
                             tokio::spawn(
                                 TRACKER.dispatch(forge_tracker::EventKind::Error(format!("{error:?}"))),
                             );
+                            tracing::error!(error = ?error);
                             self.spinner.stop(None)?;
                             eprintln!("{}", TitleFormat::error(format!("{error:?}")));
                         },
@@ -324,11 +331,11 @@ impl<F: API> UI<F> {
                 self.spinner.start(None)?;
                 self.on_message(content.clone()).await?;
             }
-            Command::Act => {
-                self.on_mode_change(Mode::Act).await?;
+            Command::Forge => {
+                self.on_agent_change(AgentId::FORGE).await?;
             }
-            Command::Plan => {
-                self.on_mode_change(Mode::Plan).await?;
+            Command::Muse => {
+                self.on_agent_change(AgentId::MUSE).await?;
             }
             Command::Help => {
                 let info = Info::from(self.command.as_ref());
@@ -359,11 +366,55 @@ impl<F: API> UI<F> {
             Command::Shell(ref command) => {
                 self.api.execute_shell_command_raw(command).await?;
             }
+            Command::Agent => {
+                // Read the current workflow to validate the agent
+                let workflow = self.active_workflow().await?;
+
+                #[derive(Clone)]
+                struct Agent {
+                    id: AgentId,
+                    label: String,
+                }
+
+                impl Display for Agent {
+                    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        write!(f, "{}", self.label)
+                    }
+                }
+                let n = workflow
+                    .agents
+                    .iter()
+                    .map(|a| a.id.as_str().len())
+                    .max()
+                    .unwrap_or_default();
+                let display_agents = workflow
+                    .agents
+                    .into_iter()
+                    .map(|agent| {
+                        let title = &agent.title.unwrap_or("<Missing agent.title>".to_string());
+                        {
+                            let label = format!(
+                                "{:<n$} {}",
+                                agent.id.as_str().to_case(Case::UpperSnake).bold(),
+                                title.lines().collect::<Vec<_>>().join(" ").dimmed()
+                            );
+                            Agent { label, id: agent.id.clone() }
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                let select_prompt = inquire::Select::new(
+                    "select the agent from following list",
+                    display_agents.clone(),
+                );
+                if let Ok(selected_agent) = select_prompt.prompt() {
+                    self.on_agent_change(selected_agent.id).await?;
+                }
+            }
         }
 
         Ok(false)
     }
-
     async fn on_compaction(&mut self) -> Result<(), anyhow::Error> {
         let conversation_id = self.init_conversation().await?;
         let compaction_result = self.api.compact_conversation(&conversation_id).await?;
@@ -379,10 +430,12 @@ impl<F: API> UI<F> {
     /// canceled
     async fn select_model(&mut self) -> Result<Option<ModelId>> {
         // Fetch available models
-        let models = self.get_models().await?;
-
-        // Create list of model IDs for selection
-        let model_ids: Vec<ModelId> = models.into_iter().map(|m| m.id).collect();
+        let models = self
+            .get_models()
+            .await?
+            .into_iter()
+            .map(CliModel)
+            .collect::<Vec<_>>();
 
         // Create a custom render config with the specified icons
         let render_config = RenderConfig::default()
@@ -395,11 +448,11 @@ impl<F: API> UI<F> {
             .state
             .model
             .as_ref()
-            .and_then(|current| model_ids.iter().position(|id| id == current))
+            .and_then(|current| models.iter().position(|m| &m.0.id == current))
             .unwrap_or(0);
 
         // Use inquire to select a model, with the current model pre-selected
-        match Select::new("Select a model:", model_ids)
+        match Select::new("Select a model:", models)
             .with_help_message(
                 "Type a model name or use arrow keys to navigate and Enter to select",
             )
@@ -407,7 +460,7 @@ impl<F: API> UI<F> {
             .with_starting_cursor(starting_cursor)
             .prompt()
         {
-            Ok(model) => Ok(Some(model)),
+            Ok(model) => Ok(Some(model.0.id)),
             Err(InquireError::OperationCanceled | InquireError::OperationInterrupted) => {
                 // Return None if selection was canceled
                 Ok(None)
@@ -438,7 +491,7 @@ impl<F: API> UI<F> {
 
         if let Some(mut conversation) = self.api.conversation(&conversation_id).await? {
             // Update the model in the conversation
-            conversation.set_main_model(model.clone())?;
+            conversation.set_model(&model)?;
 
             // Upsert the updated conversation
             self.api.upsert_conversation(conversation).await?;
@@ -474,13 +527,11 @@ impl<F: API> UI<F> {
 
                 // Select a model if workflow doesn't have one
                 let workflow = self.init_state().await?;
-
                 // We need to try and get the conversation ID first before fetching the model
                 let id = if let Some(ref path) = self.cli.conversation {
-                    let conversation: Conversation = serde_json::from_str(
-                        ForgeFS::read_to_string(path.as_os_str()).await?.as_str(),
-                    )
-                    .context("Failed to parse Conversation")?;
+                    let conversation: Conversation =
+                        serde_json::from_str(ForgeFS::read_utf8(path.as_os_str()).await?.as_str())
+                            .context("Failed to parse Conversation")?;
 
                     let conversation_id = conversation.id.clone();
                     self.state.conversation_id = Some(conversation_id.clone());
@@ -528,9 +579,9 @@ impl<F: API> UI<F> {
         // Create a ChatRequest with the appropriate event type
         let event = if self.state.is_first {
             self.state.is_first = false;
-            self.create_task_init_event(content.clone())
+            self.create_task_event(content, EVENT_USER_TASK_INIT)?
         } else {
-            self.create_task_update_event(content.clone())
+            self.create_task_event(content, EVENT_USER_TASK_UPDATE)?
         };
 
         // Create the chat request with the event
@@ -628,7 +679,11 @@ impl<F: API> UI<F> {
                     return Ok(());
                 }
             }
-            ChatResponse::Usage(usage) => {
+            ChatResponse::Usage(mut usage) => {
+                // accumulate the cost
+                usage.cost = usage
+                    .cost
+                    .map(|cost| cost + self.state.usage.cost.as_ref().map_or(0.0, |c| *c));
                 self.state.usage = usage;
             }
         }
@@ -666,4 +721,33 @@ fn parse_env(env: Vec<String>) -> BTreeMap<String, String> {
             }
         })
         .collect()
+}
+
+struct CliModel(Model);
+
+impl Display for CliModel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+
+        write!(f, "{}", self.0.id)?;
+        let mut info = String::new();
+        write!(info, "[ ")?;
+        if let Some(limit) = self.0.context_length {
+            if limit > 1_000_000 {
+                write!(info, "{}M", (limit / 1_000_000))?;
+            } else if limit > 1000 {
+                write!(info, "{}k", (limit / 1000))?;
+            } else {
+                write!(info, "{}", (limit))?;
+            }
+        }
+        if self.0.tools_supported.unwrap_or_default() {
+            write!(info, " 🛠️")?;
+        }
+
+        write!(info, " ]")?;
+
+        write!(f, " {}", info.dimmed())?;
+        Ok(())
+    }
 }

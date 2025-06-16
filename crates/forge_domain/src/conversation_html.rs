@@ -288,16 +288,16 @@ fn create_conversation_context_section(conversation: &Conversation) -> Element {
                             )
                             .append(tool_result.output.values.iter().filter_map(
                                 |value| match value {
-                                    crate::ToolOutputValue::Text(text) => {
+                                    crate::ToolValue::Text(text) => {
                                         Some(Element::new("pre").text(text))
                                     }
-                                    crate::ToolOutputValue::Image(image) => {
+                                    crate::ToolValue::Image(image) => {
                                         Some(Element::new("img").attr("src", image.url()))
                                     }
                                     ToolOutputValue::Pdf(pdf) => {
                                         Some(Element::new("pdf").attr("src", pdf.file_data()))
                                     }
-                                    crate::ToolOutputValue::Empty => None,
+                                    crate::ToolValue::Empty => None,
                                 },
                             ))
                     }
@@ -334,9 +334,6 @@ fn create_conversation_context_section(conversation: &Conversation) -> Element {
                         Element::new("pre")
                             .text(to_string_pretty(&tool.input_schema).unwrap_or_default()),
                     )
-                    .append(tool.output_schema.as_ref().map(|schema| {
-                        Element::new("pre").text(to_string_pretty(schema).unwrap_or_default())
-                    }))
             }));
 
         // Create tool choice section if available
