@@ -235,7 +235,11 @@ pub struct FSPatch {
     pub search: Option<String>,
 
     /// The operation to perform on the matched text. Possible options are only
-    /// 'prepend', 'append', 'replace', and 'swap'.
+    /// 'prepend', 'append', 'replace', and 'swap'. 
+    /// prepend allows you to prepend content before the matched text, append allows
+    /// you to append content after the matched text, replace allows you to replace 
+    /// the matched text with new content, and swap allows you to swap the matched text 
+    /// with another text (search for the second text and swap them).
     pub operation: PatchOperation,
 
     /// The content to use for the operation (replacement text, line to
