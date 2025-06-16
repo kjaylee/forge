@@ -497,7 +497,7 @@ impl<F: API> UI<F> {
             self.api.upsert_conversation(conversation).await?;
 
             // Update the UI state with the new model
-            self.update_model(model);
+            self.update_model(model.clone());
 
             self.writeln(TitleFormat::action(format!("Switched to model: {model}")))?;
         }
