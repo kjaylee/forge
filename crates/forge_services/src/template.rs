@@ -63,7 +63,7 @@ impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
                 .file_name()
                 .and_then(|name| name.to_str())
                 .with_context(|| format!("Invalid filename: {}", template_path.display()))?;
-            let template_path = dbg!(cwd.as_path().join(template_path.clone()));
+            let template_path = cwd.as_path().join(template_path.clone());
             let content = self
                 .infra
                 .file_read_service()
@@ -91,7 +91,7 @@ impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
                     template
                 };
 
-                guard.register_template(dbg!(&name), template);
+                guard.register_template(&name, template);
             }
         }
 
