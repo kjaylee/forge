@@ -33,9 +33,8 @@ impl Console {
         Ok(Command::Message(content))
     }
 
-    pub async fn prompt(&self, prompt: Option<ForgePrompt>) -> anyhow::Result<Command> {
+    pub async fn prompt(&self, prompt: ForgePrompt) -> anyhow::Result<Command> {
         let mut engine = ForgeEditor::new(self.env.clone(), self.command.clone());
-        let prompt: ForgePrompt = prompt.unwrap_or_default();
         loop {
             let result = engine.prompt(&prompt)?;
             if let Some(command) = self.process_read(result).await? {
@@ -52,8 +51,9 @@ impl Console {
                 tokio::spawn(TRACKER.dispatch(forge_tracker::EventKind::Prompt(text.clone())));
                 match self.command.parse(&text) {
                     Ok(command) => return Ok(Some(command)),
-                    Err(e) => {
-                        eprintln!("{}", TitleFormat::error(e.to_string()));
+                    Err(error) => {
+                            tracing::error!(error = ?error);
+                        eprintln!("{}", TitleFormat::error(error.to_string()));
                     }
                 }
             }

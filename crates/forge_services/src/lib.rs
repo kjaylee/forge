@@ -2,17 +2,14 @@ mod attachment;
 mod clipper;
 mod console;
 mod conversation;
+mod discovery;
 mod convo_manager_service;
 mod forge_services;
 mod infra;
 mod mcp;
-mod metadata;
 mod provider;
-
-mod discovery;
 mod template;
-mod tool_service;
-mod tools;
+mod tool_services;
 mod utils;
 mod workflow;
 

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
-use crate::{Provider, RetryConfig};
+use crate::{HttpConfig, Provider, RetryConfig};
 
 const VERSION: &str = match option_env!("APP_VERSION") {
     Some(val) => val,
@@ -31,6 +31,19 @@ pub struct Environment {
     pub provider: Provider,
     /// Configuration for the retry mechanism
     pub retry_config: RetryConfig,
+    /// The maximum number of lines returned for FSSearch.
+    pub max_search_lines: u64,
+    /// Maximum characters for fetch content
+    pub fetch_truncation_limit: usize,
+    /// Maximum lines for shell output prefix
+    pub stdout_max_prefix_length: usize,
+    /// Maximum lines for shell output suffix
+    pub stdout_max_suffix_length: usize,
+    /// Maximum number of lines to read from a file
+    pub max_read_size: u64,
+    pub http: HttpConfig,
+    /// Maximum file size in bytes for operations
+    pub max_file_size: u64,
 }
 
 impl Environment {
@@ -50,6 +63,10 @@ impl Environment {
     }
     pub fn mcp_user_config(&self) -> PathBuf {
         self.base_path.join(".mcp.json")
+    }
+
+    pub fn templates(&self) -> PathBuf {
+        self.base_path.join("templates")
     }
 
     pub fn mcp_local_config(&self) -> PathBuf {
