@@ -727,10 +727,27 @@ struct CliModel(Model);
 
 impl Display for CliModel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+
         write!(f, "{}", self.0.id)?;
-        if self.0.tools_supported.unwrap_or_default() {
-            write!(f, " {}", "(tool_use)".dimmed())?;
+        let mut info = String::new();
+        write!(info, "[ ")?;
+        if let Some(limit) = self.0.context_length {
+            if limit > 1000_000 {
+                write!(info, "{}M", (limit / 1000_000).to_string())?;
+            } else if limit > 1000 {
+                write!(info, "{}k", (limit / 1000).to_string())?;
+            } else {
+                write!(info, "{}", (limit).to_string())?;
+            }
         }
+        if self.0.tools_supported.unwrap_or_default() {
+            write!(info, " 🛠️")?;
+        }
+
+        write!(info, " ]")?;
+
+        write!(f, " {}", info.dimmed())?;
         Ok(())
     }
 }
