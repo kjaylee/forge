@@ -52,6 +52,21 @@ impl Conversation {
             .clone()
             .ok_or(Error::NoModelDefined(agent.id.clone()))
     }
+
+    pub fn set_model(&mut self, agent_id: &AgentId, model: ModelId) -> Result<()> {
+        // Find the agent and update its model
+        let agent_pos = self
+            .agents
+            .iter()
+            .position(|a| a.id == *agent_id)
+            .ok_or_else(|| Error::AgentUndefined(agent_id.clone()))?;
+
+        // Update the model
+        self.agents[agent_pos].model = Some(model);
+
+        Ok(())
+    }
+
     /// Sets the model of the main agent
     ///
     /// # Errors
