@@ -506,6 +506,7 @@ impl Tools {
                 s.option_nullable = true;
                 // incase of option type, don't add null in type.
                 s.option_add_null_type = false;
+                s.meta_schema = None;
             })
             .into_generator();
         match self {
