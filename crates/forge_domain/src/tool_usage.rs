@@ -45,12 +45,12 @@ impl Display for ToolUsagePrompt<'_> {
                         .unwrap_or_default()
                         .unwrap_or_default();
                     object.metadata.into_iter().map(move |meta| {
-                        (name.clone(), meta, instance.clone(), is_nullable.clone())
+                        (name.clone(), meta, instance.clone(), is_nullable)
                     })
                 })
                 .flat_map(|(name, meta, instance, is_nullable)| {
                     meta.description.into_iter().map(move |desc| {
-                        (name.clone(), desc, instance.clone(), is_nullable.clone())
+                        (name.clone(), desc, instance.clone(), is_nullable)
                     })
                 })
                 .map(|(name, desc, instance, is_nullable)| {
