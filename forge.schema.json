@@ -300,6 +300,7 @@
       "type": "object",
       "required": [
         "model",
+        "percentage",
         "retention_window"
       ],
       "properties": {
@@ -324,6 +325,11 @@
         "model": {
           "description": "Model ID to use for compaction, useful when compacting with a cheaper/faster model",
           "type": "string"
+        },
+        "percentage": {
+          "description": "Maximum percentage of the context that can be summarized during compaction. Valid values are between 0.0 and 1.0, where 0.0 means no compaction and 1.0 allows summarizing all messages.",
+          "type": "number",
+          "format": "double"
         },
         "prompt": {
           "description": "Optional custom prompt template to use during compaction",
