@@ -733,8 +733,8 @@ impl Display for CliModel {
         let mut info = String::new();
         write!(info, "[ ")?;
         if let Some(limit) = self.0.context_length {
-            if limit > 1000_000 {
-                write!(info, "{}M", (limit / 1000_000))?;
+            if limit > 1_000_000 {
+                write!(info, "{}M", (limit / 1_000_000))?;
             } else if limit > 1000 {
                 write!(info, "{}k", (limit / 1000))?;
             } else {
