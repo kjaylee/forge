@@ -660,7 +660,7 @@ mod tests {
         ]);
 
         let id = super::ConversationId::generate();
-        let mut conversation = super::Conversation::new_inner(id.clone(), workflow, vec![]);
+        let mut conversation = super::Conversation::new_inner(id, workflow, vec![]);
 
         let model_id = ModelId::new("qwen-2");
         conversation.set_model(&model_id).unwrap();
