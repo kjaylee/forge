@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -68,7 +69,7 @@ impl<S: Services> ForgeApp<S> {
 
         // Register templates using workflow paths plus environment fallback
         let mut template_paths = vec![environment.templates()];
-        template_paths.extend(workflow.templates.iter().map(PathBuf::from));
+        template_paths.extend(workflow.templates.iter().map(|g| PathBuf::from(g.deref())));
 
         for template_path in template_paths {
             services
