@@ -254,9 +254,10 @@ impl Conversation {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use pretty_assertions::assert_eq;
     use serde_json::json;
-    use std::collections::HashMap;
 
     use crate::{
         Agent, AgentId, Command, Compact, Error, MaxTokens, ModelId, Temperature, Workflow,
