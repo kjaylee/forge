@@ -13,8 +13,8 @@ use crate::truncation::{
 };
 use crate::utils::display_path;
 use crate::{
-    Content, EnvironmentService, FsCreateOutput, FsUndoOutput, HttpResponse,
-    PatchOutput, ReadOutput, ResponseContext, SearchResult, Services, ShellOutput,
+    Content, EnvironmentService, FsCreateOutput, FsUndoOutput, HttpResponse, PatchOutput,
+    ReadOutput, ResponseContext, SearchResult, Services, ShellOutput,
 };
 
 #[derive(Debug, Default, Setters)]
@@ -1075,7 +1075,9 @@ mod tests {
                 explanation: Some("Undoing operation resulted in file removal".to_string()),
             },
             output: FsUndoOutput {
-                before_undo: Some("Original file content\nThat was deleted\nDuring undo".to_string()),
+                before_undo: Some(
+                    "Original file content\nThat was deleted\nDuring undo".to_string(),
+                ),
                 after_undo: None,
             },
         };
@@ -1227,9 +1229,7 @@ mod tests {
 
     #[test]
     fn test_follow_up_no_question() {
-        let fixture = ExecutionResult::FollowUp {
-            output: None,
-        };
+        let fixture = ExecutionResult::FollowUp { output: None };
 
         let env = fixture_environment();
 
@@ -1237,5 +1237,4 @@ mod tests {
 
         insta::assert_snapshot!(to_value(actual));
     }
-
 }
