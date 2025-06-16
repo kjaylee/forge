@@ -53,16 +53,14 @@ impl Conversation {
             .ok_or(Error::NoModelDefined(agent.id.clone()))
     }
 
-    pub fn set_model(&mut self, agent_id: &AgentId, model: ModelId) -> Result<()> {
-        // Find the agent and update its model
-        let agent_pos = self
-            .agents
-            .iter()
-            .position(|a| a.id == *agent_id)
-            .ok_or_else(|| Error::AgentUndefined(agent_id.clone()))?;
-
-        // Update the model
-        self.agents[agent_pos].model = Some(model);
+    /// Sets the model for all agents in the conversation
+    pub fn set_model(&mut self, model: &ModelId) -> Result<()> {
+        for agent in &mut self.agents {
+            agent.model = Some(model.clone());
+            if let Some(ref mut compact) = agent.compact {
+                compact.model = model.clone();
+            }
+        }
 
         Ok(())
     }

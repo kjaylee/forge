@@ -491,13 +491,13 @@ impl<F: API> UI<F> {
 
         if let Some(mut conversation) = self.api.conversation(&conversation_id).await? {
             // Update the model in the conversation
-            conversation.set_model(&self.state.operating_agent, model.clone())?;
+            conversation.set_model(&model)?;
 
             // Upsert the updated conversation
             self.api.upsert_conversation(conversation).await?;
 
             // Update the UI state with the new model
-            self.update_model(model.clone());
+            self.update_model(model);
 
             self.writeln(TitleFormat::action(format!("Switched to model: {model}")))?;
         }
