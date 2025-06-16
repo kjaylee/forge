@@ -36,21 +36,20 @@ impl FormatOutput for ExecutionResult {
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use console::strip_ansi_codes;
-    use forge_domain::Environment;
+    use forge_domain::{Environment, PatchOperation};
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
 
     use super::FormatOutput;
     use crate::execution_result::ExecutionResult;
     use crate::{
-        Content, FsCreateOutput, FsRemoveOutput, FsUndoOutput, HttpResponse, Match, MatchResult,
-        PatchOutput, ReadOutput, ResponseContext, SearchResult, ShellOutput,
+        Content, FsCreateOutput, FsUndoOutput, HttpResponse, Match, MatchResult, PatchOutput,
+        ReadOutput, ResponseContext, SearchResult, ShellOutput,
     };
 
     fn fixture_environment() -> Environment {
@@ -84,12 +83,20 @@ mod tests {
 
     #[test]
     fn test_fs_read_single_line() {
-        let fixture = ExecutionResult::FsRead(ReadOutput {
-            content: Content::File("Hello, world!".to_string()),
-            start_line: 1,
-            end_line: 1,
-            total_lines: 5,
-        });
+        let fixture = ExecutionResult::FsRead {
+            input: forge_domain::FSRead {
+                path: "/home/user/test.txt".to_string(),
+                start_line: None,
+                end_line: None,
+                explanation: Some("Test explanation".to_string()),
+            },
+            output: ReadOutput {
+                content: Content::File("Hello, world!".to_string()),
+                start_line: 1,
+                end_line: 1,
+                total_lines: 5,
+            },
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -100,12 +107,20 @@ mod tests {
 
     #[test]
     fn test_fs_read_multiple_lines() {
-        let fixture = ExecutionResult::FsRead(ReadOutput {
-            content: Content::File("Line 1\nLine 2\nLine 3".to_string()),
-            start_line: 2,
-            end_line: 4,
-            total_lines: 10,
-        });
+        let fixture = ExecutionResult::FsRead {
+            input: forge_domain::FSRead {
+                path: "/home/user/test.txt".to_string(),
+                start_line: Some(2),
+                end_line: Some(4),
+                explanation: Some("Test explanation".to_string()),
+            },
+            output: ReadOutput {
+                content: Content::File("Line 1\nLine 2\nLine 3".to_string()),
+                start_line: 2,
+                end_line: 4,
+                total_lines: 10,
+            },
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -162,11 +177,19 @@ mod tests {
 
     #[test]
     fn test_fs_create_with_warning() {
-        let fixture = ExecutionResult::FsCreate(FsCreateOutput {
-            path: "/home/user/project/file.txt".to_string(),
-            before: None,
-            warning: Some("File created outside project directory".to_string()),
-        });
+        let fixture = ExecutionResult::FsCreate {
+            input: forge_domain::FSWrite {
+                path: "/home/user/project/file.txt".to_string(),
+                content: "File content".to_string(),
+                overwrite: false,
+                explanation: Some("Create file".to_string()),
+            },
+            output: FsCreateOutput {
+                path: "/home/user/project/file.txt".to_string(),
+                before: None,
+                warning: Some("File created outside project directory".to_string()),
+            },
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -177,7 +200,12 @@ mod tests {
 
     #[test]
     fn test_fs_remove() {
-        let fixture = ExecutionResult::FsRemove(FsRemoveOutput {});
+        let fixture = ExecutionResult::FsRemove {
+            input: forge_domain::FSRemove {
+                path: "/home/user/project/file.txt".to_string(),
+                explanation: Some("Remove file".to_string()),
+            },
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -188,24 +216,34 @@ mod tests {
 
     #[test]
     fn test_fs_search_with_matches() {
-        let fixture = ExecutionResult::FsSearch(Some(SearchResult {
-            matches: vec![
-                Match {
-                    path: "file1.txt".to_string(),
-                    result: Some(MatchResult::Found {
-                        line_number: 1,
-                        line: "Hello world".to_string(),
-                    }),
-                },
-                Match {
-                    path: "file2.txt".to_string(),
-                    result: Some(MatchResult::Found {
-                        line_number: 3,
-                        line: "Hello universe".to_string(),
-                    }),
-                },
-            ],
-        }));
+        let fixture = ExecutionResult::FsSearch {
+            input: forge_domain::FSSearch {
+                path: "/home/user/project".to_string(),
+                regex: Some("Hello".to_string()),
+                file_pattern: None,
+                max_search_lines: None,
+                start_index: None,
+                explanation: Some("Search for Hello".to_string()),
+            },
+            output: Some(SearchResult {
+                matches: vec![
+                    Match {
+                        path: "file1.txt".to_string(),
+                        result: Some(MatchResult::Found {
+                            line_number: 1,
+                            line: "Hello world".to_string(),
+                        }),
+                    },
+                    Match {
+                        path: "file2.txt".to_string(),
+                        result: Some(MatchResult::Found {
+                            line_number: 3,
+                            line: "Hello universe".to_string(),
+                        }),
+                    },
+                ],
+            }),
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -221,12 +259,22 @@ mod tests {
 
     #[test]
     fn test_fs_search_no_matches() {
-        let fixture = ExecutionResult::FsSearch(Some(SearchResult {
-            matches: vec![Match {
-                path: "file1.txt".to_string(),
-                result: Some(MatchResult::Error("Permission denied".to_string())),
-            }],
-        }));
+        let fixture = ExecutionResult::FsSearch {
+            input: forge_domain::FSSearch {
+                path: "/home/user/project".to_string(),
+                regex: Some("nonexistent".to_string()),
+                file_pattern: None,
+                max_search_lines: None,
+                start_index: None,
+                explanation: Some("Search for nonexistent".to_string()),
+            },
+            output: Some(SearchResult {
+                matches: vec![Match {
+                    path: "file1.txt".to_string(),
+                    result: Some(MatchResult::Error("Permission denied".to_string())),
+                }],
+            }),
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -239,7 +287,17 @@ mod tests {
 
     #[test]
     fn test_fs_search_none() {
-        let fixture = ExecutionResult::FsSearch(None);
+        let fixture = ExecutionResult::FsSearch {
+            input: forge_domain::FSSearch {
+                path: "/home/user/project".to_string(),
+                regex: Some("search".to_string()),
+                file_pattern: None,
+                max_search_lines: None,
+                start_index: None,
+                explanation: Some("Search test".to_string()),
+            },
+            output: None,
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -250,11 +308,20 @@ mod tests {
 
     #[test]
     fn test_fs_patch_success() {
-        let fixture = ExecutionResult::FsPatch(PatchOutput {
-            warning: None,
-            before: "Hello world\nThis is a test".to_string(),
-            after: "Hello universe\nThis is a test\nNew line".to_string(),
-        });
+        let fixture = ExecutionResult::FsPatch {
+            input: forge_domain::FSPatch {
+                path: "/home/user/project/test.txt".to_string(),
+                search: Some("Hello world".to_string()),
+                content: "Hello universe".to_string(),
+                operation: PatchOperation::Replace,
+                explanation: Some("Replace text".to_string()),
+            },
+            output: PatchOutput {
+                warning: None,
+                before: "Hello world\nThis is a test".to_string(),
+                after: "Hello universe\nThis is a test\nNew line".to_string(),
+            },
+        };
         let env = fixture_environment();
         let actual = fixture.to_content(&env).unwrap();
         let actual = strip_ansi_codes(actual.as_str());
@@ -263,11 +330,20 @@ mod tests {
 
     #[test]
     fn test_fs_patch_with_warning() {
-        let fixture = ExecutionResult::FsPatch(PatchOutput {
-            warning: Some("Large file modification".to_string()),
-            before: "line1\nline2".to_string(),
-            after: "line1\nnew line\nline2".to_string(),
-        });
+        let fixture = ExecutionResult::FsPatch {
+            input: forge_domain::FSPatch {
+                path: "/home/user/project/large_file.txt".to_string(),
+                search: Some("line2".to_string()),
+                content: "new line\nline2".to_string(),
+                operation: PatchOperation::Replace,
+                explanation: Some("Add new line".to_string()),
+            },
+            output: PatchOutput {
+                warning: Some("Large file modification".to_string()),
+                before: "line1\nline2".to_string(),
+                after: "line1\nnew line\nline2".to_string(),
+            },
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -281,10 +357,16 @@ mod tests {
 
     #[test]
     fn test_fs_undo() {
-        let fixture = ExecutionResult::FsUndo(FsUndoOutput {
-            before_undo: Some("ABC".to_string()),
-            after_undo: Some("PQR".to_string()),
-        });
+        let fixture = ExecutionResult::FsUndo {
+            input: forge_domain::FSUndo {
+                path: "/home/user/project/test.txt".to_string(),
+                explanation: Some("Undo changes".to_string()),
+            },
+            output: FsUndoOutput {
+                before_undo: Some("ABC".to_string()),
+                after_undo: Some("PQR".to_string()),
+            },
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -295,12 +377,19 @@ mod tests {
 
     #[test]
     fn test_net_fetch_success() {
-        let fixture = ExecutionResult::NetFetch(HttpResponse {
-            content: "# Example Website\n\nThis is content.".to_string(),
-            code: 200,
-            context: ResponseContext::Parsed,
-            content_type: "text/html".to_string(),
-        });
+        let fixture = ExecutionResult::NetFetch {
+            input: forge_domain::NetFetch {
+                url: "https://example.com".to_string(),
+                raw: Some(false),
+                explanation: Some("Fetch example website".to_string()),
+            },
+            output: HttpResponse {
+                content: "# Example Website\n\nThis is content.".to_string(),
+                code: 200,
+                context: ResponseContext::Parsed,
+                content_type: "text/html".to_string(),
+            },
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -311,12 +400,19 @@ mod tests {
 
     #[test]
     fn test_net_fetch_error() {
-        let fixture = ExecutionResult::NetFetch(HttpResponse {
-            content: "Not Found".to_string(),
-            code: 404,
-            context: ResponseContext::Raw,
-            content_type: "text/plain".to_string(),
-        });
+        let fixture = ExecutionResult::NetFetch {
+            input: forge_domain::NetFetch {
+                url: "https://example.com/notfound".to_string(),
+                raw: Some(true),
+                explanation: Some("Fetch non-existent page".to_string()),
+            },
+            output: HttpResponse {
+                content: "Not Found".to_string(),
+                code: 404,
+                context: ResponseContext::Raw,
+                content_type: "text/plain".to_string(),
+            },
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -327,15 +423,17 @@ mod tests {
 
     #[test]
     fn test_shell_success() {
-        let fixture = ExecutionResult::Shell(ShellOutput {
-            output: forge_domain::CommandOutput {
-                command: "ls -la".to_string(),
-                stdout: "file1.txt\nfile2.txt".to_string(),
-                stderr: "".to_string(),
-                exit_code: Some(0),
+        let fixture = ExecutionResult::Shell {
+            output: ShellOutput {
+                output: forge_domain::CommandOutput {
+                    command: "ls -la".to_string(),
+                    stdout: "file1.txt\nfile2.txt".to_string(),
+                    stderr: "".to_string(),
+                    exit_code: Some(0),
+                },
+                shell: "/bin/bash".to_string(),
             },
-            shell: "/bin/bash".to_string(),
-        });
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -346,15 +444,17 @@ mod tests {
 
     #[test]
     fn test_shell_success_with_stderr() {
-        let fixture = ExecutionResult::Shell(ShellOutput {
-            output: forge_domain::CommandOutput {
-                command: "command_with_warnings".to_string(),
-                stdout: "output line".to_string(),
-                stderr: "warning line".to_string(),
-                exit_code: Some(0),
+        let fixture = ExecutionResult::Shell {
+            output: ShellOutput {
+                output: forge_domain::CommandOutput {
+                    command: "command_with_warnings".to_string(),
+                    stdout: "output line".to_string(),
+                    stderr: "warning line".to_string(),
+                    exit_code: Some(0),
+                },
+                shell: "/bin/bash".to_string(),
             },
-            shell: "/bin/bash".to_string(),
-        });
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -365,15 +465,17 @@ mod tests {
 
     #[test]
     fn test_shell_failure() {
-        let fixture = ExecutionResult::Shell(ShellOutput {
-            output: forge_domain::CommandOutput {
-                command: "failing_command".to_string(),
-                stdout: "".to_string(),
-                stderr: "Error: command not found".to_string(),
-                exit_code: Some(127),
+        let fixture = ExecutionResult::Shell {
+            output: ShellOutput {
+                output: forge_domain::CommandOutput {
+                    command: "failing_command".to_string(),
+                    stdout: "".to_string(),
+                    stderr: "Error: command not found".to_string(),
+                    exit_code: Some(127),
+                },
+                shell: "/bin/bash".to_string(),
             },
-            shell: "/bin/bash".to_string(),
-        });
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -384,8 +486,9 @@ mod tests {
 
     #[test]
     fn test_follow_up_with_response() {
-        let fixture =
-            ExecutionResult::FollowUp(Some("Yes, continue with the operation".to_string()));
+        let fixture = ExecutionResult::FollowUp {
+            output: Some("Yes, continue with the operation".to_string()),
+        };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -396,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_follow_up_no_response() {
-        let fixture = ExecutionResult::FollowUp(None);
+        let fixture = ExecutionResult::FollowUp { output: None };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -416,4 +519,3 @@ mod tests {
         assert_eq!(actual, expected);
     }
 }
-*/
