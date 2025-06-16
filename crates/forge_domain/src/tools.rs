@@ -507,6 +507,7 @@ impl Tools {
                 // incase of option type, don't add null in type.
                 s.option_add_null_type = false;
                 s.meta_schema = None;
+                s.inline_subschemas = true;
             })
             .into_generator();
         match self {
@@ -574,7 +575,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
-    use crate::{FSRead, ToolCallFull, ToolName, Tools, ToolsDiscriminants};
+    use crate::{FSPatch, FSRead, ToolCallFull, ToolName, Tools, ToolsDiscriminants};
 
     #[test]
     fn foo() {
