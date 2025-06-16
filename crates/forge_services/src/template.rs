@@ -69,7 +69,7 @@ impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
                 .file_read_service()
                 .read_utf8(&template_path)
                 .await?;
-            Ok::<_, anyhow::Error>((template_name.to_string(), content))
+            Ok::<_, anyhow::Error>((template_name, content))
         });
 
         let templates = future::join_all(futures)
@@ -88,6 +88,7 @@ impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
                     template
                         .elements
                         .push(handlebars::template::TemplateElement::RawString(content));
+                    template.name = Some(name.to_owned());
                     template
                 };
 
