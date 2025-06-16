@@ -1,4 +1,5 @@
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Context;
 use forge_app::{EnvironmentService, TemplateService};
@@ -92,7 +93,7 @@ impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
                     template
                 };
 
-                guard.register_template(&name, template);
+                guard.register_template(name, template);
             }
         }
 
