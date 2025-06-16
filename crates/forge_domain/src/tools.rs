@@ -575,7 +575,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
-    use crate::{FSPatch, FSRead, ToolCallFull, ToolName, Tools, ToolsDiscriminants};
+    use crate::{FSRead, ToolCallFull, ToolName, Tools, ToolsDiscriminants};
 
     #[test]
     fn foo() {
