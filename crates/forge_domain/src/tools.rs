@@ -502,7 +502,9 @@ impl Tools {
         use schemars::gen::SchemaSettings;
         let gen = SchemaSettings::default()
             .with(|s| {
+                // incase of null, add nullable property.
                 s.option_nullable = true;
+                // incase of option type, don't add null in type.
                 s.option_add_null_type = false;
             })
             .into_generator();
