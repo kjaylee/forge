@@ -167,7 +167,7 @@ impl<F: API> UI<F> {
             Ok(_) => {}
             Err(error) => {
                 tracing::error!(error = ?error);
-                eprintln!("{}", TitleFormat::error(format!("{error}")));
+                eprintln!("{}", TitleFormat::error(format!("{error:?}")));
             }
         }
     }
@@ -218,7 +218,7 @@ impl<F: API> UI<F> {
                             );
                             tracing::error!(error = ?error);
                             self.spinner.stop(None)?;
-                            eprintln!("{}", TitleFormat::error(format!("{error}")));
+                            eprintln!("{}", TitleFormat::error(format!("{error:?}")));
                         },
                     }
                 }
