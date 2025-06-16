@@ -1,6 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use forge_domain::{Attachment, ChatCompletionMessage, CommandOutput, Context, Conversation, ConversationId, Environment, File, Image, McpConfig, Model, ModelId, PatchOperation, Pdf, ResultStream, Scope, ToolCallFull, ToolDefinition, ToolOutput, Workflow};
+use forge_domain::{
+    Attachment, ChatCompletionMessage, CommandOutput, Context, Conversation, ConversationId,
+    Environment, File, Image, McpConfig, Model, ModelId, PatchOperation, Pdf, ResultStream, Scope,
+    ToolCallFull, ToolDefinition, ToolOutput, Workflow,
+};
 use merge::Merge;
 
 #[derive(Debug)]

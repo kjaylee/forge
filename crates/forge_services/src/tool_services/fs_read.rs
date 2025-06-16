@@ -1,11 +1,12 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::utils::assert_absolute_path;
-use crate::{FsMetaService, FsReadService as _, Infrastructure};
 use anyhow::{bail, Context};
 use forge_app::{Content, EnvironmentService, FsReadService, ReadOutput};
 use forge_domain::{Image, MimeType, Pdf};
+
+use crate::utils::assert_absolute_path;
+use crate::{FsMetaService, FsReadService as _, Infrastructure};
 
 /// Resolves and validates line ranges, ensuring they are always valid
 /// and within the specified maximum size.
@@ -112,7 +113,7 @@ impl<F: Infrastructure> ForgeFsRead<F> {
     async fn read_raw(&self, path: &Path) -> anyhow::Result<Vec<u8>> {
         self.0
             .file_read_service()
-            .read(&path)
+            .read(path)
             .await
             .with_context(|| format!("Failed to read file content from {}", path.display()))
     }
@@ -149,7 +150,7 @@ impl<F: Infrastructure> FsReadService for ForgeFsRead<F> {
     ) -> anyhow::Result<ReadOutput> {
         let path = Path::new(&path);
         assert_absolute_path(path)?;
-        let ty = self.0.file_meta_service().mime_type(&path).await?;
+        let ty = self.0.file_meta_service().mime_type(path).await?;
         match &ty {
             MimeType::Text => self.read_utf8(path, start_line, end_line).await,
             MimeType::Pdf => self.read_pdf(path, ty).await,
