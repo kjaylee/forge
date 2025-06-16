@@ -171,7 +171,7 @@ pub struct FSRemove {
 }
 
 /// Operation types that can be performed on matched text
-#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, AsRefStr)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, AsRefStr, EnumIter)]
 #[serde(rename_all = "snake_case")]
 pub enum PatchOperation {
     /// Prepend content before the matched text
@@ -187,6 +187,32 @@ pub enum PatchOperation {
     /// Swap the matched text with another text (search for the second text and
     /// swap them)
     Swap,
+}
+
+// TODO: do the Blanket impl for all the unit enums
+impl JsonSchema for PatchOperation {
+    fn schema_name() -> String {
+        std::any::type_name::<Self>()
+            .split("::")
+            .last()
+            .unwrap_or("PatchOperation")
+            .to_string()
+    }
+
+    fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        use schemars::schema::{InstanceType, Schema, SchemaObject};
+        let variants: Vec<serde_json::Value> = Self::iter()
+            .map(|variant| variant.as_ref().to_case(Case::Snake).into())
+            .collect();
+        Schema::Object(SchemaObject {
+            instance_type: Some(InstanceType::String.into()),
+            enum_values: Some(variants),
+            metadata: Some(Box::new(schemars::schema::Metadata {
+                ..Default::default()
+            })),
+            ..Default::default()
+        })
+    }
 }
 
 /// Modifies files with targeted line operations on matched patterns. Supports
@@ -473,17 +499,24 @@ lazy_static::lazy_static! {
 
 impl Tools {
     pub fn schema(&self) -> RootSchema {
+        use schemars::gen::SchemaSettings;
+        let gen = SchemaSettings::default()
+            .with(|s| {
+                s.option_nullable = true;
+                s.option_add_null_type = false;
+            })
+            .into_generator();
         match self {
-            Tools::ForgeToolFsPatch(_) => schemars::schema_for!(FSPatch),
-            Tools::ForgeToolProcessShell(_) => schemars::schema_for!(Shell),
-            Tools::ForgeToolFollowup(_) => schemars::schema_for!(Followup),
-            Tools::ForgeToolNetFetch(_) => schemars::schema_for!(NetFetch),
-            Tools::ForgeToolAttemptCompletion(_) => schemars::schema_for!(AttemptCompletion),
-            Tools::ForgeToolFsSearch(_) => schemars::schema_for!(FSSearch),
-            Tools::ForgeToolFsRead(_) => schemars::schema_for!(FSRead),
-            Tools::ForgeToolFsRemove(_) => schemars::schema_for!(FSRemove),
-            Tools::ForgeToolFsUndo(_) => schemars::schema_for!(FSUndo),
-            Tools::ForgeToolFsCreate(_) => schemars::schema_for!(FSWrite),
+            Tools::ForgeToolFsPatch(_) => gen.into_root_schema_for::<FSPatch>(),
+            Tools::ForgeToolProcessShell(_) => gen.into_root_schema_for::<Shell>(),
+            Tools::ForgeToolFollowup(_) => gen.into_root_schema_for::<Followup>(),
+            Tools::ForgeToolNetFetch(_) => gen.into_root_schema_for::<NetFetch>(),
+            Tools::ForgeToolAttemptCompletion(_) => gen.into_root_schema_for::<AttemptCompletion>(),
+            Tools::ForgeToolFsSearch(_) => gen.into_root_schema_for::<FSSearch>(),
+            Tools::ForgeToolFsRead(_) => gen.into_root_schema_for::<FSRead>(),
+            Tools::ForgeToolFsRemove(_) => gen.into_root_schema_for::<FSRemove>(),
+            Tools::ForgeToolFsUndo(_) => gen.into_root_schema_for::<FSUndo>(),
+            Tools::ForgeToolFsCreate(_) => gen.into_root_schema_for::<FSWrite>(),
         }
     }
 
