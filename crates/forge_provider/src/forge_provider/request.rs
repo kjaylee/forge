@@ -384,7 +384,7 @@ impl From<ToolResult> for MessageContent {
                     };
                     parts.push(content);
                 }
-                ToolOutputValue::Pdf(pdf) => {
+                ToolValue::Pdf(pdf) => {
                     let content = ContentPart::File {
                         file: File {
                             filename: pdf.filename().clone(),

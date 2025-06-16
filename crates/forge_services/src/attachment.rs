@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use forge_app::{AttachmentService, EnvironmentService};
 use forge_domain::{Attachment, AttachmentContent, Image};
-use nom::AsBytes;
 
 use crate::{FsReadService, Infrastructure};
 
@@ -56,7 +55,7 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
         //NOTE: Attachments should not be truncated since they are provided by the user
         let content = match mime_type {
             Some(mime_type) => AttachmentContent::Image(Image::new_bytes(
-                self.infra.file_read_service().read(&path).await?,
+                &self.infra.file_read_service().read(&path).await?,
                 mime_type,
             )),
             None => AttachmentContent::FileContent(

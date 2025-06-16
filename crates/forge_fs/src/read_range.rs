@@ -38,6 +38,7 @@ impl crate::ForgeFS {
         if start_line == 0 || end_line == 0 {
             return Err(Error::IndexStartingWithZero { start: start_line, end: end_line }.into());
         }
+        println!("{}", std::backtrace::Backtrace::force_capture());
 
         if let Some(mime_type) = Self::mime_type_from_file(&mut file).await? {
             if mime_type.is_binary() {

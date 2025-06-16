@@ -3,7 +3,7 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-use super::{Pdf, ToolCallFull, ToolOutputValue, ToolResult};
+use super::{Pdf, ToolCallFull, ToolResult};
 use crate::temperature::Temperature;
 use crate::top_k::TopK;
 use crate::top_p::TopP;
