@@ -52,7 +52,7 @@ impl Console {
                 match self.command.parse(&text) {
                     Ok(command) => return Ok(Some(command)),
                     Err(error) => {
-                            tracing::error!(error = ?error);
+                        tracing::error!(error = ?error);
                         eprintln!("{}", TitleFormat::error(error.to_string()));
                     }
                 }

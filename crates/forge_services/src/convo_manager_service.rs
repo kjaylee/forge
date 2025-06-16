@@ -104,6 +104,7 @@ impl<I: Infrastructure> ForgeConversationSessionManager<I> {
                 Bytes::from(serde_json::to_string(&SessionIdStore {
                     id: conversation_id.clone(),
                 })?),
+                false,
             )
             .await?;
         self.session_id.write().await.replace(conversation_id);
@@ -131,13 +132,13 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
         let mut result = Vec::with_capacity(buffer.len());
         let mut total_size = 0;
 
-        for (i, buffer) in buffer.into_iter().flatten().rev().enumerate() {
+        for buffer in buffer.into_iter().flatten().rev() {
             let content_size = buffer.content.len();
             if total_size + content_size > buffer_size {
                 break;
             }
             total_size += content_size;
-            result[i] = buffer;
+            result.push(buffer);
         }
 
         Ok(result)
@@ -164,6 +165,7 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
             .write(
                 &conversation_path,
                 Bytes::from(serde_json::to_string(&conversation)?),
+                false,
             )
             .await?;
         Ok(())

@@ -18,6 +18,7 @@ use inquire::error::InquireError;
 use inquire::ui::{RenderConfig, Styled};
 use inquire::Select;
 use merge::Merge;
+use nu_ansi_term::{Color, Style};
 use serde::Deserialize;
 use serde_json::Value;
 use tokio_stream::StreamExt;
@@ -570,7 +571,9 @@ impl<F: API> UI<F> {
                                 .process_read(ReadResult::Success(buffer.content))
                                 .await?;
                             if let Some(Command::Message(message)) = command {
-                                println!("❯ {}", message.replace("\n", "\n::: "));
+                                let chevron = Style::new().fg(Color::LightGreen).paint("❯");
+
+                                println!("{chevron} {}", message.replace("\n", "\n::: "));
                             }
                         }
                         BufferEvent::Output => {
