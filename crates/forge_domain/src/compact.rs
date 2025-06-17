@@ -28,7 +28,8 @@ impl Retention {
 
     /// Convert percentage-based strategy to preserve_last_n equivalent
     /// This simulates the original percentage algorithm to determine how many
-    /// messages would be preserved, then returns that as a preserve_last_n value
+    /// messages would be preserved, then returns that as a preserve_last_n
+    /// value
     fn to_fixed(&self, context: &Context) -> Option<usize> {
         match self {
             Retention::Percent(percentage) => {
