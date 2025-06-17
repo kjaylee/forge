@@ -56,7 +56,7 @@ impl ContextMessage {
             _ => 0,
         };
 
-        char_count / 4
+        char_count.div_ceil(4)
     }
 
     pub fn to_text(&self) -> String {
