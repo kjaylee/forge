@@ -357,7 +357,7 @@
             "integer",
             "null"
           ],
-          "format": "uint64",
+          "format": "uint",
           "minimum": 0.0
         },
         "turn_threshold": {
