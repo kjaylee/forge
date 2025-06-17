@@ -12,8 +12,8 @@ use crate::tool_registry::ToolRegistry;
 use crate::{
     AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
     FollowUpService, FsCreateService, FsPatchService, FsReadService, FsRemoveService,
-    FsSearchService, FsUndoService, McpService, NetFetchService, ProviderService,
-    ShellService, WorkflowService,
+    FsSearchService, FsUndoService, McpService, NetFetchService, ProviderService, ShellService,
+    WorkflowService,
 };
 
 /// ForgeApp handles the core chat functionality by orchestrating various
