@@ -4,13 +4,13 @@ use std::sync::Arc;
 
 use async_recursion::async_recursion;
 use derive_setters::Setters;
-use forge_domain::*;
+use forge_domain::{CompactStrategy, *};
 use forge_template::Element;
 use serde_json::Value;
 use tracing::{debug, info, warn};
 
 use crate::agent::AgentService;
-use crate::compact::{CompactStrategy, Compactor};
+use crate::compact::Compactor;
 
 pub type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<ChatResponse>>>;
 

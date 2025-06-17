@@ -3,10 +3,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use chrono::Local;
-use forge_domain::*;
+use forge_domain::{CompactStrategy, *};
 use forge_stream::MpscStream;
 
-use crate::compact::CompactStrategy;
 use crate::orch::Orchestrator;
 use crate::services::TemplateService;
 use crate::tool_registry::ToolRegistry;
