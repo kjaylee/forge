@@ -3,7 +3,7 @@ mod agent_executor;
 mod app;
 mod compact;
 mod error;
-mod execution_result;
+mod operation;
 mod fmt_input;
 mod fmt_output;
 mod mcp_executor;

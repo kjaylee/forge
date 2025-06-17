@@ -3,7 +3,7 @@ use std::sync::Arc;
 use forge_domain::{ToolCallContext, ToolCallFull, ToolOutput, Tools};
 
 use crate::error::Error;
-use crate::execution_result::ExecutionResult;
+use crate::operation::Operation;
 use crate::fmt_input::{FormatInput, InputFormat};
 use crate::fmt_output::FormatOutput;
 use crate::{
@@ -20,7 +20,7 @@ impl<S: Services> ToolExecutor<S> {
         Self { services }
     }
 
-    async fn call_internal(&self, input: Tools) -> anyhow::Result<ExecutionResult> {
+    async fn call_internal(&self, input: Tools) -> anyhow::Result<Operation> {
         Ok(match input {
             Tools::ForgeToolFsRead(input) => {
                 let output = self
@@ -121,7 +121,7 @@ impl<S: Services> ToolExecutor<S> {
                 output.into()
             }
             Tools::ForgeToolAttemptCompletion(_input) => {
-                crate::execution_result::ExecutionResult::AttemptCompletion
+                crate::operation::Operation::AttemptCompletion
             }
         })
     }

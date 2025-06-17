@@ -1,20 +1,20 @@
 use forge_display::{DiffFormat, GrepFormat};
 use forge_domain::Environment;
 
-use crate::execution_result::ExecutionResult;
+use crate::operation::Operation;
 use crate::utils::format_match;
 
 pub trait FormatOutput {
     fn to_content(&self, env: &Environment) -> Option<String>;
 }
 
-impl FormatOutput for ExecutionResult {
+impl FormatOutput for Operation {
     fn to_content(&self, env: &Environment) -> Option<String> {
         match self {
-            ExecutionResult::FsRead { input: _, output: _ } => None,
-            ExecutionResult::FsCreate { input: _, output: _ } => None,
-            ExecutionResult::FsRemove { input: _ } => None,
-            ExecutionResult::FsSearch { input: _, output } => output.as_ref().map(|result| {
+            Operation::FsRead { input: _, output: _ } => None,
+            Operation::FsCreate { input: _, output: _ } => None,
+            Operation::FsRemove { input: _ } => None,
+            Operation::FsSearch { input: _, output } => output.as_ref().map(|result| {
                 GrepFormat::new(
                     result
                         .matches
@@ -24,14 +24,14 @@ impl FormatOutput for ExecutionResult {
                 )
                 .format()
             }),
-            ExecutionResult::FsPatch { input: _, output } => {
+            Operation::FsPatch { input: _, output } => {
                 Some(DiffFormat::format(&output.before, &output.after))
             }
-            ExecutionResult::FsUndo { input: _, output: _ } => None,
-            ExecutionResult::NetFetch { input: _, output: _ } => None,
-            ExecutionResult::Shell { output: _ } => None,
-            ExecutionResult::FollowUp { output: _ } => None,
-            ExecutionResult::AttemptCompletion => None,
+            Operation::FsUndo { input: _, output: _ } => None,
+            Operation::NetFetch { input: _, output: _ } => None,
+            Operation::Shell { output: _ } => None,
+            Operation::FollowUp { output: _ } => None,
+            Operation::AttemptCompletion => None,
         }
     }
 }
@@ -46,7 +46,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::FormatOutput;
-    use crate::execution_result::ExecutionResult;
+    use crate::operation::Operation;
     use crate::{
         Content, FsCreateOutput, FsUndoOutput, HttpResponse, Match, MatchResult, PatchOutput,
         ReadOutput, ResponseContext, SearchResult, ShellOutput,
@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_fs_read_single_line() {
-        let fixture = ExecutionResult::FsRead {
+        let fixture = Operation::FsRead {
             input: forge_domain::FSRead {
                 path: "/home/user/test.txt".to_string(),
                 start_line: None,
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn test_fs_read_multiple_lines() {
-        let fixture = ExecutionResult::FsRead {
+        let fixture = Operation::FsRead {
             input: forge_domain::FSRead {
                 path: "/home/user/test.txt".to_string(),
                 start_line: Some(2),
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_fs_create_new_file() {
-        let fixture = ExecutionResult::FsCreate {
+        let fixture = Operation::FsCreate {
             input: forge_domain::FSWrite {
                 path: "/home/user/project/new_file.txt".to_string(),
                 content: "New file content".to_string(),
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn test_fs_create_overwrite() {
-        let fixture = ExecutionResult::FsCreate {
+        let fixture = Operation::FsCreate {
             input: forge_domain::FSWrite {
                 path: "/home/user/project/existing_file.txt".to_string(),
                 content: "new content".to_string(),
@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_fs_create_with_warning() {
-        let fixture = ExecutionResult::FsCreate {
+        let fixture = Operation::FsCreate {
             input: forge_domain::FSWrite {
                 path: "/home/user/project/file.txt".to_string(),
                 content: "File content".to_string(),
@@ -200,7 +200,7 @@ mod tests {
 
     #[test]
     fn test_fs_remove() {
-        let fixture = ExecutionResult::FsRemove {
+        let fixture = Operation::FsRemove {
             input: forge_domain::FSRemove {
                 path: "/home/user/project/file.txt".to_string(),
                 explanation: Some("Remove file".to_string()),
@@ -216,7 +216,7 @@ mod tests {
 
     #[test]
     fn test_fs_search_with_matches() {
-        let fixture = ExecutionResult::FsSearch {
+        let fixture = Operation::FsSearch {
             input: forge_domain::FSSearch {
                 path: "/home/user/project".to_string(),
                 regex: Some("Hello".to_string()),
@@ -259,7 +259,7 @@ mod tests {
 
     #[test]
     fn test_fs_search_no_matches() {
-        let fixture = ExecutionResult::FsSearch {
+        let fixture = Operation::FsSearch {
             input: forge_domain::FSSearch {
                 path: "/home/user/project".to_string(),
                 regex: Some("nonexistent".to_string()),
@@ -287,7 +287,7 @@ mod tests {
 
     #[test]
     fn test_fs_search_none() {
-        let fixture = ExecutionResult::FsSearch {
+        let fixture = Operation::FsSearch {
             input: forge_domain::FSSearch {
                 path: "/home/user/project".to_string(),
                 regex: Some("search".to_string()),
@@ -308,7 +308,7 @@ mod tests {
 
     #[test]
     fn test_fs_patch_success() {
-        let fixture = ExecutionResult::FsPatch {
+        let fixture = Operation::FsPatch {
             input: forge_domain::FSPatch {
                 path: "/home/user/project/test.txt".to_string(),
                 search: Some("Hello world".to_string()),
@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn test_fs_patch_with_warning() {
-        let fixture = ExecutionResult::FsPatch {
+        let fixture = Operation::FsPatch {
             input: forge_domain::FSPatch {
                 path: "/home/user/project/large_file.txt".to_string(),
                 search: Some("line2".to_string()),
@@ -357,7 +357,7 @@ mod tests {
 
     #[test]
     fn test_fs_undo() {
-        let fixture = ExecutionResult::FsUndo {
+        let fixture = Operation::FsUndo {
             input: forge_domain::FSUndo {
                 path: "/home/user/project/test.txt".to_string(),
                 explanation: Some("Undo changes".to_string()),
@@ -377,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_net_fetch_success() {
-        let fixture = ExecutionResult::NetFetch {
+        let fixture = Operation::NetFetch {
             input: forge_domain::NetFetch {
                 url: "https://example.com".to_string(),
                 raw: Some(false),
@@ -400,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_net_fetch_error() {
-        let fixture = ExecutionResult::NetFetch {
+        let fixture = Operation::NetFetch {
             input: forge_domain::NetFetch {
                 url: "https://example.com/notfound".to_string(),
                 raw: Some(true),
@@ -423,7 +423,7 @@ mod tests {
 
     #[test]
     fn test_shell_success() {
-        let fixture = ExecutionResult::Shell {
+        let fixture = Operation::Shell {
             output: ShellOutput {
                 output: forge_domain::CommandOutput {
                     command: "ls -la".to_string(),
@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn test_shell_success_with_stderr() {
-        let fixture = ExecutionResult::Shell {
+        let fixture = Operation::Shell {
             output: ShellOutput {
                 output: forge_domain::CommandOutput {
                     command: "command_with_warnings".to_string(),
@@ -465,7 +465,7 @@ mod tests {
 
     #[test]
     fn test_shell_failure() {
-        let fixture = ExecutionResult::Shell {
+        let fixture = Operation::Shell {
             output: ShellOutput {
                 output: forge_domain::CommandOutput {
                     command: "failing_command".to_string(),
@@ -486,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_follow_up_with_response() {
-        let fixture = ExecutionResult::FollowUp {
+        let fixture = Operation::FollowUp {
             output: Some("Yes, continue with the operation".to_string()),
         };
         let env = fixture_environment();
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_follow_up_no_response() {
-        let fixture = ExecutionResult::FollowUp { output: None };
+        let fixture = Operation::FollowUp { output: None };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
@@ -510,7 +510,7 @@ mod tests {
 
     #[test]
     fn test_attempt_completion() {
-        let fixture = ExecutionResult::AttemptCompletion;
+        let fixture = Operation::AttemptCompletion;
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
