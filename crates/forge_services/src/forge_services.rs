@@ -1,6 +1,19 @@
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use forge_app::{EnvironmentService, Services};
+use anyhow::Error;
+use forge_app::{
+    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
+    FsCreateOutput, FsCreateService, FsPatchService, FsRemoveOutput, FsUndoOutput, HttpResponse,
+    McpConfigManager, PatchOutput, ProviderService, ReadOutput, SearchResult,
+    ShellOutput, TemplateService, WorkflowService,
+};
+use forge_domain::{
+    Attachment, ChatCompletionMessage, Context, Conversation, ConversationId, Environment, File,
+    McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope, ToolCallFull, ToolDefinition,
+    ToolOutput, Workflow,
+};
+use serde::Serialize;
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
@@ -94,108 +107,242 @@ impl<F: McpServer + EnvironmentService + FsWriteService + FsMetaService + FsRead
     }
 }
 
-impl<
-        F: McpServer
-            + FsReadService
-            + FsWriteService
-            + FsCreateDirsService
-            + FileRemoveService
-            + InquireService
-            + CommandExecutorService
-            + EnvironmentService
-            + FsMetaService
-            + FsSnapshotService
-            + Clone,
-    > Services for ForgeServices<F>
+#[async_trait::async_trait]
+impl<F: McpServer> ProviderService for ForgeServices<F> {
+    async fn chat(
+        &self,
+        id: &ModelId,
+        context: Context,
+    ) -> ResultStream<ChatCompletionMessage, Error> {
+        self.provider_service.chat(id, context).await
+    }
+
+    async fn models(&self) -> anyhow::Result<Vec<Model>> {
+        self.provider_service.models().await
+    }
+}
+
+#[async_trait::async_trait]
+impl<I: McpServer + FsReadService + FsWriteService + EnvironmentService + FsMetaService>
+    ConversationService for ForgeServices<I>
 {
-    type ProviderService = ForgeProviderService;
-    type ConversationService = ForgeConversationService<McpService<F>>;
-    type TemplateService = ForgeTemplateService<F>;
-    type AttachmentService = ForgeChatRequest<F>;
-    type EnvironmentService = F;
-    type WorkflowService = ForgeWorkflowService<F>;
-    type FileDiscoveryService = ForgeDiscoveryService<F>;
-    type McpConfigManager = ForgeMcpManager<F>;
-    type FsCreateService = ForgeFsCreate<F>;
-    type FsPatchService = ForgeFsPatch<F>;
-    type FsReadService = ForgeFsRead<F>;
-    type FsRemoveService = ForgeFsRemove<F>;
-    type FsSearchService = ForgeFsSearch;
-    type FollowUpService = ForgeFollowup<F>;
-    type FsUndoService = ForgeFsUndo<F>;
-    type NetFetchService = ForgeFetch;
-    type ShellService = ForgeShell<F>;
-    type McpService = McpService<F>;
-
-    fn provider_service(&self) -> &Self::ProviderService {
-        &self.provider_service
+    async fn find(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>> {
+        self.conversation_service.find(id).await
     }
 
-    fn conversation_service(&self) -> &Self::ConversationService {
-        &self.conversation_service
+    async fn upsert(&self, conversation: Conversation) -> anyhow::Result<()> {
+        self.conversation_service.upsert(conversation).await
     }
 
-    fn template_service(&self) -> &Self::TemplateService {
-        &self.template_service
+    async fn create(&self, workflow: Workflow) -> anyhow::Result<Conversation> {
+        self.conversation_service.create(workflow).await
     }
 
-    fn attachment_service(&self) -> &Self::AttachmentService {
-        &self.attachment_service
+    async fn update<F, T>(&self, id: &ConversationId, f: F) -> anyhow::Result<T>
+    where
+        F: FnOnce(&mut Conversation) -> T + Send,
+    {
+        self.conversation_service.update(id, f).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FsReadService + EnvironmentService> TemplateService for ForgeServices<F> {
+    async fn register_template(&self, path: PathBuf) -> anyhow::Result<()> {
+        self.template_service.register_template(path).await
     }
 
-    fn environment_service(&self) -> &Self::EnvironmentService {
-        &self.infra
+    async fn render(
+        &self,
+        template: impl ToString + Send,
+        object: &(impl Serialize + Sync),
+    ) -> anyhow::Result<String> {
+        self.template_service.render(template, object).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FsReadService + FsWriteService + EnvironmentService> AttachmentService
+    for ForgeServices<F>
+{
+    async fn attachments(&self, url: &str) -> anyhow::Result<Vec<Attachment>> {
+        self.attachment_service.attachments(url).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FsWriteService + EnvironmentService> EnvironmentService for ForgeServices<F> {
+    fn get_environment(&self) -> Environment {
+        self.infra.get_environment()
+    }
+}
+
+#[async_trait::async_trait]
+impl<I: McpServer + FsReadService + FsWriteService> WorkflowService for ForgeServices<I> {
+    async fn resolve(&self, path: Option<PathBuf>) -> PathBuf {
+        self.workflow_service.resolve(path).await
     }
 
-    fn workflow_service(&self) -> &Self::WorkflowService {
-        self.workflow_service.as_ref()
+    async fn read(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+        self.workflow_service.read(path).await
     }
 
-    fn file_discovery_service(&self) -> &Self::FileDiscoveryService {
-        self.discovery_service.as_ref()
+    async fn write(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()> {
+        self.workflow_service.write(path, workflow).await
     }
 
-    fn mcp_config_manager(&self) -> &Self::McpConfigManager {
-        self.mcp_manager.as_ref()
+    async fn update_workflow<F>(&self, path: Option<&Path>, f: F) -> anyhow::Result<Workflow>
+    where
+        F: FnOnce(&mut Workflow) + Send,
+    {
+        self.workflow_service.update_workflow(path, f).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FsReadService + FsWriteService + EnvironmentService> FileDiscoveryService
+    for ForgeServices<F>
+{
+    async fn collect(&self, max_depth: Option<usize>) -> anyhow::Result<Vec<File>> {
+        self.discovery_service.collect(max_depth).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FsReadService + FsWriteService + FsMetaService + EnvironmentService>
+    McpConfigManager for ForgeServices<F>
+{
+    async fn read(&self) -> anyhow::Result<McpConfig> {
+        self.mcp_manager.read().await
     }
 
-    fn fs_create_service(&self) -> &Self::FsCreateService {
-        &self.file_create_service
+    async fn write(&self, config: &McpConfig, scope: &Scope) -> anyhow::Result<()> {
+        self.mcp_manager.write(config, scope).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FsWriteService + FsMetaService + FsReadService + FsCreateDirsService>
+    FsCreateService for ForgeServices<F>
+{
+    async fn create(
+        &self,
+        path: String,
+        content: String,
+        overwrite: bool,
+        capture_snapshot: bool,
+    ) -> anyhow::Result<FsCreateOutput> {
+        self.file_create_service
+            .create(path, content, overwrite, capture_snapshot)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FsWriteService> FsPatchService for ForgeServices<F> {
+    async fn patch(
+        &self,
+        path: String,
+        search: Option<String>,
+        operation: PatchOperation,
+        content: String,
+    ) -> anyhow::Result<PatchOutput> {
+        self.file_patch_service
+            .patch(path, search, operation, content)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FsReadService + EnvironmentService + FsMetaService> forge_app::FsReadService
+    for ForgeServices<F>
+{
+    async fn read(
+        &self,
+        path: String,
+        start_line: Option<u64>,
+        end_line: Option<u64>,
+    ) -> anyhow::Result<ReadOutput> {
+        self.file_read_service
+            .read(path, start_line, end_line)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FileRemoveService> forge_app::FsRemoveService for ForgeServices<F> {
+    async fn remove(&self, path: String) -> anyhow::Result<FsRemoveOutput> {
+        self.file_remove_service.remove(path).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FsReadService> forge_app::FsSearchService for ForgeServices<F> {
+    async fn search(
+        &self,
+        path: String,
+        regex: Option<String>,
+        file_pattern: Option<String>,
+    ) -> anyhow::Result<Option<SearchResult>> {
+        self.file_search_service
+            .search(path, regex, file_pattern)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + InquireService> forge_app::FollowUpService for ForgeServices<F> {
+    async fn follow_up(
+        &self,
+        question: String,
+        options: Vec<String>,
+        multiple: Option<bool>,
+    ) -> anyhow::Result<Option<String>> {
+        self.followup_service
+            .follow_up(question, options, multiple)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FsMetaService + FsReadService + FsSnapshotService> forge_app::FsUndoService
+    for ForgeServices<F>
+{
+    async fn undo(&self, path: String) -> anyhow::Result<FsUndoOutput> {
+        self.file_undo_service.undo(path).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer> forge_app::NetFetchService for ForgeServices<F> {
+    async fn fetch(&self, url: String, raw: Option<bool>) -> anyhow::Result<HttpResponse> {
+        self.fetch_service.fetch(url, raw).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + CommandExecutorService + EnvironmentService> forge_app::ShellService
+    for ForgeServices<F>
+{
+    async fn execute(
+        &self,
+        command: String,
+        cwd: PathBuf,
+        keep_ansi: bool,
+    ) -> anyhow::Result<ShellOutput> {
+        self.shell_service.execute(command, cwd, keep_ansi).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: McpServer + FsReadService + FsMetaService + EnvironmentService + FsWriteService>
+    forge_app::McpService for ForgeServices<F>
+{
+    async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {
+        self.mcp_service.list().await
     }
 
-    fn fs_patch_service(&self) -> &Self::FsPatchService {
-        &self.file_patch_service
-    }
-
-    fn fs_read_service(&self) -> &Self::FsReadService {
-        &self.file_read_service
-    }
-
-    fn fs_remove_service(&self) -> &Self::FsRemoveService {
-        &self.file_remove_service
-    }
-
-    fn fs_search_service(&self) -> &Self::FsSearchService {
-        &self.file_search_service
-    }
-
-    fn follow_up_service(&self) -> &Self::FollowUpService {
-        &self.followup_service
-    }
-
-    fn fs_undo_service(&self) -> &Self::FsUndoService {
-        &self.file_undo_service
-    }
-
-    fn net_fetch_service(&self) -> &Self::NetFetchService {
-        &self.fetch_service
-    }
-
-    fn shell_service(&self) -> &Self::ShellService {
-        &self.shell_service
-    }
-
-    fn mcp_service(&self) -> &Self::McpService {
-        &self.mcp_service
+    async fn call(&self, call: ToolCallFull) -> anyhow::Result<ToolOutput> {
+        self.mcp_service.call(call).await
     }
 }

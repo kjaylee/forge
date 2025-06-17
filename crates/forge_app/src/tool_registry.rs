@@ -13,7 +13,12 @@ use crate::agent_executor::AgentExecutor;
 use crate::error::Error;
 use crate::mcp_executor::McpExecutor;
 use crate::tool_executor::ToolExecutor;
-use crate::{McpService, Services};
+use crate::{
+    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
+    FollowUpService, FsCreateService, FsPatchService, FsReadService, FsRemoveService,
+    FsSearchService, FsUndoService, McpService, NetFetchService, ProviderService, ShellService,
+    TemplateService, WorkflowService,
+};
 
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -23,7 +28,27 @@ pub struct ToolRegistry<S> {
     mcp_executor: McpExecutor<S>,
 }
 
-impl<S: Services> ToolRegistry<S> {
+impl<
+    S: FsReadService
+        + FsCreateService
+        + FsSearchService
+        + NetFetchService
+        + FsRemoveService
+        + FsPatchService
+        + FsUndoService
+        + ShellService
+        + FollowUpService
+        + EnvironmentService
+        + WorkflowService
+        + ConversationService
+        + McpService
+        + ProviderService
+        + FileDiscoveryService
+        + TemplateService
+        + AttachmentService
+        + Clone,
+> ToolRegistry<S>
+{
     pub fn new(services: Arc<S>) -> Self {
         Self {
             tool_executor: ToolExecutor::new(services.clone()),
@@ -97,7 +122,7 @@ impl<S: Services> ToolRegistry<S> {
     }
 
     pub async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {
-        let mcp_tools = self.mcp_executor.services.mcp_service().list().await?;
+        let mcp_tools = self.mcp_executor.services.list().await?;
         let agent_tools = self.agent_executor.tool_agents().await?;
 
         let tools = Tools::iter()

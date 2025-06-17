@@ -6,7 +6,12 @@ use forge_domain::{
 };
 
 use crate::tool_registry::ToolRegistry;
-use crate::{ConversationService, ProviderService, Services, TemplateService};
+use crate::{
+    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
+    FollowUpService, FsCreateService, FsPatchService, FsReadService, FsRemoveService,
+    FsSearchService, FsUndoService, McpService, NetFetchService, ProviderService, ShellService,
+    TemplateService, WorkflowService,
+};
 
 /// Agent service trait that provides core chat and tool call functionality.
 /// This trait abstracts the essential operations needed by the Orchestrator.
@@ -40,16 +45,33 @@ pub trait AgentService: Send + Sync + 'static {
 
 /// Blanket implementation of AgentService for any type that implements Services
 #[async_trait::async_trait]
-impl<T> AgentService for T
-where
-    T: Services,
+impl<
+    T: ProviderService
+        + FsReadService
+        + FsCreateService
+        + FsSearchService
+        + NetFetchService
+        + FsRemoveService
+        + FsPatchService
+        + FsUndoService
+        + ShellService
+        + FollowUpService
+        + EnvironmentService
+        + WorkflowService
+        + ConversationService
+        + McpService
+        + AttachmentService
+        + FileDiscoveryService
+        + TemplateService
+        + Clone,
+> AgentService for T
 {
     async fn chat(
         &self,
         id: &ModelId,
         context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        self.provider_service().chat(id, context).await
+        self.chat(id, context).await
     }
 
     async fn call(
@@ -67,10 +89,10 @@ where
         template: &str,
         object: &(impl serde::Serialize + Sync),
     ) -> anyhow::Result<String> {
-        self.template_service().render(template, object).await
+        self.render(template, object).await
     }
 
     async fn update(&self, conversation: Conversation) -> anyhow::Result<()> {
-        self.conversation_service().upsert(conversation).await
+        self.upsert(conversation).await
     }
 }

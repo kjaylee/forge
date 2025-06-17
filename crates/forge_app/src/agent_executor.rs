@@ -9,14 +9,39 @@ use futures::StreamExt;
 use tokio::sync::RwLock;
 
 use crate::error::Error;
-use crate::{ConversationService, Services, WorkflowService};
+use crate::{
+    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
+    FollowUpService, FsCreateService, FsPatchService, FsReadService, FsRemoveService,
+    FsSearchService, FsUndoService, McpService, NetFetchService, ProviderService, ShellService,
+    TemplateService, WorkflowService,
+};
 
 pub struct AgentExecutor<S> {
     services: Arc<S>,
     pub tool_agents: Arc<RwLock<Option<Vec<ToolDefinition>>>>,
 }
 
-impl<S: Services> AgentExecutor<S> {
+impl<
+    S: FsReadService
+        + FsCreateService
+        + FsSearchService
+        + NetFetchService
+        + FsRemoveService
+        + FsPatchService
+        + FsUndoService
+        + ShellService
+        + FollowUpService
+        + EnvironmentService
+        + WorkflowService
+        + ConversationService
+        + McpService
+        + ProviderService
+        + FileDiscoveryService
+        + TemplateService
+        + AttachmentService
+        + Clone,
+> AgentExecutor<S>
+{
     pub fn new(services: Arc<S>) -> Self {
         Self { services, tool_agents: Arc::new(RwLock::new(None)) }
     }
@@ -26,7 +51,7 @@ impl<S: Services> AgentExecutor<S> {
         if let Some(tool_agents) = self.tool_agents.read().await.clone() {
             return Ok(tool_agents);
         }
-        let workflow = self.services.workflow_service().read_merged(None).await?;
+        let workflow = self.services.read_merged(None).await?;
 
         let agents: Vec<ToolDefinition> = workflow.agents.into_iter().map(Into::into).collect();
         *self.tool_agents.write().await = Some(agents.clone());
@@ -52,12 +77,8 @@ impl<S: Services> AgentExecutor<S> {
             .await?;
 
         // Create a new conversation for agent execution
-        let workflow = self.services.workflow_service().read_merged(None).await?;
-        let conversation = self
-            .services
-            .conversation_service()
-            .create(workflow)
-            .await?;
+        let workflow = self.services.read_merged(None).await?;
+        let conversation = ConversationService::create(self.services.as_ref(), workflow).await?;
 
         // Execute the request through the ForgeApp
         let app = crate::ForgeApp::new(self.services.clone());

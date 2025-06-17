@@ -3,8 +3,10 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_app::{
-    ConversationService, EnvironmentService, FileDiscoveryService, ForgeApp, McpConfigManager,
-    ProviderService, Services, WorkflowService,
+    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
+    FollowUpService, ForgeApp, FsCreateService, FsPatchService, FsReadService, FsRemoveService,
+    FsSearchService, FsUndoService, McpConfigManager, McpService, NetFetchService, ProviderService,
+    ShellService, TemplateService, WorkflowService,
 };
 use forge_domain::*;
 use forge_infra::ForgeInfra;
@@ -18,7 +20,7 @@ pub struct ForgeAPI<A, F> {
     infra: Arc<F>,
 }
 
-impl<A: Services, F> ForgeAPI<A, F> {
+impl<A, F> ForgeAPI<A, F> {
     pub fn new(app: Arc<A>, infra: Arc<F>) -> Self {
         Self { app, infra }
     }
@@ -33,9 +35,31 @@ impl ForgeAPI<ForgeServices<ForgeInfra>, ForgeInfra> {
 }
 
 #[async_trait::async_trait]
-impl<A: Services, F: CommandExecutorService> API for ForgeAPI<A, F> {
+impl<
+        A: ProviderService
+            + FsReadService
+            + FsCreateService
+            + FsSearchService
+            + NetFetchService
+            + FsRemoveService
+            + FsPatchService
+            + FsUndoService
+            + ShellService
+            + FollowUpService
+            + EnvironmentService
+            + WorkflowService
+            + ConversationService
+            + McpService
+            + AttachmentService
+            + FileDiscoveryService
+            + TemplateService
+            + McpConfigManager
+            + Clone,
+        F: CommandExecutorService,
+    > API for ForgeAPI<A, F>
+{
     async fn discover(&self) -> Result<Vec<File>> {
-        self.app.file_discovery_service().collect(None).await
+        self.app.collect(None).await
     }
 
     async fn tools(&self) -> anyhow::Result<Vec<ToolDefinition>> {
@@ -44,7 +68,7 @@ impl<A: Services, F: CommandExecutorService> API for ForgeAPI<A, F> {
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
-        Ok(self.app.provider_service().models().await?)
+        Ok(self.app.models().await?)
     }
 
     async fn chat(
@@ -60,14 +84,11 @@ impl<A: Services, F: CommandExecutorService> API for ForgeAPI<A, F> {
         &self,
         workflow: W,
     ) -> anyhow::Result<Conversation> {
-        self.app
-            .conversation_service()
-            .create(workflow.into())
-            .await
+        ConversationService::create(self.app.as_ref(), workflow.into()).await
     }
 
     async fn upsert_conversation(&self, conversation: Conversation) -> anyhow::Result<()> {
-        self.app.conversation_service().upsert(conversation).await
+        self.app.upsert(conversation).await
     }
 
     async fn compact_conversation(
@@ -79,31 +100,29 @@ impl<A: Services, F: CommandExecutorService> API for ForgeAPI<A, F> {
     }
 
     fn environment(&self) -> Environment {
-        Services::environment_service(self.app.as_ref())
-            .get_environment()
-            .clone()
+        self.app.as_ref().get_environment().clone()
     }
 
     async fn read_workflow(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        self.app.workflow_service().read(path).await
+        WorkflowService::read(self.app.as_ref(), path).await
     }
 
     async fn write_workflow(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()> {
-        self.app.workflow_service().write(path, workflow).await
+        WorkflowService::write(self.app.as_ref(), path, workflow).await
     }
 
     async fn update_workflow<T>(&self, path: Option<&Path>, f: T) -> anyhow::Result<Workflow>
     where
         T: FnOnce(&mut Workflow) + Send,
     {
-        self.app.workflow_service().update_workflow(path, f).await
+        self.app.update_workflow(path, f).await
     }
 
     async fn conversation(
         &self,
         conversation_id: &ConversationId,
     ) -> anyhow::Result<Option<Conversation>> {
-        self.app.conversation_service().find(conversation_id).await
+        self.app.find(conversation_id).await
     }
 
     async fn execute_shell_command(
@@ -116,17 +135,13 @@ impl<A: Services, F: CommandExecutorService> API for ForgeAPI<A, F> {
             .await
     }
     async fn read_mcp_config(&self) -> Result<McpConfig> {
-        self.app
-            .mcp_config_manager()
-            .read()
+        McpConfigManager::read(self.app.as_ref())
             .await
             .map_err(|e| anyhow::anyhow!(e))
     }
 
     async fn write_mcp_config(&self, scope: &Scope, config: &McpConfig) -> Result<()> {
-        self.app
-            .mcp_config_manager()
-            .write(config, scope)
+        McpConfigManager::write(self.app.as_ref(), config, scope)
             .await
             .map_err(|e| anyhow::anyhow!(e))
     }

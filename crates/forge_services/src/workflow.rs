@@ -59,7 +59,7 @@ impl<F: FsWriteService + FsReadService> ForgeWorkflowService<F> {
     /// If the path is just "forge.yaml", searches for it in parent directories.
     /// If the file doesn't exist anywhere, creates a new empty workflow file at
     /// the specified path (in the current directory).
-    pub async fn read(&self, path: &Path) -> anyhow::Result<Workflow> {
+    async fn read(&self, path: &Path) -> anyhow::Result<Workflow> {
         // First, try to find the config file in parent directories if needed
         let path = &self.resolve_path(Some(path.into())).await;
 
