@@ -486,9 +486,8 @@ mod tests {
 
     #[test]
     fn test_follow_up_with_response() {
-        let fixture = Operation::FollowUp {
-            output: Some("Yes, continue with the operation".to_string()),
-        };
+        let fixture =
+            Operation::FollowUp { output: Some("Yes, continue with the operation".to_string()) };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);

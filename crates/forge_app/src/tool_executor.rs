@@ -3,9 +3,9 @@ use std::sync::Arc;
 use forge_domain::{ToolCallContext, ToolCallFull, ToolOutput, Tools};
 
 use crate::error::Error;
-use crate::operation::Operation;
 use crate::fmt_input::{FormatInput, InputFormat};
 use crate::fmt_output::FormatOutput;
+use crate::operation::Operation;
 use crate::{
     EnvironmentService, FollowUpService, FsCreateService, FsPatchService, FsReadService,
     FsRemoveService, FsSearchService, FsUndoService, NetFetchService, Services, ShellService,
