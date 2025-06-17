@@ -6,22 +6,22 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompactionResult {
     /// Number of tokens in the original context
-    pub original_tokens: u64,
+    pub original_tokens: usize,
     /// Number of tokens after compaction
-    pub compacted_tokens: u64,
+    pub compacted_tokens: usize,
     /// Number of messages in the original context
-    pub original_messages: u64,
+    pub original_messages: usize,
     /// Number of messages after compaction
-    pub compacted_messages: u64,
+    pub compacted_messages: usize,
 }
 
 impl CompactionResult {
     /// Create a new CompactionResult with the specified metrics
     pub fn new(
-        original_tokens: u64,
-        compacted_tokens: u64,
-        original_messages: u64,
-        compacted_messages: u64,
+        original_tokens: usize,
+        compacted_tokens: usize,
+        original_messages: usize,
+        compacted_messages: usize,
     ) -> Self {
         Self {
             original_tokens,

@@ -28,6 +28,7 @@ impl CompactStrategy {
 
     /// Convert any strategy to a preserve_last_n value for unified processing
     pub fn to_preserve_last_n(&self, context: &Context) -> Option<usize> {
+        // FIXME: We should take the max of both percentage and default
         match self {
             CompactStrategy::Percentage(percentage) => {
                 convert_percentage_to_preserve_last_n(context, *percentage)
@@ -122,7 +123,7 @@ pub struct Compact {
     /// Maximum number of tokens before triggering compaction
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
-    pub token_threshold: Option<u64>,
+    pub token_threshold: Option<usize>,
 
     /// Maximum number of conversation turns before triggering compaction
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -200,7 +201,7 @@ impl Compact {
 
     /// Determines if compaction should be triggered based on the current
     /// context
-    pub fn should_compact(&self, context: &Context, token_count: u64) -> bool {
+    pub fn should_compact(&self, context: &Context, token_count: usize) -> bool {
         // Check if any of the thresholds have been exceeded
         if let Some(token_threshold) = self.token_threshold {
             debug!(tokens = ?token_count, "Token count");

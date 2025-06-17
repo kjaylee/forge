@@ -24,12 +24,12 @@ impl ContextMessage {
     /// Estimates the number of tokens in a message using character-based
     /// approximation.
     /// ref: https://github.com/openai/codex/blob/main/codex-cli/src/utils/approximate-tokens-used.ts
-    pub fn token_count(&self) -> u64 {
+    pub fn token_count(&self) -> usize {
         let char_count = match self {
             ContextMessage::Text(text_message)
                 if matches!(text_message.role, Role::User | Role::Assistant) =>
             {
-                text_message.content.chars().count() as u64
+                text_message.content.chars().count()
                     + text_message
                         .tool_calls
                         .as_ref()
@@ -37,8 +37,8 @@ impl ContextMessage {
                             tool_calls
                                 .iter()
                                 .map(|tc| {
-                                    tc.arguments.to_string().chars().count() as u64
-                                        + tc.name.as_str().chars().count() as u64
+                                    tc.arguments.to_string().chars().count()
+                                        + tc.name.as_str().chars().count()
                                 })
                                 .sum()
                         })
@@ -49,14 +49,14 @@ impl ContextMessage {
                 .values
                 .iter()
                 .map(|result| match result {
-                    ToolValue::Text(text) => text.chars().count() as u64,
+                    ToolValue::Text(text) => text.chars().count(),
                     _ => 0,
                 })
                 .sum(),
             _ => 0,
         };
 
-        (char_count as f64 / 4.0).ceil() as u64
+        char_count / 4
     }
 
     pub fn to_text(&self) -> String {
@@ -343,7 +343,7 @@ impl Context {
         )
     }
 
-    pub fn token_count(&self) -> u64 {
+    pub fn token_count(&self) -> usize {
         self.messages.iter().map(|m| m.token_count()).sum()
     }
 }
