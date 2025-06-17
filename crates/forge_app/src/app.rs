@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use chrono::Local;
-use forge_domain::{CompactStrategy, *};
+use forge_domain::*;
 use forge_stream::MpscStream;
 
 use crate::orch::Orchestrator;
@@ -170,7 +170,7 @@ impl<S: Services> ForgeApp<S> {
                 .compact_context(
                     &agent,
                     context,
-                    CompactStrategy::preserve_last_n(compact.max_retention_window),
+                    Retention::fixed(compact.max_retention_window),
                 )
                 .await?;
 

@@ -8,95 +8,51 @@ use crate::{Context, ModelId, Role};
 
 /// Strategy for context compaction that unifies different compaction approaches
 #[derive(Debug, Clone)]
-pub enum CompactStrategy {
-    /// Compact based on percentage of total tokens
-    Percentage(f64),
-    /// Preserve the last N messages
-    PreserveLastN(usize),
+pub enum Retention {
+    /// Retention based on percentage of tokens
+    Percent(f64),
+    /// Retention based on fixed tokens
+    Fixed(usize),
 }
 
-impl CompactStrategy {
+impl Retention {
     /// Create a percentage-based compaction strategy
-    pub fn percentage(percentage: f64) -> Self {
-        Self::Percentage(percentage)
+    pub fn percent(percentage: f64) -> Self {
+        Self::Percent(percentage)
     }
 
     /// Create a preserve-last-N compaction strategy
-    pub fn preserve_last_n(preserve_last_n: usize) -> Self {
-        Self::PreserveLastN(preserve_last_n)
+    pub fn fixed(preserve_last_n: usize) -> Self {
+        Self::Fixed(preserve_last_n)
     }
 
-    /// Convert any strategy to a preserve_last_n value for unified processing
-    pub fn to_preserve_last_n(&self, context: &Context) -> Option<usize> {
-        // FIXME: We should take the max of both percentage and default
+    /// Convert percentage-based strategy to preserve_last_n equivalent
+    /// This simulates the original percentage algorithm to determine how many
+    /// messages would be preserved, then returns that as a preserve_last_n value
+    fn to_fixed(&self, context: &Context) -> Option<usize> {
         match self {
-            CompactStrategy::Percentage(percentage) => {
-                convert_percentage_to_preserve_last_n(context, *percentage)
+            Retention::Percent(percentage) => {
+                if *percentage > 1.0 {
+                    return None;
+                }
+                let total_tokens = context.token_count();
+                let mut token_to_retain: usize =
+                    ((1.0 - percentage) * total_tokens as f64) as usize;
+                let (i, _) = context.messages.iter().enumerate().rev().find(|(_, m)| {
+                    token_to_retain = token_to_retain.saturating_sub(m.token_count());
+                    token_to_retain <= 0
+                })?;
+
+                Some(i.saturating_sub(1))
             }
-            CompactStrategy::PreserveLastN(preserve_last_n) => Some(*preserve_last_n),
+            Retention::Fixed(fixed) => Some(*fixed),
         }
     }
 
     /// Find the sequence to compact using the unified algorithm
-    pub fn compact(&self, context: &Context) -> Option<(usize, usize)> {
-        let preserve_last_n = self.to_preserve_last_n(context)?;
-        find_sequence_preserving_last_n(context, preserve_last_n)
-    }
-}
-
-/// Convert percentage-based strategy to preserve_last_n equivalent
-/// This simulates the original percentage algorithm to determine how many
-/// messages would be preserved, then returns that as a preserve_last_n value
-fn convert_percentage_to_preserve_last_n(context: &Context, percentage: f64) -> Option<usize> {
-    let messages = &context.messages;
-    if messages.is_empty() || percentage <= 0.0 || percentage > 1.0 {
-        return None;
-    }
-
-    // Find the first non-system message to start compaction from
-    let start_index = messages
-        .iter()
-        .position(|msg| !msg.has_role(Role::System))?;
-
-    // Calculate total tokens from the start index onwards
-    let total_tokens = messages
-        .iter()
-        .skip(start_index)
-        .map(|msg| msg.token_count() as f64)
-        .sum::<f64>();
-    let token_limit = (total_tokens * percentage).floor();
-    let mut accumulated_tokens = 0.0;
-    let mut end_index = 0;
-    let mut last_valid_end = None;
-
-    // Process message groups to find where we exceed the target token count
-    for group in context.message_groups(Some(start_index)) {
-        let group_tokens: f64 = group.iter().map(|msg| msg.token_count() as f64).sum();
-        accumulated_tokens += group_tokens;
-        end_index += group.len();
-
-        if accumulated_tokens > token_limit {
-            // We exceeded the token limit, so we stop here
-            break;
-        }
-
-        // there should be atleast two messages.
-        let end_index = start_index.saturating_add(end_index).saturating_sub(1);
-        if end_index.saturating_sub(start_index) < 1 {
-            continue;
-        }
-        last_valid_end = Some(end_index);
-    }
-
-    // If we found a valid end index, calculate how many messages to preserve
-    if let Some(end_index) = last_valid_end {
-        let messages_to_compact = end_index - start_index + 1;
-        let total_non_system_messages = messages.len() - start_index;
-        let preserve_last_n = total_non_system_messages.saturating_sub(messages_to_compact);
-        Some(preserve_last_n)
-    } else {
-        // No valid sequence found, preserve all messages
-        Some(messages.len())
+    pub fn eviction_range(&self, context: &Context) -> Option<(usize, usize)> {
+        let retention = self.to_fixed(context)?;
+        find_sequence_preserving_last_n(context, retention)
     }
 }
 
@@ -238,9 +194,9 @@ impl Compact {
 /// Finds a sequence in the context for compaction, starting from the first
 /// assistant message and including all messages up to the last possible message
 /// (respecting preservation window)
-pub fn find_sequence_preserving_last_n(
+fn find_sequence_preserving_last_n(
     context: &Context,
-    preserve_last_n: usize,
+    max_retention: usize,
 ) -> Option<(usize, usize)> {
     let messages = &context.messages;
     if messages.is_empty() {
@@ -265,12 +221,12 @@ pub fn find_sequence_preserving_last_n(
     // Calculate the end index based on preservation window
     // If we need to preserve all or more messages than we have, there's nothing to
     // compact
-    if preserve_last_n >= length {
+    if max_retention >= length {
         return None;
     }
 
     // Use saturating subtraction to prevent potential overflow
-    let end = length.saturating_sub(preserve_last_n).saturating_sub(1);
+    let end = length.saturating_sub(max_retention).saturating_sub(1);
 
     // Ensure we have at least two messages to create a meaningful summary
     // If start > end or end is invalid, don't compact
@@ -503,7 +459,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compact_strategy_to_preserve_last_n_conversion() {
+    fn test_compact_strategy_to_fixed_conversion() {
         let fixture = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user(
@@ -518,20 +474,20 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant message 2", None));
 
         // Test Percentage strategy conversion
-        let percentage_strategy = CompactStrategy::percentage(0.6);
-        let actual = percentage_strategy.to_preserve_last_n(&fixture);
+        let percentage_strategy = Retention::percent(0.6);
+        let actual = percentage_strategy.to_fixed(&fixture);
         let expected = Some(2); // Based on the conversion logic
         assert_eq!(actual, expected);
 
         // Test PreserveLastN strategy
-        let preserve_strategy = CompactStrategy::preserve_last_n(3);
-        let actual = preserve_strategy.to_preserve_last_n(&fixture);
+        let preserve_strategy = Retention::fixed(3);
+        let actual = preserve_strategy.to_fixed(&fixture);
         let expected = Some(3);
         assert_eq!(actual, expected);
 
         // Test invalid percentage
-        let invalid_strategy = CompactStrategy::percentage(1.5);
-        let actual = invalid_strategy.to_preserve_last_n(&fixture);
+        let invalid_strategy = Retention::percent(1.5);
+        let actual = invalid_strategy.to_fixed(&fixture);
         let expected = None;
         assert_eq!(actual, expected);
     }
@@ -545,13 +501,13 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant 2", None))
             .add_message(ContextMessage::user("User 3", ModelId::new("gpt-4").into()));
 
-        let percentage_strategy = CompactStrategy::percentage(0.4);
-        let actual_sequence = percentage_strategy.compact(&fixture);
+        let percentage_strategy = Retention::percent(0.4);
+        let actual_sequence = percentage_strategy.eviction_range(&fixture);
 
         // Convert percentage to preserve_last_n and test equivalence
-        if let Some(preserve_last_n) = percentage_strategy.to_preserve_last_n(&fixture) {
-            let preserve_strategy = CompactStrategy::preserve_last_n(preserve_last_n);
-            let expected_sequence = preserve_strategy.compact(&fixture);
+        if let Some(preserve_last_n) = percentage_strategy.to_fixed(&fixture) {
+            let preserve_strategy = Retention::fixed(preserve_last_n);
+            let expected_sequence = preserve_strategy.eviction_range(&fixture);
             assert_eq!(actual_sequence, expected_sequence);
         }
     }
@@ -571,15 +527,15 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant message 2", None));
 
         // Use percentage-based strategy
-        let percentage_strategy = CompactStrategy::percentage(0.6);
-        if let Some(_preserve_last_n) = percentage_strategy.to_preserve_last_n(&fixture) {
+        let percentage_strategy = Retention::percent(0.6);
+        if let Some(_preserve_last_n) = percentage_strategy.to_fixed(&fixture) {
             // Conversion successful
         }
 
         // Use fixed window strategy - preserve last 1 message, so we can compact the
         // first 3
-        let preserve_strategy = CompactStrategy::preserve_last_n(1);
-        let actual_sequence = preserve_strategy.compact(&fixture);
+        let preserve_strategy = Retention::fixed(1);
+        let actual_sequence = preserve_strategy.eviction_range(&fixture);
         let expected = Some((0, 2));
         assert_eq!(actual_sequence, expected);
     }
