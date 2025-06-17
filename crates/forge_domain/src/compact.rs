@@ -28,7 +28,8 @@ impl Retention {
 
     /// Convert percentage-based strategy to preserve_last_n equivalent
     /// This simulates the original percentage algorithm to determine how many
-    /// messages would be preserved, then returns that as a preserve_last_n value
+    /// messages would be preserved, then returns that as a preserve_last_n
+    /// value
     fn to_fixed(&self, context: &Context) -> Option<usize> {
         match self {
             Retention::Percent(percentage) => {
@@ -36,11 +37,10 @@ impl Retention {
                     return None;
                 }
                 let total_tokens = context.token_count();
-                let mut token_to_retain: usize =
-                    ((1.0 - percentage) * total_tokens as f64) as usize;
+                let mut token_to_retain: usize = (percentage * total_tokens as f64).ceil() as usize;
                 let (i, _) = context.messages.iter().enumerate().rev().find(|(_, m)| {
                     token_to_retain = token_to_retain.saturating_sub(m.token_count());
-                    token_to_retain <= 0
+                    token_to_retain == 0
                 })?;
 
                 Some(i.saturating_sub(1))
@@ -474,7 +474,7 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant message 2", None));
 
         // Test Percentage strategy conversion
-        let percentage_strategy = Retention::percent(0.6);
+        let percentage_strategy = Retention::percent(0.4);
         let actual = percentage_strategy.to_fixed(&fixture);
         let expected = Some(2); // Based on the conversion logic
         assert_eq!(actual, expected);
@@ -501,7 +501,7 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant 2", None))
             .add_message(ContextMessage::user("User 3", ModelId::new("gpt-4").into()));
 
-        let percentage_strategy = Retention::percent(0.4);
+        let percentage_strategy = Retention::percent(0.6);
         let actual_sequence = percentage_strategy.eviction_range(&fixture);
 
         // Convert percentage to preserve_last_n and test equivalence
@@ -527,7 +527,7 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant message 2", None));
 
         // Use percentage-based strategy
-        let percentage_strategy = Retention::percent(0.6);
+        let percentage_strategy = Retention::percent(0.4);
         if let Some(_preserve_last_n) = percentage_strategy.to_fixed(&fixture) {
             // Conversion successful
         }
