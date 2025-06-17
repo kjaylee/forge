@@ -579,6 +579,7 @@ impl TryFrom<ToolCallFull> for Tools {
 mod tests {
     use pretty_assertions::assert_eq;
     use serde_json::json;
+    use strum::IntoEnumIterator;
 
     use crate::{FSRead, ToolCallFull, ToolName, Tools, ToolsDiscriminants};
 
@@ -612,5 +613,19 @@ mod tests {
         let actual = ToolsDiscriminants::ForgeToolFsRemove.name();
         let expected = ToolName::new("forge_tool_fs_remove");
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_tool_definition_json() {
+        let tools = Tools::iter()
+            .map(|tool| {
+                let definition = tool.definition();
+                serde_json::to_string_pretty(&definition)
+                    .expect("Failed to serialize tool definition to JSON")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        insta::assert_snapshot!(tools);
     }
 }
