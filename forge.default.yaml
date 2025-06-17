@@ -24,9 +24,9 @@ agents:
       max_tokens: 2000
       token_threshold: 100000
       model: *advanced_model
-      percentage: 0.2
       message_threshold: 200
-      retention_window: 6
+      retention_window: 20
+      max_retention_window: 6
       prompt: "{{> forge-system-prompt-context-summarizer.hbs }}"
     model: *advanced_model
     system_prompt: |-
