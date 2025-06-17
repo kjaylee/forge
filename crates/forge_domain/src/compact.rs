@@ -263,7 +263,7 @@ mod tests {
     use super::*;
     use crate::{ContextMessage, ToolCallFull, ToolCallId, ToolName, ToolResult};
 
-    fn seq(pattern: impl ToString, preserve_last_n: usize) -> String {
+    fn context_from_pattern(pattern: impl ToString) -> Context {
         let model_id = ModelId::new("gpt-4");
         let pattern = pattern.to_string();
 
@@ -304,6 +304,13 @@ mod tests {
                 _ => panic!("Invalid character in test pattern: {c}"),
             }
         }
+
+        context
+    }
+
+    fn seq(pattern: impl ToString, preserve_last_n: usize) -> String {
+        let pattern = pattern.to_string();
+        let context = context_from_pattern(&pattern);
 
         let sequence = find_sequence_preserving_last_n(&context, preserve_last_n);
 
@@ -460,23 +467,13 @@ mod tests {
 
     #[test]
     fn test_compact_strategy_to_fixed_conversion() {
-        let fixture = Context::default()
-            .add_message(ContextMessage::system("System message"))
-            .add_message(ContextMessage::user(
-                "User message",
-                ModelId::new("gpt-4").into(),
-            ))
-            .add_message(ContextMessage::assistant("Assistant message", None))
-            .add_message(ContextMessage::user(
-                "User message 2",
-                ModelId::new("gpt-4").into(),
-            ))
-            .add_message(ContextMessage::assistant("Assistant message 2", None));
+        // Create a simple context using 'sua' DSL: system, user, assistant
+        let fixture = context_from_pattern("sua");
 
         // Test Percentage strategy conversion
         let percentage_strategy = Retention::percent(0.4);
         let actual = percentage_strategy.to_fixed(&fixture);
-        let expected = Some(2); // Based on the conversion logic
+        let expected = Some(1); // Based on the conversion logic for 3 messages
         assert_eq!(actual, expected);
 
         // Test PreserveLastN strategy
@@ -494,12 +491,8 @@ mod tests {
 
     #[test]
     fn test_compact_strategy_conversion_equivalence() {
-        let fixture = Context::default()
-            .add_message(ContextMessage::user("User 1", ModelId::new("gpt-4").into()))
-            .add_message(ContextMessage::assistant("Assistant 1", None))
-            .add_message(ContextMessage::user("User 2", ModelId::new("gpt-4").into()))
-            .add_message(ContextMessage::assistant("Assistant 2", None))
-            .add_message(ContextMessage::user("User 3", ModelId::new("gpt-4").into()));
+        // Create context using DSL: user, assistant, user, assistant, user
+        let fixture = context_from_pattern("uauau");
 
         let percentage_strategy = Retention::percent(0.6);
         let actual_sequence = percentage_strategy.eviction_range(&fixture);
@@ -514,17 +507,8 @@ mod tests {
 
     #[test]
     fn test_compact_strategy_api_usage_example() {
-        let fixture = Context::default()
-            .add_message(ContextMessage::user(
-                "User message 1",
-                ModelId::new("gpt-4").into(),
-            ))
-            .add_message(ContextMessage::assistant("Assistant message 1", None))
-            .add_message(ContextMessage::user(
-                "User message 2",
-                ModelId::new("gpt-4").into(),
-            ))
-            .add_message(ContextMessage::assistant("Assistant message 2", None));
+        // Create context using DSL: user, assistant, user, assistant
+        let fixture = context_from_pattern("uaua");
 
         // Use percentage-based strategy
         let percentage_strategy = Retention::percent(0.4);
