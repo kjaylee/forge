@@ -332,7 +332,8 @@ impl<S: AgentService> Orchestrator<S> {
                 .await?;
 
             // Set estimated tokens
-            usage.estimated_tokens = context.messages.iter().map(|m| m.count_tokens()).sum();
+            usage.estimated_tokens = context.messages.iter().map(|m| m.token_count()).sum();
+            usage.content_length = context.token_count();
 
             // Send the usage information if available
 

@@ -192,7 +192,7 @@ fn find_sequence_by_token_percentage(context: &Context, percentage: f64) -> Opti
     let total_tokens = messages
         .iter()
         .skip(start_index)
-        .map(|msg| msg.count_tokens() as f64)
+        .map(|msg| msg.token_count() as f64)
         .sum::<f64>();
     let token_limit = (total_tokens * percentage).floor();
     let mut accumulated_tokens = 0.0;
@@ -201,7 +201,7 @@ fn find_sequence_by_token_percentage(context: &Context, percentage: f64) -> Opti
 
     // Process message groups to find where we exceed the target token count
     for group in context.message_groups(Some(start_index)) {
-        let group_tokens: f64 = group.iter().map(|msg| msg.count_tokens() as f64).sum();
+        let group_tokens: f64 = group.iter().map(|msg| msg.token_count() as f64).sum();
         accumulated_tokens += group_tokens;
         end_index += group.len();
 

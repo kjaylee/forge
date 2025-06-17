@@ -24,12 +24,12 @@ impl ContextMessage {
     /// Estimates the number of tokens in a message using character-based
     /// approximation.
     /// ref: https://github.com/openai/codex/blob/main/codex-cli/src/utils/approximate-tokens-used.ts
-    pub fn count_tokens(&self) -> u64 {
+    pub fn token_count(&self) -> u64 {
         let char_count = match self {
             ContextMessage::Text(text_message)
                 if matches!(text_message.role, Role::User | Role::Assistant) =>
             {
-                text_message.content.chars().count()
+                text_message.content.chars().count() as u64
                     + text_message
                         .tool_calls
                         .as_ref()
@@ -37,8 +37,8 @@ impl ContextMessage {
                             tool_calls
                                 .iter()
                                 .map(|tc| {
-                                    tc.arguments.to_string().chars().count()
-                                        + tc.name.as_str().chars().count()
+                                    tc.arguments.to_string().chars().count() as u64
+                                        + tc.name.as_str().chars().count() as u64
                                 })
                                 .sum()
                         })
@@ -49,12 +49,13 @@ impl ContextMessage {
                 .values
                 .iter()
                 .map(|result| match result {
-                    ToolValue::Text(text) => text.chars().count(),
+                    ToolValue::Text(text) => text.chars().count() as u64,
                     _ => 0,
                 })
                 .sum(),
             _ => 0,
         };
+
         (char_count as f64 / 4.0).ceil() as u64
     }
 
@@ -340,6 +341,10 @@ impl Context {
                 .map(|record| record.1.clone())
                 .collect::<Vec<_>>(),
         )
+    }
+
+    pub fn token_count(&self) -> u64 {
+        self.messages.iter().map(|m| m.token_count()).sum()
     }
 }
 
@@ -725,19 +730,19 @@ mod tests {
     fn test_count_tokens_text_messages() {
         // Test user message
         let fixture = ContextMessage::user("Hello world", None);
-        let actual = fixture.count_tokens();
+        let actual = fixture.token_count();
         let expected = 3; // "Hello world" = 11 chars, 11/4 = 2.75, ceil = 3
         assert_eq!(actual, expected);
 
         // Test assistant message
         let fixture = ContextMessage::assistant("How can I help you?", None);
-        let actual = fixture.count_tokens();
+        let actual = fixture.token_count();
         let expected = 5; // "How can I help you?" = 19 chars, 19/4 = 4.75, ceil = 5
         assert_eq!(actual, expected);
 
         // Test system message (not counted)
         let fixture = ContextMessage::system("You are a helpful assistant");
-        let actual = fixture.count_tokens();
+        let actual = fixture.token_count();
         let expected = 0; // System messages are not counted
         assert_eq!(actual, expected);
     }
@@ -760,7 +765,7 @@ mod tests {
 
         let fixture =
             ContextMessage::assistant("Multiple tools", Some(vec![tool_call1, tool_call2]));
-        let actual = fixture.count_tokens();
+        let actual = fixture.token_count();
 
         // "Multiple tools" = 14 chars
         // "tool1" = 5 chars, {"a":1} = 7 chars
@@ -786,7 +791,7 @@ mod tests {
             },
         });
 
-        let actual = fixture.count_tokens();
+        let actual = fixture.token_count();
         let expected = 6; // 10 + 11 = 21 chars, 21/4 = 5.25, ceil = 6
         assert_eq!(actual, expected);
     }
@@ -798,7 +803,7 @@ mod tests {
         let image = Image::new_base64("base64data".to_string(), "image/png");
         let fixture = ContextMessage::Image(image);
 
-        let actual = fixture.count_tokens();
+        let actual = fixture.token_count();
         let expected = 0; // Images are not counted
         assert_eq!(actual, expected);
     }
