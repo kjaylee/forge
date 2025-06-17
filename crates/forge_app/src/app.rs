@@ -170,7 +170,7 @@ impl<S: Services> ForgeApp<S> {
                 .compact_context(
                     &agent,
                     context,
-                    CompactStrategy::preserve_last_n(compact.retention_window),
+                    CompactStrategy::preserve_last_n(compact.max_retention_window),
                 )
                 .await?;
 

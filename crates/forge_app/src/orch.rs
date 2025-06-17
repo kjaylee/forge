@@ -352,7 +352,7 @@ impl<S: AgentService> Orchestrator<S> {
                 let percentage = agent
                     .compact
                     .as_ref()
-                    .map(|compact| compact.percentage)
+                    .map(|compact| compact.retention_window)
                     .unwrap_or(0.2);
                 let compaction_strategy = CompactStrategy::percentage(percentage);
                 context = compactor

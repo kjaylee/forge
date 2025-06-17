@@ -106,14 +106,14 @@ pub struct Compact {
     /// Number of most recent messages to preserve during compaction
     /// These messages won't be considered for summarization
     #[merge(strategy = crate::merge::std::overwrite)]
-    pub retention_window: usize,
+    pub max_retention_window: usize,
 
     /// Maximum percentage of the context that can be summarized during
     /// compaction. Valid values are between 0.0 and 1.0, where 0.0 means no
     /// compaction and 1.0 allows summarizing all messages.
     #[merge(strategy = crate::merge::std::overwrite)]
     #[serde(deserialize_with = "deserialize_percentage")]
-    pub percentage: f64,
+    pub retention_window: f64,
 
     /// Maximum number of tokens to keep after compaction
     #[merge(strategy = crate::merge::option)]
@@ -193,8 +193,8 @@ impl Compact {
             prompt: None,
             summary_tag: None,
             model,
-            percentage: 0.2, // Default to 20% compaction
-            retention_window: 0,
+            retention_window: 0.2, // Default to 20% compaction
+            max_retention_window: 0,
         }
     }
 
