@@ -130,8 +130,8 @@ fn find_sequence_preserving_last_n(
         }
     }
 
-    if messages.get(end).is_some_and(|msg| msg.has_tool_result()) {
-        if messages
+    if messages.get(end).is_some_and(|msg| msg.has_tool_result())
+        && messages
             .get(end.saturating_add(1))
             .is_some_and(|msg| msg.has_tool_result())
         {
@@ -143,7 +143,6 @@ fn find_sequence_preserving_last_n(
             }
             end = adjusted_end.saturating_sub(1);
         }
-    }
 
     // Return the sequence only if it has at least one message
     if end >= start {
@@ -309,15 +308,15 @@ mod tests {
         assert_eq!(actual, expected);
 
         let actual = seq("sutrtrtrra", 3);
-        let expected = "s[utrtr]trra";  
+        let expected = "s[utrtr]trra";
         assert_eq!(actual, expected);
 
-         let actual = seq("sutrrtrrtrra", 5);
-        let expected = "s[utrr]trrtrra";  
+        let actual = seq("sutrrtrrtrra", 5);
+        let expected = "s[utrr]trrtrra";
         assert_eq!(actual, expected);
 
         let actual = seq("sutrrrrrra", 2);
-        let expected = "s[u]trrrrrra";  
+        let expected = "s[u]trrrrrra";
         assert_eq!(actual, expected);
 
         // Conversation patterns
