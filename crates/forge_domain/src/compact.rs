@@ -79,8 +79,8 @@ impl CompactionStrategy {
                 }
             }
             CompactionStrategy::Retain(fixed) => *fixed,
-            CompactionStrategy::Min(a, b) => a.to_fixed(&context).min(b.to_fixed(&context)),
-            CompactionStrategy::Max(a, b) => a.to_fixed(&context).max(b.to_fixed(&context)),
+            CompactionStrategy::Min(a, b) => a.to_fixed(context).min(b.to_fixed(context)),
+            CompactionStrategy::Max(a, b) => a.to_fixed(context).max(b.to_fixed(context)),
         }
     }
 
