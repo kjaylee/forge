@@ -7,13 +7,13 @@ use forge_app::{EnvironmentService, McpConfigManager};
 use forge_domain::{McpConfig, Scope};
 use merge::Merge;
 
-use crate::{FileInfo, FileReader, FileWriter, McpServer};
+use crate::{FileInfoInfra, FileReaderInfra, FileWriterInfra, McpServerInfra};
 
 pub struct ForgeMcpManager<I> {
     infra: Arc<I>,
 }
 
-impl<I: McpServer + FileReader + FileInfo + EnvironmentService> ForgeMcpManager<I> {
+impl<I: McpServerInfra + FileReaderInfra + FileInfoInfra + EnvironmentService> ForgeMcpManager<I> {
     pub fn new(infra: Arc<I>) -> Self {
         Self { infra }
     }
@@ -32,7 +32,7 @@ impl<I: McpServer + FileReader + FileInfo + EnvironmentService> ForgeMcpManager<
 }
 
 #[async_trait::async_trait]
-impl<I: McpServer + FileReader + FileInfo + EnvironmentService + FileWriter>
+impl<I: McpServerInfra + FileReaderInfra + FileInfoInfra + EnvironmentService + FileWriterInfra>
     McpConfigManager for ForgeMcpManager<I>
 {
     async fn read_mcp_config(&self) -> anyhow::Result<McpConfig> {

@@ -8,7 +8,7 @@ use handlebars::{no_escape, Handlebars};
 use rust_embed::Embed;
 use tokio::sync::RwLock;
 
-use crate::FileReader;
+use crate::FileReaderInfra;
 
 #[derive(Embed)]
 #[folder = "../../templates/"]
@@ -20,7 +20,7 @@ pub struct ForgeTemplateService<F> {
     infra: Arc<F>,
 }
 
-impl<F: EnvironmentService + FileReader> ForgeTemplateService<F> {
+impl<F: EnvironmentService + FileReaderInfra> ForgeTemplateService<F> {
     pub fn new(infra: Arc<F>) -> Self {
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
@@ -81,7 +81,7 @@ fn compile_template(name: &str, content: &str) -> anyhow::Result<handlebars::tem
 }
 
 #[async_trait::async_trait]
-impl<F: EnvironmentService + FileReader> TemplateService for ForgeTemplateService<F> {
+impl<F: EnvironmentService + FileReaderInfra> TemplateService for ForgeTemplateService<F> {
     async fn register_template(&self, path: PathBuf) -> anyhow::Result<()> {
         let cwd = &self.infra.get_environment().cwd;
 

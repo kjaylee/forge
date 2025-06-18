@@ -12,7 +12,7 @@ use forge_snaps::Snapshot;
 /// This trait provides an abstraction over file reading operations, allowing
 /// for both real file system access and test mocking.
 #[async_trait::async_trait]
-pub trait FileReader: Send + Sync {
+pub trait FileReaderInfra: Send + Sync {
     /// Reads the content of a file at the specified path.
     /// Returns the file content as a UTF-8 string.
     async fn read_utf8(&self, path: &Path) -> anyhow::Result<String>;
@@ -44,7 +44,7 @@ pub trait FileReader: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait FileWriter: Send + Sync {
+pub trait FileWriterInfra: Send + Sync {
     /// Writes the content of a file at the specified path.
     async fn write(
         &self,
@@ -65,26 +65,26 @@ pub trait FileWriter: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait FileRemover: Send + Sync {
+pub trait FileRemoverInfra: Send + Sync {
     /// Removes a file at the specified path.
     async fn remove(&self, path: &Path) -> anyhow::Result<()>;
 }
 
 #[async_trait::async_trait]
-pub trait FileInfo: Send + Sync {
+pub trait FileInfoInfra: Send + Sync {
     async fn is_file(&self, path: &Path) -> anyhow::Result<bool>;
     async fn exists(&self, path: &Path) -> anyhow::Result<bool>;
     async fn file_size(&self, path: &Path) -> anyhow::Result<u64>;
 }
 
 #[async_trait::async_trait]
-pub trait FileDirectory {
+pub trait FileDirectoryInfra {
     async fn create_dirs(&self, path: &Path) -> anyhow::Result<()>;
 }
 
 /// Service for managing file snapshots
 #[async_trait::async_trait]
-pub trait FileSnapshotter: Send + Sync {
+pub trait SnapshotInfra: Send + Sync {
     // Creation
     async fn create_snapshot(&self, file_path: &Path) -> Result<Snapshot>;
 
@@ -94,7 +94,7 @@ pub trait FileSnapshotter: Send + Sync {
 
 /// Service for executing shell commands
 #[async_trait::async_trait]
-pub trait CommandExecutor: Send + Sync {
+pub trait CommandInfra: Send + Sync {
     /// Executes a shell command and returns the output
     async fn execute_command(
         &self,
@@ -107,7 +107,7 @@ pub trait CommandExecutor: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait UserInquirer: Send + Sync {
+pub trait UserInfra: Send + Sync {
     /// Prompts the user with question
     /// Returns None if the user interrupts the prompt
     async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>>;
@@ -130,7 +130,7 @@ pub trait UserInquirer: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait McpClient: Clone + Send + Sync + 'static {
+pub trait McpClientInfra: Clone + Send + Sync + 'static {
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>>;
     async fn call(
         &self,
@@ -140,7 +140,7 @@ pub trait McpClient: Clone + Send + Sync + 'static {
 }
 
 #[async_trait::async_trait]
-pub trait McpServer: Send + Sync + 'static {
-    type Client: McpClient;
+pub trait McpServerInfra: Send + Sync + 'static {
+    type Client: McpClientInfra;
     async fn connect(&self, config: McpServerConfig) -> anyhow::Result<Self::Client>;
 }

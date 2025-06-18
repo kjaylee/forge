@@ -5,14 +5,14 @@ use std::sync::Arc;
 use forge_app::{AttachmentService, EnvironmentService};
 use forge_domain::{Attachment, AttachmentContent, Image};
 
-use crate::FileReader;
+use crate::FileReaderInfra;
 
 #[derive(Clone)]
 pub struct ForgeChatRequest<F> {
     infra: Arc<F>,
 }
 
-impl<F: FileReader + EnvironmentService> ForgeChatRequest<F> {
+impl<F: FileReaderInfra + EnvironmentService> ForgeChatRequest<F> {
     pub fn new(infra: Arc<F>) -> Self {
         Self { infra }
     }
@@ -60,7 +60,7 @@ impl<F: FileReader + EnvironmentService> ForgeChatRequest<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: FileReader + EnvironmentService> AttachmentService for ForgeChatRequest<F> {
+impl<F: FileReaderInfra + EnvironmentService> AttachmentService for ForgeChatRequest<F> {
     async fn attachments(&self, url: &str) -> anyhow::Result<Vec<Attachment>> {
         self.prepare_attachments(Attachment::parse_all(url)).await
     }
@@ -85,8 +85,8 @@ pub mod tests {
     use crate::attachment::ForgeChatRequest;
     use crate::utils::AttachmentExtension;
     use crate::{
-        CommandExecutor, FileRemover, FileDirectory, FileInfo,
-        FileReader, FileSnapshotter, FileWriter, UserInquirer, McpClient, McpServer,
+        CommandInfra, FileRemoverInfra, FileDirectoryInfra, FileInfoInfra,
+        FileReaderInfra, SnapshotInfra, FileWriterInfra, UserInfra, McpClientInfra, McpServerInfra,
     };
 
     #[derive(Debug)]
@@ -149,7 +149,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileReader for MockFileService {
+    impl FileReaderInfra for MockFileService {
         async fn read_utf8(&self, path: &Path) -> anyhow::Result<String> {
             let files = self.files.lock().unwrap();
             match files.iter().find(|v| v.0 == path) {
@@ -195,7 +195,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileRemover for MockFileService {
+    impl FileRemoverInfra for MockFileService {
         async fn remove(&self, path: &Path) -> anyhow::Result<()> {
             if !self.exists(path).await? {
                 return Err(anyhow::anyhow!("File not found: {:?}", path));
@@ -206,7 +206,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileDirectory for MockFileService {
+    impl FileDirectoryInfra for MockFileService {
         async fn create_dirs(&self, path: &Path) -> anyhow::Result<()> {
             self.files
                 .lock()
@@ -217,7 +217,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileWriter for MockFileService {
+    impl FileWriterInfra for MockFileService {
         async fn write(
             &self,
             path: &Path,
@@ -249,7 +249,7 @@ pub mod tests {
     pub struct MockSnapService;
 
     #[async_trait::async_trait]
-    impl FileSnapshotter for MockSnapService {
+    impl SnapshotInfra for MockSnapService {
         async fn create_snapshot(&self, _: &Path) -> anyhow::Result<Snapshot> {
             unimplemented!()
         }
@@ -260,7 +260,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileInfo for MockFileService {
+    impl FileInfoInfra for MockFileService {
         async fn is_file(&self, path: &Path) -> anyhow::Result<bool> {
             Ok(self
                 .files
@@ -286,7 +286,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl McpClient for () {
+    impl McpClientInfra for () {
         async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {
             Ok(vec![])
         }
@@ -297,7 +297,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl McpServer for () {
+    impl McpServerInfra for () {
         type Client = ();
 
         async fn connect(&self, _: forge_domain::McpServerConfig) -> anyhow::Result<Self::Client> {
@@ -306,7 +306,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl CommandExecutor for () {
+    impl CommandInfra for () {
         async fn execute_command(
             &self,
             command: String,
@@ -430,7 +430,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl UserInquirer for () {
+    impl UserInfra for () {
         /// Prompts the user with question
         async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>> {
             // For testing, we can just return the question as the answer
@@ -485,7 +485,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileReader for MockCompositeService {
+    impl FileReaderInfra for MockCompositeService {
         async fn read_utf8(&self, path: &Path) -> anyhow::Result<String> {
             self.file_service.read_utf8(path).await
         }

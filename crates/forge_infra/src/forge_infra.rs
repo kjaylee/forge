@@ -7,8 +7,8 @@ use forge_app::EnvironmentService;
 use forge_domain::{CommandOutput, Environment, McpServerConfig};
 use forge_fs::FileInfo;
 use forge_services::{
-    CommandExecutor, FileRemover, FileDirectory, FileInfo, FileReader,
-    FileSnapshotter, FileWriter, UserInquirer, McpServer,
+    CommandInfra, FileRemoverInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra,
+    SnapshotInfra, FileWriterInfra, UserInfra, McpServerInfra,
 };
 
 use crate::env::ForgeEnvironmentService;
@@ -69,7 +69,7 @@ impl EnvironmentService for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl FileReader for ForgeInfra {
+impl FileReaderInfra for ForgeInfra {
     async fn read_utf8(&self, path: &Path) -> anyhow::Result<String> {
         self.file_read_service.read_utf8(path).await
     }
@@ -91,7 +91,7 @@ impl FileReader for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl FileWriter for ForgeInfra {
+impl FileWriterInfra for ForgeInfra {
     async fn write(
         &self,
         path: &Path,
@@ -126,7 +126,7 @@ impl FileInfo for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl FileSnapshotter for ForgeInfra {
+impl SnapshotInfra for ForgeInfra {
     async fn create_snapshot(&self, file_path: &Path) -> anyhow::Result<forge_snaps::Snapshot> {
         self.file_snapshot_service.create_snapshot(file_path).await
     }
@@ -137,21 +137,21 @@ impl FileSnapshotter for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl FileRemover for ForgeInfra {
+impl FileRemoverInfra for ForgeInfra {
     async fn remove(&self, path: &Path) -> anyhow::Result<()> {
         self.file_remove_service.remove(path).await
     }
 }
 
 #[async_trait::async_trait]
-impl FileDirectory for ForgeInfra {
+impl FileDirectoryInfra for ForgeInfra {
     async fn create_dirs(&self, path: &Path) -> anyhow::Result<()> {
         self.create_dirs_service.create_dirs(path).await
     }
 }
 
 #[async_trait::async_trait]
-impl CommandExecutor for ForgeInfra {
+impl CommandInfra for ForgeInfra {
     async fn execute_command(
         &self,
         command: String,
@@ -170,7 +170,7 @@ impl CommandExecutor for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl UserInquirer for ForgeInfra {
+impl UserInfra for ForgeInfra {
     async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>> {
         self.inquire_service.prompt_question(question).await
     }
@@ -193,7 +193,7 @@ impl UserInquirer for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl McpServer for ForgeInfra {
+impl McpServerInfra for ForgeInfra {
     type Client = ForgeMcpClient;
 
     async fn connect(&self, config: McpServerConfig) -> anyhow::Result<Self::Client> {

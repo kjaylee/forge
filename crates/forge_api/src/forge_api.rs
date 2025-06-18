@@ -10,7 +10,7 @@ use forge_app::{
 };
 use forge_domain::*;
 use forge_infra::ForgeInfra;
-use forge_services::{CommandExecutor, ForgeServices};
+use forge_services::{CommandInfra, ForgeServices};
 use forge_stream::MpscStream;
 
 use crate::API;
@@ -55,7 +55,7 @@ impl<
             + TemplateService
             + McpConfigManager
             + Clone,
-        F: CommandExecutor,
+        F: CommandInfra,
     > API for ForgeAPI<A, F>
 {
     async fn discover(&self) -> Result<Vec<File>> {
