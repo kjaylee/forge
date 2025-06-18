@@ -22,17 +22,6 @@ pub enum CompactionStrategy {
 }
 
 impl CompactionStrategy {
-    pub fn new(compact: &Compact, max: bool) -> CompactionStrategy {
-        let eviction = CompactionStrategy::evict(compact.eviction_window);
-        let retention = CompactionStrategy::retain(compact.retention_window);
-
-        if max {
-            retention
-        } else {
-            eviction.min(retention)
-        }
-    }
-
     /// Create a percentage-based compaction strategy
     pub fn evict(percentage: f64) -> Self {
         Self::Evict(percentage)
