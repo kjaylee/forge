@@ -11,7 +11,6 @@ pub struct Usage {
     pub completion_tokens: usize,
     pub total_tokens: usize,
     pub estimated_tokens: usize,
-    pub content_length: usize,
     pub cached_tokens: usize,
     pub cost: Option<f64>,
 }
