@@ -354,13 +354,15 @@ mod tests {
         let fixture = context_from_pattern("sua");
 
         // Test Percentage strategy conversion
-        // Context: System (0 tokens), User (3 tokens), Assistant (5 tokens) = 8 total tokens
-        // Eviction budget: 40% of 8 = 4 tokens (rounded up)
+        // Context: System (0 tokens), User (3 tokens), Assistant (5 tokens) = 8 total
+        // tokens Eviction budget: 40% of 8 = 4 tokens (rounded up)
         // Calculation:
         // - Skip system message (0 tokens)
         // - User message: 3 tokens → budget: 4 - 3 = 1 token remaining
-        // - Assistant message: 5 tokens → budget: 1 - 5 = 0 (saturating_sub), budget exhausted
-        // Result: Can evict 1 message (User), so preserve last 2 messages (System + Assistant)
+        // - Assistant message: 5 tokens → budget: 1 - 5 = 0 (saturating_sub), budget
+        //   exhausted
+        // Result: Can evict 1 message (User), so preserve last 2 messages (System +
+        // Assistant)
         let percentage_strategy = CompactionStrategy::evict(0.4);
         let actual = percentage_strategy.to_fixed(&fixture);
         let expected = 2; // Preserve last 2 messages
