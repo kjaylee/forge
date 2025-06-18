@@ -84,9 +84,7 @@ impl<
         &self,
         workflow: W,
     ) -> anyhow::Result<Conversation> {
-        self.app
-            .create_conversation(workflow.into())
-            .await
+        self.app.create_conversation(workflow.into()).await
     }
 
     async fn upsert_conversation(&self, conversation: Conversation) -> anyhow::Result<()> {
