@@ -163,8 +163,7 @@ impl<
 
         // Calculate original metrics
         let original_messages = context.messages.len();
-        let original_text = context.to_text();
-        let original_tokens = estimate_token_count(original_text.len());
+        let original_tokens = context.token_count();
 
         // Find the main agent (first agent in the conversation)
         // In most cases, there should be a primary agent for compaction
@@ -174,26 +173,14 @@ impl<
             .ok_or_else(|| anyhow::anyhow!("No agents found in conversation"))?
             .clone();
 
-        // Check if the agent has compaction configured
-        if agent.compact.is_none() {
-            // No compaction configured, return original metrics as both original and
-            // compacted
-            return Ok(CompactionResult::new(
-                original_tokens,
-                original_tokens,
-                original_messages,
-                original_messages,
-            ));
-        }
-
         // Apply compaction using the Compactor
         let compactor = Compactor::new(self.services.clone());
-        let compacted_context = compactor.compact_context(&agent, context).await?;
+
+        let compacted_context = compactor.compact(&agent, context, true).await?;
 
         // Calculate compacted metrics
         let compacted_messages = compacted_context.messages.len();
-        let compacted_text = compacted_context.to_text();
-        let compacted_tokens = estimate_token_count(compacted_text.len());
+        let compacted_tokens = compacted_context.token_count();
 
         // Update the conversation with the compacted context
         conversation.context = Some(compacted_context);
@@ -209,6 +196,7 @@ impl<
             compacted_messages,
         ))
     }
+
     pub async fn list_tools(&self) -> Result<Vec<ToolDefinition>> {
         self.tool_registry.list().await
     }
