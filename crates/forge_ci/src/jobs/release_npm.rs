@@ -23,13 +23,9 @@ pub fn create_npm_workflow() -> Workflow {
 /// Create an NPM release job using matrix strategy for multiple repositories
 pub fn create_npm_release_job() -> Job {
     let matrix = create_npm_matrix();
-    
+
     Job::new("npm_release")
-        .strategy(Strategy { 
-            fail_fast: None, 
-            max_parallel: None, 
-            matrix: Some(matrix) 
-        })
+        .strategy(Strategy { fail_fast: None, max_parallel: None, matrix: Some(matrix) })
         .runs_on("ubuntu-latest")
         .add_step(
             Step::uses("actions", "checkout", "v4")
