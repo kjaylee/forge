@@ -5,7 +5,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use forge_app::EnvironmentService;
 use forge_domain::{CommandOutput, Environment, McpServerConfig};
-use forge_fs::FileInfo;
+use forge_fs::{FileInfo as FileInfoData};
 use forge_services::{
     CommandInfra, FileRemoverInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra,
     SnapshotInfra, FileWriterInfra, UserInfra, McpServerInfra,
@@ -83,7 +83,7 @@ impl FileReaderInfra for ForgeInfra {
         path: &Path,
         start_line: u64,
         end_line: u64,
-    ) -> anyhow::Result<(String, FileInfo)> {
+    ) -> anyhow::Result<(String, FileInfoData)> {
         self.file_read_service
             .range_read_utf8(path, start_line, end_line)
             .await
@@ -111,7 +111,7 @@ impl FileWriterInfra for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl FileInfo for ForgeInfra {
+impl FileInfoInfra for ForgeInfra {
     async fn is_file(&self, path: &Path) -> anyhow::Result<bool> {
         self.file_meta_service.is_file(path).await
     }
