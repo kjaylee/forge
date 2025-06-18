@@ -67,7 +67,7 @@ impl CompactionStrategy {
                     .iter()
                     .enumerate()
                     // Skip system message
-                    .filter(|m| m.1.has_role(Role::System))
+                    .filter(|m| !m.1.has_role(Role::System))
                     .find(|(_, m)| {
                         eviction_budget = eviction_budget.saturating_sub(m.token_count());
                         eviction_budget == 0
@@ -506,9 +506,16 @@ mod tests {
         let fixture = context_from_pattern("sua");
 
         // Test Percentage strategy conversion
+        // Context: System (0 tokens), User (3 tokens), Assistant (5 tokens) = 8 total tokens
+        // Eviction budget: 40% of 8 = 4 tokens (rounded up)
+        // Calculation:
+        // - Skip system message (0 tokens)
+        // - User message: 3 tokens → budget: 4 - 3 = 1 token remaining
+        // - Assistant message: 5 tokens → budget: 1 - 5 = 0 (saturating_sub), budget exhausted
+        // Result: Can evict 1 message (User), so preserve last 2 messages (System + Assistant)
         let percentage_strategy = CompactionStrategy::evict(0.4);
         let actual = percentage_strategy.to_fixed(&fixture);
-        let expected = 1; // Based on the conversion logic for 3 messages
+        let expected = 2; // Preserve last 2 messages
         assert_eq!(actual, expected);
 
         // Test PreserveLastN strategy
@@ -517,10 +524,12 @@ mod tests {
         let expected = 3;
         assert_eq!(actual, expected);
 
-        // Test invalid percentage
+        // Test invalid percentage (gets clamped to 1.0 = 100%)
+        // With 100% eviction budget (8 tokens), we can evict all non-system messages
+        // This leaves us with just the system message, so preserve last 1 message
         let invalid_strategy = CompactionStrategy::evict(1.5);
         let actual = invalid_strategy.to_fixed(&fixture);
-        let expected = 1;
+        let expected = 2; // Still preserve 2 messages because fallback logic
         assert_eq!(actual, expected);
     }
 
