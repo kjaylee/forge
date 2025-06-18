@@ -27,7 +27,7 @@ impl Transformer for MakeOpenAiCompat {
             .as_ref()
             .is_some_and(|tools| !tools.is_empty());
 
-        if tools_present {
+        if !tools_present {
             // drop `parallel_tool_calls` field if tools are not passed to the request.
             request.parallel_tool_calls = None;
         }
