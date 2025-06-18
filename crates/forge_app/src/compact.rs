@@ -28,7 +28,7 @@ impl<S: AgentService> Compactor<S> {
     ) -> anyhow::Result<Context> {
         if let Some(ref compact) = agent.compact {
             debug!(agent_id = %agent.id, "Context compaction triggered");
-            
+
             let eviction = CompactionStrategy::evict(compact.eviction_window);
             let retention = CompactionStrategy::retain(compact.retention_window);
 
@@ -155,18 +155,5 @@ impl<S: AgentService> Compactor<S> {
         }
 
         Ok(content)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_compactor_creation() {
-        // Simple test to verify Compactor struct exists
-        // More comprehensive tests would require mocking the AgentService
-        // which is complex due to the trait bounds
-
-        // This test just verifies the module compiles correctly
-        assert!(true);
     }
 }
