@@ -268,6 +268,13 @@ impl<S: AgentService> Orchestrator<S> {
         // Render the system prompts with the variables
         context = self.set_system_prompt(context, &agent, &variables).await?;
 
+        // Create a new compactor
+        let compactor = Compactor::new(self.services.clone());
+
+        // Perform an aggressive compaction before starting out
+        // TODO: Improve compaction by providing context of the user message
+        context = compactor.compact(&agent, context, true).await?;
+
         // Render user prompts
         context = self
             .set_user_prompt(context, &agent, &variables, event)
@@ -319,7 +326,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         let mut empty_tool_call_count = 0;
         let is_tool_supported = self.is_tool_supported(&agent)?;
-        let compactor = Compactor::new(self.services.clone());
+
         while !is_complete {
             // Set context for the current loop iteration
             self.conversation.context = Some(context.clone());
@@ -421,9 +428,6 @@ impl<S: AgentService> Orchestrator<S> {
             self.conversation.context = Some(context.clone());
             self.services.update(self.conversation.clone()).await?;
         }
-
-        // Agent has yielded and so compact everything.
-        self.conversation.context = Some(compactor.compact(&agent, context, true).await?);
 
         Ok(())
     }
