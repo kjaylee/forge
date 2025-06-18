@@ -10,14 +10,18 @@ use crate::{Context, ModelId, Role};
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, JsonSchema)]
 #[setters(strip_option, into)]
 pub struct Compact {
-    /// Number of most recent messages to preserve during compaction
-    /// These messages won't be considered for summarization
+    /// Number of most recent messages to preserve during compaction.
+    /// These messages won't be considered for summarization. Works alongside
+    /// eviction_window - the more conservative limit (fewer messages to
+    /// compact) takes precedence.
     #[merge(strategy = crate::merge::std::overwrite)]
     pub retention_window: usize,
 
     /// Maximum percentage of the context that can be summarized during
     /// compaction. Valid values are between 0.0 and 1.0, where 0.0 means no
-    /// compaction and 1.0 allows summarizing all messages.
+    /// compaction and 1.0 allows summarizing all messages. Works alongside
+    /// retention_window - the more conservative limit (fewer messages to
+    /// compact) takes precedence.
     #[merge(strategy = crate::merge::std::overwrite)]
     #[serde(deserialize_with = "deserialize_percentage")]
     pub eviction_window: f64,
