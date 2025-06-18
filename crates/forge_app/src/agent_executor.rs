@@ -78,7 +78,8 @@ impl<
 
         // Create a new conversation for agent execution
         let workflow = self.services.read_merged(None).await?;
-        let conversation = ConversationService::create_conversation(self.services.as_ref(), workflow).await?;
+        let conversation =
+            ConversationService::create_conversation(self.services.as_ref(), workflow).await?;
 
         // Execute the request through the ForgeApp
         let app = crate::ForgeApp::new(self.services.clone());

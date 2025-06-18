@@ -135,7 +135,9 @@ impl<I: McpServer + FileReader + FileWriter + EnvironmentService + FileInfo>
     }
 
     async fn create_conversation(&self, workflow: Workflow) -> anyhow::Result<Conversation> {
-        self.conversation_service.create_conversation(workflow).await
+        self.conversation_service
+            .create_conversation(workflow)
+            .await
     }
 
     async fn update<F, T>(&self, id: &ConversationId, f: F) -> anyhow::Result<T>
