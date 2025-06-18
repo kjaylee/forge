@@ -27,8 +27,8 @@ use crate::tool_services::{
 };
 use crate::workflow::ForgeWorkflowService;
 use crate::{
-    CommandInfra, FileRemoverInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra,
-    SnapshotInfra, FileWriterInfra, UserInfra, McpServerInfra,
+    CommandInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra, FileRemoverInfra,
+    FileWriterInfra, McpServerInfra, SnapshotInfra, UserInfra,
 };
 
 type McpService<F> = ForgeMcpService<ForgeMcpManager<F>, F, <F as McpServerInfra>::Client>;
@@ -61,8 +61,9 @@ pub struct ForgeServices<F: McpServerInfra> {
     mcp_service: Arc<McpService<F>>,
 }
 
-impl<F: McpServerInfra + EnvironmentService + FileWriterInfra + FileInfoInfra + FileReaderInfra>
-    ForgeServices<F>
+impl<
+        F: McpServerInfra + EnvironmentService + FileWriterInfra + FileInfoInfra + FileReaderInfra,
+    > ForgeServices<F>
 {
     pub fn new(infra: Arc<F>) -> Self {
         let mcp_manager = Arc::new(ForgeMcpManager::new(infra.clone()));
@@ -123,8 +124,9 @@ impl<F: McpServerInfra> ProviderService for ForgeServices<F> {
 }
 
 #[async_trait::async_trait]
-impl<I: McpServerInfra + FileReaderInfra + FileWriterInfra + EnvironmentService + FileInfoInfra>
-    ConversationService for ForgeServices<I>
+impl<
+        I: McpServerInfra + FileReaderInfra + FileWriterInfra + EnvironmentService + FileInfoInfra,
+    > ConversationService for ForgeServices<I>
 {
     async fn find(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>> {
         self.conversation_service.find(id).await
@@ -149,7 +151,9 @@ impl<I: McpServerInfra + FileReaderInfra + FileWriterInfra + EnvironmentService 
 }
 
 #[async_trait::async_trait]
-impl<F: McpServerInfra + FileReaderInfra + EnvironmentService> TemplateService for ForgeServices<F> {
+impl<F: McpServerInfra + FileReaderInfra + EnvironmentService> TemplateService
+    for ForgeServices<F>
+{
     async fn register_template(&self, path: PathBuf) -> anyhow::Result<()> {
         self.template_service.register_template(path).await
     }
@@ -173,7 +177,9 @@ impl<F: McpServerInfra + FileReaderInfra + FileWriterInfra + EnvironmentService>
 }
 
 #[async_trait::async_trait]
-impl<F: McpServerInfra + FileWriterInfra + EnvironmentService> EnvironmentService for ForgeServices<F> {
+impl<F: McpServerInfra + FileWriterInfra + EnvironmentService> EnvironmentService
+    for ForgeServices<F>
+{
     fn get_environment(&self) -> Environment {
         self.infra.get_environment()
     }
@@ -202,8 +208,8 @@ impl<I: McpServerInfra + FileReaderInfra + FileWriterInfra> WorkflowService for 
 }
 
 #[async_trait::async_trait]
-impl<F: McpServerInfra + FileReaderInfra + FileWriterInfra + EnvironmentService> FileDiscoveryService
-    for ForgeServices<F>
+impl<F: McpServerInfra + FileReaderInfra + FileWriterInfra + EnvironmentService>
+    FileDiscoveryService for ForgeServices<F>
 {
     async fn collect(&self, max_depth: Option<usize>) -> anyhow::Result<Vec<File>> {
         self.discovery_service.collect(max_depth).await
@@ -211,8 +217,9 @@ impl<F: McpServerInfra + FileReaderInfra + FileWriterInfra + EnvironmentService>
 }
 
 #[async_trait::async_trait]
-impl<F: McpServerInfra + FileReaderInfra + FileWriterInfra + FileInfoInfra + EnvironmentService>
-    McpConfigManager for ForgeServices<F>
+impl<
+        F: McpServerInfra + FileReaderInfra + FileWriterInfra + FileInfoInfra + EnvironmentService,
+    > McpConfigManager for ForgeServices<F>
 {
     async fn read_mcp_config(&self) -> anyhow::Result<McpConfig> {
         self.mcp_manager.read_mcp_config().await
@@ -224,8 +231,9 @@ impl<F: McpServerInfra + FileReaderInfra + FileWriterInfra + FileInfoInfra + Env
 }
 
 #[async_trait::async_trait]
-impl<F: McpServerInfra + FileWriterInfra + FileInfoInfra + FileReaderInfra + FileDirectoryInfra>
-    FsCreateService for ForgeServices<F>
+impl<
+        F: McpServerInfra + FileWriterInfra + FileInfoInfra + FileReaderInfra + FileDirectoryInfra,
+    > FsCreateService for ForgeServices<F>
 {
     async fn create(
         &self,
@@ -256,8 +264,8 @@ impl<F: McpServerInfra + FileWriterInfra> FsPatchService for ForgeServices<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: McpServerInfra + FileReaderInfra + EnvironmentService + FileInfoInfra> forge_app::FsReadService
-    for ForgeServices<F>
+impl<F: McpServerInfra + FileReaderInfra + EnvironmentService + FileInfoInfra>
+    forge_app::FsReadService for ForgeServices<F>
 {
     async fn read(
         &self,
@@ -337,8 +345,9 @@ impl<F: McpServerInfra + CommandInfra + EnvironmentService> forge_app::ShellServ
 }
 
 #[async_trait::async_trait]
-impl<F: McpServerInfra + FileReaderInfra + FileInfoInfra + EnvironmentService + FileWriterInfra>
-    forge_app::McpService for ForgeServices<F>
+impl<
+        F: McpServerInfra + FileReaderInfra + FileInfoInfra + EnvironmentService + FileWriterInfra,
+    > forge_app::McpService for ForgeServices<F>
 {
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {
         self.mcp_service.list().await

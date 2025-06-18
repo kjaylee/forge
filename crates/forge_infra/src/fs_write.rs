@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bytes::Bytes;
-use forge_services::{SnapshotInfra, FileWriterInfra};
+use forge_services::{FileWriterInfra, SnapshotInfra};
 
 pub struct ForgeFileWriteService<S> {
     snaps: Arc<S>,

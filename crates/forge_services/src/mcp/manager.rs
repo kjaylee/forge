@@ -32,8 +32,9 @@ impl<I: McpServerInfra + FileReaderInfra + FileInfoInfra + EnvironmentService> F
 }
 
 #[async_trait::async_trait]
-impl<I: McpServerInfra + FileReaderInfra + FileInfoInfra + EnvironmentService + FileWriterInfra>
-    McpConfigManager for ForgeMcpManager<I>
+impl<
+        I: McpServerInfra + FileReaderInfra + FileInfoInfra + EnvironmentService + FileWriterInfra,
+    > McpConfigManager for ForgeMcpManager<I>
 {
     async fn read_mcp_config(&self) -> anyhow::Result<McpConfig> {
         let env = self.infra.get_environment();

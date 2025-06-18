@@ -85,8 +85,8 @@ pub mod tests {
     use crate::attachment::ForgeChatRequest;
     use crate::utils::AttachmentExtension;
     use crate::{
-        CommandInfra, FileRemoverInfra, FileDirectoryInfra, FileInfoInfra,
-        FileReaderInfra, SnapshotInfra, FileWriterInfra, UserInfra, McpClientInfra, McpServerInfra,
+        CommandInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra, FileRemoverInfra,
+        FileWriterInfra, McpClientInfra, McpServerInfra, SnapshotInfra, UserInfra,
     };
 
     #[derive(Debug)]
