@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use forge_domain::{
-    Agent, ChatCompletionMessage, ChatCompletionMessageFull, Compact, Context, ContextMessage,
-    ResultStreamExt, Retention, extract_tag_content,
+    Agent, ChatCompletionMessage, ChatCompletionMessageFull, Compact, CompactionStrategy, Context,
+    ContextMessage, ResultStreamExt, extract_tag_content,
 };
 use futures::Stream;
 use tracing::{debug, info};
@@ -20,16 +20,25 @@ impl<S: AgentService> Compactor<S> {
     }
 
     /// Apply compaction to the context if requested.
-    pub async fn compact_context(
+    pub async fn compact(
         &self,
         agent: &Agent,
         context: Context,
-        retention: Retention,
+        max: bool,
     ) -> anyhow::Result<Context> {
         if let Some(ref compact) = agent.compact {
             debug!(agent_id = %agent.id, "Context compaction triggered");
+            
+            let eviction = CompactionStrategy::evict(compact.eviction_window);
+            let retention = CompactionStrategy::retain(compact.retention_window);
 
-            match retention.eviction_range(&context) {
+            let strategy = if max {
+                retention
+            } else {
+                eviction.min(retention)
+            };
+
+            match strategy.eviction_range(&context) {
                 Some(sequence) => {
                     debug!(agent_id = %agent.id, "Compressing sequence");
                     self.compress_single_sequence(compact, context, sequence)

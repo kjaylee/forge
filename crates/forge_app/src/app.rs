@@ -162,46 +162,31 @@ impl<S: Services> ForgeApp<S> {
             .ok_or_else(|| anyhow::anyhow!("No agents found in conversation"))?
             .clone();
 
-        if let Some(compact) = &agent.compact {
-            // Apply compaction using the Compactor
-            let compactor = Compactor::new(self.services.clone());
+        // Apply compaction using the Compactor
+        let compactor = Compactor::new(self.services.clone());
 
-            let compacted_context = compactor
-                .compact_context(
-                    &agent,
-                    context,
-                    Retention::fixed(compact.max_retention_window),
-                )
-                .await?;
+        let compacted_context = compactor.compact(&agent, context, true).await?;
 
-            // Calculate compacted metrics
-            let compacted_messages = compacted_context.messages.len();
-            let compacted_tokens = compacted_context.token_count();
+        // Calculate compacted metrics
+        let compacted_messages = compacted_context.messages.len();
+        let compacted_tokens = compacted_context.token_count();
 
-            // Update the conversation with the compacted context
-            conversation.context = Some(compacted_context);
+        // Update the conversation with the compacted context
+        conversation.context = Some(compacted_context);
 
-            // Save the updated conversation
-            self.services
-                .conversation_service()
-                .upsert(conversation)
-                .await?;
+        // Save the updated conversation
+        self.services
+            .conversation_service()
+            .upsert(conversation)
+            .await?;
 
-            // Return the compaction metrics
-            Ok(CompactionResult::new(
-                original_tokens,
-                compacted_tokens,
-                original_messages,
-                compacted_messages,
-            ))
-        } else {
-            Ok(CompactionResult::new(
-                original_tokens,
-                original_tokens,
-                original_messages,
-                original_messages,
-            ))
-        }
+        // Return the compaction metrics
+        Ok(CompactionResult::new(
+            original_tokens,
+            compacted_tokens,
+            original_messages,
+            compacted_messages,
+        ))
     }
 
     pub async fn list_tools(&self) -> Result<Vec<ToolDefinition>> {

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use async_recursion::async_recursion;
 use derive_setters::Setters;
-use forge_domain::{Retention, *};
+use forge_domain::*;
 use forge_template::Element;
 use serde_json::Value;
 use tracing::{debug, info, warn};
@@ -349,15 +349,7 @@ impl<S: AgentService> Orchestrator<S> {
             // Check if context requires compression and decide to compact
             if agent.should_compact(&context, max(usage.prompt_tokens, usage.estimated_tokens)) {
                 info!(agent_id = %agent.id, "Compaction needed, applying compaction");
-                let percentage = agent
-                    .compact
-                    .as_ref()
-                    .map(|compact| compact.retention_window)
-                    .unwrap_or(0.2);
-                let compaction_strategy = Retention::percent(percentage);
-                context = compactor
-                    .compact_context(&agent, context, compaction_strategy)
-                    .await?;
+                context = compactor.compact(&agent, context, false).await?;
             } else {
                 debug!(agent_id = %agent.id, "Compaction not needed");
             }
@@ -432,12 +424,8 @@ impl<S: AgentService> Orchestrator<S> {
             self.services.update(self.conversation.clone()).await?;
         }
 
-        // agent has yielded and so now compact everything.
-        self.conversation.context = Some(
-            compactor
-                .compact_context(&agent, context, Retention::percent(1.0))
-                .await?,
-        );
+        // Agent has yielded and so compact everything.
+        self.conversation.context = Some(compactor.compact(&agent, context, true).await?);
 
         Ok(())
     }

@@ -25,8 +25,8 @@ agents:
       token_threshold: 100000
       model: *advanced_model
       message_threshold: 200
-      retention_window: 0.8
-      max_retention_window: 6
+      eviction_window: 0.8
+      retention_window: 6
       prompt: "{{> forge-system-prompt-context-summarizer.hbs }}"
     model: *advanced_model
     system_prompt: |-
@@ -58,8 +58,8 @@ agents:
       model: *advanced_model
       percentage: 0.2
       message_threshold: 200
-      retention_window: 0.8
-      max_retention_window: 6
+      eviction_window: 0.8
+      retention_window: 6
       prompt: "{{> forge-system-prompt-context-summarizer.hbs }}"
     model: *advanced_model
     system_prompt: |-

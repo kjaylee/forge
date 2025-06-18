@@ -8,50 +8,85 @@ use crate::{Context, ModelId, Role};
 
 /// Strategy for context compaction that unifies different compaction approaches
 #[derive(Debug, Clone)]
-pub enum Retention {
+pub enum CompactionStrategy {
     /// Retention based on percentage of tokens
-    Percent(f64),
+    Evict(f64),
     /// Retention based on fixed tokens
-    Fixed(usize),
+    Retain(usize),
+
+    /// Selects the strategy with minimum retention
+    Min(Box<CompactionStrategy>, Box<CompactionStrategy>),
+
+    /// Selects the strategy with maximum retention
+    Max(Box<CompactionStrategy>, Box<CompactionStrategy>),
 }
 
-impl Retention {
+impl CompactionStrategy {
+    pub fn new(compact: &Compact, max: bool) -> CompactionStrategy {
+        let eviction = CompactionStrategy::evict(compact.eviction_window);
+        let retention = CompactionStrategy::retain(compact.retention_window);
+
+        if max {
+            retention
+        } else {
+            eviction.min(retention)
+        }
+    }
+
     /// Create a percentage-based compaction strategy
-    pub fn percent(percentage: f64) -> Self {
-        Self::Percent(percentage)
+    pub fn evict(percentage: f64) -> Self {
+        Self::Evict(percentage)
     }
 
     /// Create a preserve-last-N compaction strategy
-    pub fn fixed(preserve_last_n: usize) -> Self {
-        Self::Fixed(preserve_last_n)
+    pub fn retain(preserve_last_n: usize) -> Self {
+        Self::Retain(preserve_last_n)
+    }
+
+    pub fn min(self, other: CompactionStrategy) -> Self {
+        CompactionStrategy::Min(Box::new(self), Box::new(other))
+    }
+
+    pub fn max(self, other: CompactionStrategy) -> Self {
+        CompactionStrategy::Max(Box::new(self), Box::new(other))
     }
 
     /// Convert percentage-based strategy to preserve_last_n equivalent
     /// This simulates the original percentage algorithm to determine how many
     /// messages would be preserved, then returns that as a preserve_last_n
     /// value
-    fn to_fixed(&self, context: &Context) -> Option<usize> {
+    fn to_fixed(&self, context: &Context) -> usize {
         match self {
-            Retention::Percent(percentage) => {
-                if *percentage > 1.0 {
-                    return None;
-                }
+            CompactionStrategy::Evict(percentage) => {
+                let percentage = percentage.min(1.0);
                 let total_tokens = context.token_count();
-                let mut token_to_retain: usize = (percentage * total_tokens as f64).ceil() as usize;
-                let (i, _) = context.messages.iter().enumerate().rev().find(|(_, m)| {
-                    token_to_retain = token_to_retain.saturating_sub(m.token_count());
-                    token_to_retain == 0
-                })?;
+                let mut eviction_budget: usize = (percentage * total_tokens as f64).ceil() as usize;
 
-                Some(i.saturating_sub(1))
+                let range = context
+                    .messages
+                    .iter()
+                    .enumerate()
+                    // Skip system message
+                    .filter(|m| m.1.has_role(Role::System))
+                    .find(|(_, m)| {
+                        eviction_budget = eviction_budget.saturating_sub(m.token_count());
+                        eviction_budget == 0
+                    });
+
+                match range {
+                    Some((i, _)) => i,
+                    None => context.messages.len() - 1,
+                }
             }
-            Retention::Fixed(fixed) => Some(*fixed),
+            CompactionStrategy::Retain(fixed) => *fixed,
+            CompactionStrategy::Min(a, b) => a.to_fixed(&context).min(b.to_fixed(&context)),
+            CompactionStrategy::Max(a, b) => a.to_fixed(&context).max(b.to_fixed(&context)),
         }
     }
 
     /// Find the sequence to compact using the unified algorithm
     pub fn eviction_range(&self, context: &Context) -> Option<(usize, usize)> {
-        let retention = self.to_fixed(context)?;
+        let retention = self.to_fixed(context);
         find_sequence_preserving_last_n(context, retention)
     }
 }
@@ -63,14 +98,14 @@ pub struct Compact {
     /// Number of most recent messages to preserve during compaction
     /// These messages won't be considered for summarization
     #[merge(strategy = crate::merge::std::overwrite)]
-    pub max_retention_window: usize,
+    pub retention_window: usize,
 
     /// Maximum percentage of the context that can be summarized during
     /// compaction. Valid values are between 0.0 and 1.0, where 0.0 means no
     /// compaction and 1.0 allows summarizing all messages.
     #[merge(strategy = crate::merge::std::overwrite)]
     #[serde(deserialize_with = "deserialize_percentage")]
-    pub retention_window: f64,
+    pub eviction_window: f64,
 
     /// Maximum number of tokens to keep after compaction
     #[merge(strategy = crate::merge::option)]
@@ -150,8 +185,8 @@ impl Compact {
             prompt: None,
             summary_tag: None,
             model,
-            retention_window: 0.2, // Default to 20% compaction
-            max_retention_window: 0,
+            eviction_window: 0.2, // Default to 20% compaction
+            retention_window: 0,
         }
     }
 
@@ -471,21 +506,21 @@ mod tests {
         let fixture = context_from_pattern("sua");
 
         // Test Percentage strategy conversion
-        let percentage_strategy = Retention::percent(0.4);
+        let percentage_strategy = CompactionStrategy::evict(0.4);
         let actual = percentage_strategy.to_fixed(&fixture);
-        let expected = Some(1); // Based on the conversion logic for 3 messages
+        let expected = 1; // Based on the conversion logic for 3 messages
         assert_eq!(actual, expected);
 
         // Test PreserveLastN strategy
-        let preserve_strategy = Retention::fixed(3);
+        let preserve_strategy = CompactionStrategy::retain(3);
         let actual = preserve_strategy.to_fixed(&fixture);
-        let expected = Some(3);
+        let expected = 3;
         assert_eq!(actual, expected);
 
         // Test invalid percentage
-        let invalid_strategy = Retention::percent(1.5);
+        let invalid_strategy = CompactionStrategy::evict(1.5);
         let actual = invalid_strategy.to_fixed(&fixture);
-        let expected = None;
+        let expected = 1;
         assert_eq!(actual, expected);
     }
 
@@ -494,15 +529,14 @@ mod tests {
         // Create context using DSL: user, assistant, user, assistant, user
         let fixture = context_from_pattern("uauau");
 
-        let percentage_strategy = Retention::percent(0.6);
+        let percentage_strategy = CompactionStrategy::evict(0.6);
         let actual_sequence = percentage_strategy.eviction_range(&fixture);
 
         // Convert percentage to preserve_last_n and test equivalence
-        if let Some(preserve_last_n) = percentage_strategy.to_fixed(&fixture) {
-            let preserve_strategy = Retention::fixed(preserve_last_n);
-            let expected_sequence = preserve_strategy.eviction_range(&fixture);
-            assert_eq!(actual_sequence, expected_sequence);
-        }
+        let preserve_last_n = percentage_strategy.to_fixed(&fixture);
+        let preserve_strategy = CompactionStrategy::retain(preserve_last_n);
+        let expected_sequence = preserve_strategy.eviction_range(&fixture);
+        assert_eq!(actual_sequence, expected_sequence);
     }
 
     #[test]
@@ -511,14 +545,12 @@ mod tests {
         let fixture = context_from_pattern("uaua");
 
         // Use percentage-based strategy
-        let percentage_strategy = Retention::percent(0.4);
-        if let Some(_preserve_last_n) = percentage_strategy.to_fixed(&fixture) {
-            // Conversion successful
-        }
+        let percentage_strategy = CompactionStrategy::evict(0.4);
+        percentage_strategy.to_fixed(&fixture);
 
         // Use fixed window strategy - preserve last 1 message, so we can compact the
         // first 3
-        let preserve_strategy = Retention::fixed(1);
+        let preserve_strategy = CompactionStrategy::retain(1);
         let actual_sequence = preserve_strategy.eviction_range(&fixture);
         let expected = Some((0, 2));
         assert_eq!(actual_sequence, expected);
