@@ -79,12 +79,12 @@ pub struct FSRead {
     /// Optional start position in lines (1-based). If provided, reading
     /// will start from this line position.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub start_line: Option<u64>,
+    pub start_line: Option<i32>,
 
     /// Optional end position in lines (inclusive). If provided, reading
     /// will end at this line position.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub end_line: Option<u64>,
+    pub end_line: Option<i32>,
     /// One sentence explanation as to why this specific tool is being used, and
     /// how it contributes to the goal.
     #[serde(default)]
@@ -142,10 +142,10 @@ pub struct FSSearch {
     pub regex: Option<String>,
 
     /// Starting index for the search results (1-based).
-    pub start_index: Option<u64>,
+    pub start_index: Option<i32>,
 
     /// Maximum number of lines to return in the search results.
-    pub max_search_lines: Option<u64>,
+    pub max_search_lines: Option<i32>,
 
     /// Glob pattern to filter files (e.g., '*.ts' for TypeScript files).
     /// If not provided, it will search all files (*).

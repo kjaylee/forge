@@ -26,7 +26,11 @@ impl<S: Services> ToolExecutor<S> {
                 let output = self
                     .services
                     .fs_read_service()
-                    .read(input.path.clone(), input.start_line, input.end_line)
+                    .read(
+                        input.path.clone(),
+                        input.start_line.map(|i| i as u64),
+                        input.end_line.map(|i| i as u64),
+                    )
                     .await?;
                 (input, output).into()
             }
