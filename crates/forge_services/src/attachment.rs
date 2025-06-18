@@ -5,14 +5,14 @@ use std::sync::Arc;
 use forge_app::{AttachmentService, EnvironmentService};
 use forge_domain::{Attachment, AttachmentContent, Image};
 
-use crate::FsReadService;
+use crate::FileReader;
 
 #[derive(Clone)]
 pub struct ForgeChatRequest<F> {
     infra: Arc<F>,
 }
 
-impl<F: FsReadService + EnvironmentService> ForgeChatRequest<F> {
+impl<F: FileReader + EnvironmentService> ForgeChatRequest<F> {
     pub fn new(infra: Arc<F>) -> Self {
         Self { infra }
     }
@@ -60,7 +60,7 @@ impl<F: FsReadService + EnvironmentService> ForgeChatRequest<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: FsReadService + EnvironmentService> AttachmentService for ForgeChatRequest<F> {
+impl<F: FileReader + EnvironmentService> AttachmentService for ForgeChatRequest<F> {
     async fn attachments(&self, url: &str) -> anyhow::Result<Vec<Attachment>> {
         self.prepare_attachments(Attachment::parse_all(url)).await
     }
@@ -85,8 +85,8 @@ pub mod tests {
     use crate::attachment::ForgeChatRequest;
     use crate::utils::AttachmentExtension;
     use crate::{
-        CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
-        FsReadService, FsSnapshotService, FsWriteService, InquireService, McpClient, McpServer,
+        CommandExecutor, FileRemover, FileDirectory, FileInfo,
+        FileReader, FileSnapshotter, FileWriter, UserInquirer, McpClient, McpServer,
     };
 
     #[derive(Debug)]
@@ -149,7 +149,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FsReadService for MockFileService {
+    impl FileReader for MockFileService {
         async fn read_utf8(&self, path: &Path) -> anyhow::Result<String> {
             let files = self.files.lock().unwrap();
             match files.iter().find(|v| v.0 == path) {
@@ -195,7 +195,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileRemoveService for MockFileService {
+    impl FileRemover for MockFileService {
         async fn remove(&self, path: &Path) -> anyhow::Result<()> {
             if !self.exists(path).await? {
                 return Err(anyhow::anyhow!("File not found: {:?}", path));
@@ -206,7 +206,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FsCreateDirsService for MockFileService {
+    impl FileDirectory for MockFileService {
         async fn create_dirs(&self, path: &Path) -> anyhow::Result<()> {
             self.files
                 .lock()
@@ -217,7 +217,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FsWriteService for MockFileService {
+    impl FileWriter for MockFileService {
         async fn write(
             &self,
             path: &Path,
@@ -249,7 +249,7 @@ pub mod tests {
     pub struct MockSnapService;
 
     #[async_trait::async_trait]
-    impl FsSnapshotService for MockSnapService {
+    impl FileSnapshotter for MockSnapService {
         async fn create_snapshot(&self, _: &Path) -> anyhow::Result<Snapshot> {
             unimplemented!()
         }
@@ -260,7 +260,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FsMetaService for MockFileService {
+    impl FileInfo for MockFileService {
         async fn is_file(&self, path: &Path) -> anyhow::Result<bool> {
             Ok(self
                 .files
@@ -306,7 +306,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl CommandExecutorService for () {
+    impl CommandExecutor for () {
         async fn execute_command(
             &self,
             command: String,
@@ -430,7 +430,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl InquireService for () {
+    impl UserInquirer for () {
         /// Prompts the user with question
         async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>> {
             // For testing, we can just return the question as the answer
@@ -485,7 +485,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FsReadService for MockCompositeService {
+    impl FileReader for MockCompositeService {
         async fn read_utf8(&self, path: &Path) -> anyhow::Result<String> {
             self.file_service.read_utf8(path).await
         }

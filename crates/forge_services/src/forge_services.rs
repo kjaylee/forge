@@ -27,8 +27,8 @@ use crate::tool_services::{
 };
 use crate::workflow::ForgeWorkflowService;
 use crate::{
-    CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
-    FsSnapshotService, FsWriteService, InquireService, McpServer,
+    CommandExecutor, FileRemover, FileDirectory, FileInfo, FileReader,
+    FileSnapshotter, FileWriter, UserInquirer, McpServer,
 };
 
 type McpService<F> = ForgeMcpService<ForgeMcpManager<F>, F, <F as McpServer>::Client>;
@@ -61,7 +61,7 @@ pub struct ForgeServices<F: McpServer> {
     mcp_service: Arc<McpService<F>>,
 }
 
-impl<F: McpServer + EnvironmentService + FsWriteService + FsMetaService + FsReadService>
+impl<F: McpServer + EnvironmentService + FileWriter + FileInfo + FileReader>
     ForgeServices<F>
 {
     pub fn new(infra: Arc<F>) -> Self {
@@ -123,7 +123,7 @@ impl<F: McpServer> ProviderService for ForgeServices<F> {
 }
 
 #[async_trait::async_trait]
-impl<I: McpServer + FsReadService + FsWriteService + EnvironmentService + FsMetaService>
+impl<I: McpServer + FileReader + FileWriter + EnvironmentService + FileInfo>
     ConversationService for ForgeServices<I>
 {
     async fn find(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>> {
@@ -147,7 +147,7 @@ impl<I: McpServer + FsReadService + FsWriteService + EnvironmentService + FsMeta
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FsReadService + EnvironmentService> TemplateService for ForgeServices<F> {
+impl<F: McpServer + FileReader + EnvironmentService> TemplateService for ForgeServices<F> {
     async fn register_template(&self, path: PathBuf) -> anyhow::Result<()> {
         self.template_service.register_template(path).await
     }
@@ -162,7 +162,7 @@ impl<F: McpServer + FsReadService + EnvironmentService> TemplateService for Forg
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FsReadService + FsWriteService + EnvironmentService> AttachmentService
+impl<F: McpServer + FileReader + FileWriter + EnvironmentService> AttachmentService
     for ForgeServices<F>
 {
     async fn attachments(&self, url: &str) -> anyhow::Result<Vec<Attachment>> {
@@ -171,14 +171,14 @@ impl<F: McpServer + FsReadService + FsWriteService + EnvironmentService> Attachm
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FsWriteService + EnvironmentService> EnvironmentService for ForgeServices<F> {
+impl<F: McpServer + FileWriter + EnvironmentService> EnvironmentService for ForgeServices<F> {
     fn get_environment(&self) -> Environment {
         self.infra.get_environment()
     }
 }
 
 #[async_trait::async_trait]
-impl<I: McpServer + FsReadService + FsWriteService> WorkflowService for ForgeServices<I> {
+impl<I: McpServer + FileReader + FileWriter> WorkflowService for ForgeServices<I> {
     async fn resolve(&self, path: Option<PathBuf>) -> PathBuf {
         self.workflow_service.resolve(path).await
     }
@@ -200,7 +200,7 @@ impl<I: McpServer + FsReadService + FsWriteService> WorkflowService for ForgeSer
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FsReadService + FsWriteService + EnvironmentService> FileDiscoveryService
+impl<F: McpServer + FileReader + FileWriter + EnvironmentService> FileDiscoveryService
     for ForgeServices<F>
 {
     async fn collect(&self, max_depth: Option<usize>) -> anyhow::Result<Vec<File>> {
@@ -209,7 +209,7 @@ impl<F: McpServer + FsReadService + FsWriteService + EnvironmentService> FileDis
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FsReadService + FsWriteService + FsMetaService + EnvironmentService>
+impl<F: McpServer + FileReader + FileWriter + FileInfo + EnvironmentService>
     McpConfigManager for ForgeServices<F>
 {
     async fn read_mcp_config(&self) -> anyhow::Result<McpConfig> {
@@ -222,7 +222,7 @@ impl<F: McpServer + FsReadService + FsWriteService + FsMetaService + Environment
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FsWriteService + FsMetaService + FsReadService + FsCreateDirsService>
+impl<F: McpServer + FileWriter + FileInfo + FileReader + FileDirectory>
     FsCreateService for ForgeServices<F>
 {
     async fn create(
@@ -239,7 +239,7 @@ impl<F: McpServer + FsWriteService + FsMetaService + FsReadService + FsCreateDir
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FsWriteService> FsPatchService for ForgeServices<F> {
+impl<F: McpServer + FileWriter> FsPatchService for ForgeServices<F> {
     async fn patch(
         &self,
         path: String,
@@ -254,7 +254,7 @@ impl<F: McpServer + FsWriteService> FsPatchService for ForgeServices<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FsReadService + EnvironmentService + FsMetaService> forge_app::FsReadService
+impl<F: McpServer + FileReader + EnvironmentService + FileInfo> forge_app::FsReadService
     for ForgeServices<F>
 {
     async fn read(
@@ -270,14 +270,14 @@ impl<F: McpServer + FsReadService + EnvironmentService + FsMetaService> forge_ap
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FileRemoveService> forge_app::FsRemoveService for ForgeServices<F> {
+impl<F: McpServer + FileRemover> forge_app::FsRemoveService for ForgeServices<F> {
     async fn remove(&self, path: String) -> anyhow::Result<FsRemoveOutput> {
         self.file_remove_service.remove(path).await
     }
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FsReadService> forge_app::FsSearchService for ForgeServices<F> {
+impl<F: McpServer + FileReader> forge_app::FsSearchService for ForgeServices<F> {
     async fn search(
         &self,
         path: String,
@@ -291,7 +291,7 @@ impl<F: McpServer + FsReadService> forge_app::FsSearchService for ForgeServices<
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + InquireService> forge_app::FollowUpService for ForgeServices<F> {
+impl<F: McpServer + UserInquirer> forge_app::FollowUpService for ForgeServices<F> {
     async fn follow_up(
         &self,
         question: String,
@@ -305,7 +305,7 @@ impl<F: McpServer + InquireService> forge_app::FollowUpService for ForgeServices
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FsMetaService + FsReadService + FsSnapshotService> forge_app::FsUndoService
+impl<F: McpServer + FileInfo + FileReader + FileSnapshotter> forge_app::FsUndoService
     for ForgeServices<F>
 {
     async fn undo(&self, path: String) -> anyhow::Result<FsUndoOutput> {
@@ -321,7 +321,7 @@ impl<F: McpServer> forge_app::NetFetchService for ForgeServices<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + CommandExecutorService + EnvironmentService> forge_app::ShellService
+impl<F: McpServer + CommandExecutor + EnvironmentService> forge_app::ShellService
     for ForgeServices<F>
 {
     async fn execute(
@@ -335,7 +335,7 @@ impl<F: McpServer + CommandExecutorService + EnvironmentService> forge_app::Shel
 }
 
 #[async_trait::async_trait]
-impl<F: McpServer + FsReadService + FsMetaService + EnvironmentService + FsWriteService>
+impl<F: McpServer + FileReader + FileInfo + EnvironmentService + FileWriter>
     forge_app::McpService for ForgeServices<F>
 {
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {

@@ -7,8 +7,8 @@ use forge_app::EnvironmentService;
 use forge_domain::{CommandOutput, Environment, McpServerConfig};
 use forge_fs::FileInfo;
 use forge_services::{
-    CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
-    FsSnapshotService, FsWriteService, InquireService, McpServer,
+    CommandExecutor, FileRemover, FileDirectory, FileInfo, FileReader,
+    FileSnapshotter, FileWriter, UserInquirer, McpServer,
 };
 
 use crate::env::ForgeEnvironmentService;
@@ -69,7 +69,7 @@ impl EnvironmentService for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl FsReadService for ForgeInfra {
+impl FileReader for ForgeInfra {
     async fn read_utf8(&self, path: &Path) -> anyhow::Result<String> {
         self.file_read_service.read_utf8(path).await
     }
@@ -91,7 +91,7 @@ impl FsReadService for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl FsWriteService for ForgeInfra {
+impl FileWriter for ForgeInfra {
     async fn write(
         &self,
         path: &Path,
@@ -111,7 +111,7 @@ impl FsWriteService for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl FsMetaService for ForgeInfra {
+impl FileInfo for ForgeInfra {
     async fn is_file(&self, path: &Path) -> anyhow::Result<bool> {
         self.file_meta_service.is_file(path).await
     }
@@ -126,7 +126,7 @@ impl FsMetaService for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl FsSnapshotService for ForgeInfra {
+impl FileSnapshotter for ForgeInfra {
     async fn create_snapshot(&self, file_path: &Path) -> anyhow::Result<forge_snaps::Snapshot> {
         self.file_snapshot_service.create_snapshot(file_path).await
     }
@@ -137,21 +137,21 @@ impl FsSnapshotService for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl FileRemoveService for ForgeInfra {
+impl FileRemover for ForgeInfra {
     async fn remove(&self, path: &Path) -> anyhow::Result<()> {
         self.file_remove_service.remove(path).await
     }
 }
 
 #[async_trait::async_trait]
-impl FsCreateDirsService for ForgeInfra {
+impl FileDirectory for ForgeInfra {
     async fn create_dirs(&self, path: &Path) -> anyhow::Result<()> {
         self.create_dirs_service.create_dirs(path).await
     }
 }
 
 #[async_trait::async_trait]
-impl CommandExecutorService for ForgeInfra {
+impl CommandExecutor for ForgeInfra {
     async fn execute_command(
         &self,
         command: String,
@@ -170,7 +170,7 @@ impl CommandExecutorService for ForgeInfra {
 }
 
 #[async_trait::async_trait]
-impl InquireService for ForgeInfra {
+impl UserInquirer for ForgeInfra {
     async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>> {
         self.inquire_service.prompt_question(question).await
     }

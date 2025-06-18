@@ -5,7 +5,7 @@ use anyhow::Context;
 use forge_app::WorkflowService;
 use forge_domain::Workflow;
 
-use crate::{FsReadService, FsWriteService};
+use crate::{FileReader, FileWriter};
 
 /// A workflow loader to load the workflow from the given path.
 /// It also resolves the internal paths specified in the workflow.
@@ -19,7 +19,7 @@ impl<F> ForgeWorkflowService<F> {
     }
 }
 
-impl<F: FsWriteService + FsReadService> ForgeWorkflowService<F> {
+impl<F: FileWriter + FileReader> ForgeWorkflowService<F> {
     /// Find a forge.yaml config file by traversing parent directories.
     /// Returns the path to the first found config file, or the original path if
     /// none is found.
@@ -91,7 +91,7 @@ impl<F: FsWriteService + FsReadService> ForgeWorkflowService<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: FsWriteService + FsReadService> WorkflowService for ForgeWorkflowService<F> {
+impl<F: FileWriter + FileReader> WorkflowService for ForgeWorkflowService<F> {
     async fn resolve(&self, path: Option<PathBuf>) -> PathBuf {
         self.resolve_path(path).await
     }

@@ -6,7 +6,7 @@ use bytes::Bytes;
 use forge_app::{FsCreateOutput, FsCreateService};
 
 use crate::utils::assert_absolute_path;
-use crate::{tool_services, FsCreateDirsService, FsMetaService, FsReadService, FsWriteService};
+use crate::{tool_services, FileDirectory, FileInfo, FileReader, FileWriter};
 
 /// Use it to create a new file at a specified path with the provided content.
 /// Always provide absolute paths for file locations. The tool
@@ -23,7 +23,7 @@ impl<F> ForgeFsCreate<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: FsCreateDirsService + FsMetaService + FsReadService + FsWriteService + Send + Sync>
+impl<F: FileDirectory + FileInfo + FileReader + FileWriter + Send + Sync>
     FsCreateService for ForgeFsCreate<F>
 {
     async fn create(

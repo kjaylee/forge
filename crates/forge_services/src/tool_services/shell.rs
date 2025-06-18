@@ -6,7 +6,7 @@ use forge_app::{EnvironmentService, ShellOutput, ShellService};
 use forge_domain::Environment;
 use strip_ansi_escapes::strip;
 
-use crate::CommandExecutorService;
+use crate::CommandExecutor;
 
 // Strips out the ansi codes from content.
 fn strip_ansi(content: String) -> String {
@@ -41,7 +41,7 @@ impl<I: EnvironmentService> ForgeShell<I> {
 }
 
 #[async_trait::async_trait]
-impl<I: CommandExecutorService + EnvironmentService> ShellService for ForgeShell<I> {
+impl<I: CommandExecutor + EnvironmentService> ShellService for ForgeShell<I> {
     async fn execute(
         &self,
         command: String,

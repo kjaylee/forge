@@ -12,7 +12,7 @@ use forge_snaps::Snapshot;
 /// This trait provides an abstraction over file reading operations, allowing
 /// for both real file system access and test mocking.
 #[async_trait::async_trait]
-pub trait FsReadService: Send + Sync {
+pub trait FileReader: Send + Sync {
     /// Reads the content of a file at the specified path.
     /// Returns the file content as a UTF-8 string.
     async fn read_utf8(&self, path: &Path) -> anyhow::Result<String>;
@@ -44,7 +44,7 @@ pub trait FsReadService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait FsWriteService: Send + Sync {
+pub trait FileWriter: Send + Sync {
     /// Writes the content of a file at the specified path.
     async fn write(
         &self,
@@ -65,26 +65,26 @@ pub trait FsWriteService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait FileRemoveService: Send + Sync {
+pub trait FileRemover: Send + Sync {
     /// Removes a file at the specified path.
     async fn remove(&self, path: &Path) -> anyhow::Result<()>;
 }
 
 #[async_trait::async_trait]
-pub trait FsMetaService: Send + Sync {
+pub trait FileInfo: Send + Sync {
     async fn is_file(&self, path: &Path) -> anyhow::Result<bool>;
     async fn exists(&self, path: &Path) -> anyhow::Result<bool>;
     async fn file_size(&self, path: &Path) -> anyhow::Result<u64>;
 }
 
 #[async_trait::async_trait]
-pub trait FsCreateDirsService {
+pub trait FileDirectory {
     async fn create_dirs(&self, path: &Path) -> anyhow::Result<()>;
 }
 
 /// Service for managing file snapshots
 #[async_trait::async_trait]
-pub trait FsSnapshotService: Send + Sync {
+pub trait FileSnapshotter: Send + Sync {
     // Creation
     async fn create_snapshot(&self, file_path: &Path) -> Result<Snapshot>;
 
@@ -94,7 +94,7 @@ pub trait FsSnapshotService: Send + Sync {
 
 /// Service for executing shell commands
 #[async_trait::async_trait]
-pub trait CommandExecutorService: Send + Sync {
+pub trait CommandExecutor: Send + Sync {
     /// Executes a shell command and returns the output
     async fn execute_command(
         &self,
@@ -107,7 +107,7 @@ pub trait CommandExecutorService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait InquireService: Send + Sync {
+pub trait UserInquirer: Send + Sync {
     /// Prompts the user with question
     /// Returns None if the user interrupts the prompt
     async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>>;
