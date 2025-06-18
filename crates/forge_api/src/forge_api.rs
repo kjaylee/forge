@@ -84,7 +84,7 @@ impl<
         &self,
         workflow: W,
     ) -> anyhow::Result<Conversation> {
-        ConversationService::create(self.app.as_ref(), workflow.into()).await
+        ConversationService::create_conversation(self.app.as_ref(), workflow.into()).await
     }
 
     async fn upsert_conversation(&self, conversation: Conversation) -> anyhow::Result<()> {
@@ -104,11 +104,11 @@ impl<
     }
 
     async fn read_workflow(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        WorkflowService::read(self.app.as_ref(), path).await
+        WorkflowService::read_workflow(self.app.as_ref(), path).await
     }
 
     async fn write_workflow(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()> {
-        WorkflowService::write(self.app.as_ref(), path, workflow).await
+        WorkflowService::write_workflow(self.app.as_ref(), path, workflow).await
     }
 
     async fn update_workflow<T>(&self, path: Option<&Path>, f: T) -> anyhow::Result<Workflow>
@@ -135,13 +135,13 @@ impl<
             .await
     }
     async fn read_mcp_config(&self) -> Result<McpConfig> {
-        McpConfigManager::read(self.app.as_ref())
+        McpConfigManager::read_mcp_config(self.app.as_ref())
             .await
             .map_err(|e| anyhow::anyhow!(e))
     }
 
     async fn write_mcp_config(&self, scope: &Scope, config: &McpConfig) -> Result<()> {
-        McpConfigManager::write(self.app.as_ref(), config, scope)
+        McpConfigManager::write_mcp_config(self.app.as_ref(), config, scope)
             .await
             .map_err(|e| anyhow::anyhow!(e))
     }

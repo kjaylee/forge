@@ -35,7 +35,7 @@ impl<I: McpServer + FsReadService + FsMetaService + EnvironmentService> ForgeMcp
 impl<I: McpServer + FsReadService + FsMetaService + EnvironmentService + FsWriteService>
     McpConfigManager for ForgeMcpManager<I>
 {
-    async fn read(&self) -> anyhow::Result<McpConfig> {
+    async fn read_mcp_config(&self) -> anyhow::Result<McpConfig> {
         let env = self.infra.get_environment();
         let paths = vec![
             // Configs at lower levels take precedence, so we read them in reverse order.
@@ -56,7 +56,7 @@ impl<I: McpServer + FsReadService + FsMetaService + EnvironmentService + FsWrite
         Ok(config)
     }
 
-    async fn write(&self, config: &McpConfig, scope: &Scope) -> anyhow::Result<()> {
+    async fn write_mcp_config(&self, config: &McpConfig, scope: &Scope) -> anyhow::Result<()> {
         self.infra
             .write(
                 self.config_path(scope).await?.as_path(),

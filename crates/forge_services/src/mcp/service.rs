@@ -77,7 +77,7 @@ where
     }
 
     async fn init_mcp(&self) -> anyhow::Result<()> {
-        let mcp = self.manager.read().await?;
+        let mcp = self.manager.read_mcp_config().await?;
 
         // If config is unchanged, skip reinitialization
         if !self.is_config_modified(&mcp).await {

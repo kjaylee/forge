@@ -96,12 +96,12 @@ impl<F: FsWriteService + FsReadService> WorkflowService for ForgeWorkflowService
         self.resolve_path(path).await
     }
 
-    async fn read(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+    async fn read_workflow(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         let path_to_use = path.unwrap_or_else(|| Path::new("forge.yaml"));
         self.read(path_to_use).await
     }
 
-    async fn write(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()> {
+    async fn write_workflow(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()> {
         // First, try to find the config file in parent directories if needed
         let path_buf = match path {
             Some(p) => p.to_path_buf(),
@@ -125,7 +125,7 @@ impl<F: FsWriteService + FsReadService> WorkflowService for ForgeWorkflowService
         f(&mut workflow);
 
         // Write the updated workflow back
-        self.write(path, &workflow).await?;
+        self.write_workflow(path, &workflow).await?;
 
         Ok(workflow)
     }

@@ -70,7 +70,7 @@ impl<
         let models = services.models().await?;
 
         // Discover files using the discovery service
-        let workflow = WorkflowService::read(services.as_ref(), None)
+        let workflow = WorkflowService::read_workflow(services.as_ref(), None)
             .await
             .unwrap_or_default();
         let max_depth = workflow.max_walker_depth;

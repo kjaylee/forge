@@ -94,10 +94,10 @@ pub trait ProviderService: Send + Sync + 'static {
 #[async_trait::async_trait]
 pub trait McpConfigManager: Send + Sync {
     /// Responsible to load the MCP servers from all configuration files.
-    async fn read(&self) -> anyhow::Result<McpConfig>;
+    async fn read_mcp_config(&self) -> anyhow::Result<McpConfig>;
 
     /// Responsible for writing the McpConfig on disk.
-    async fn write(&self, config: &McpConfig, scope: &Scope) -> anyhow::Result<()>;
+    async fn write_mcp_config(&self, config: &McpConfig, scope: &Scope) -> anyhow::Result<()>;
 }
 
 #[async_trait::async_trait]
@@ -112,7 +112,7 @@ pub trait ConversationService: Send + Sync {
 
     async fn upsert(&self, conversation: Conversation) -> anyhow::Result<()>;
 
-    async fn create(&self, workflow: Workflow) -> anyhow::Result<Conversation>;
+    async fn create_conversation(&self, workflow: Workflow) -> anyhow::Result<Conversation>;
 
     /// This is useful when you want to perform several operations on a
     /// conversation atomically.
@@ -150,12 +150,12 @@ pub trait WorkflowService {
     /// Reads the workflow from the given path.
     /// If no path is provided, it will try to find forge.yaml in the current
     /// directory or its parent directories.
-    async fn read(&self, path: Option<&Path>) -> anyhow::Result<Workflow>;
+    async fn read_workflow(&self, path: Option<&Path>) -> anyhow::Result<Workflow>;
 
     /// Reads the workflow from the given path and merges it with an default
     /// workflow.
     async fn read_merged(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        let workflow = self.read(path).await?;
+        let workflow = self.read_workflow(path).await?;
         let mut base_workflow = Workflow::default();
         base_workflow.merge(workflow);
         Ok(base_workflow)
@@ -164,7 +164,7 @@ pub trait WorkflowService {
     /// Writes the given workflow to the specified path.
     /// If no path is provided, it will try to find forge.yaml in the current
     /// directory or its parent directories.
-    async fn write(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()>;
+    async fn write_workflow(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()>;
 
     /// Updates the workflow at the given path using the provided closure.
     /// If no path is provided, it will try to find forge.yaml in the current

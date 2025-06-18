@@ -134,8 +134,8 @@ impl<I: McpServer + FsReadService + FsWriteService + EnvironmentService + FsMeta
         self.conversation_service.upsert(conversation).await
     }
 
-    async fn create(&self, workflow: Workflow) -> anyhow::Result<Conversation> {
-        self.conversation_service.create(workflow).await
+    async fn create_conversation(&self, workflow: Workflow) -> anyhow::Result<Conversation> {
+        self.conversation_service.create_conversation(workflow).await
     }
 
     async fn update<F, T>(&self, id: &ConversationId, f: F) -> anyhow::Result<T>
@@ -183,12 +183,12 @@ impl<I: McpServer + FsReadService + FsWriteService> WorkflowService for ForgeSer
         self.workflow_service.resolve(path).await
     }
 
-    async fn read(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        self.workflow_service.read(path).await
+    async fn read_workflow(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+        self.workflow_service.read_workflow(path).await
     }
 
-    async fn write(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()> {
-        self.workflow_service.write(path, workflow).await
+    async fn write_workflow(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()> {
+        self.workflow_service.write_workflow(path, workflow).await
     }
 
     async fn update_workflow<F>(&self, path: Option<&Path>, f: F) -> anyhow::Result<Workflow>
@@ -212,12 +212,12 @@ impl<F: McpServer + FsReadService + FsWriteService + EnvironmentService> FileDis
 impl<F: McpServer + FsReadService + FsWriteService + FsMetaService + EnvironmentService>
     McpConfigManager for ForgeServices<F>
 {
-    async fn read(&self) -> anyhow::Result<McpConfig> {
-        self.mcp_manager.read().await
+    async fn read_mcp_config(&self) -> anyhow::Result<McpConfig> {
+        self.mcp_manager.read_mcp_config().await
     }
 
-    async fn write(&self, config: &McpConfig, scope: &Scope) -> anyhow::Result<()> {
-        self.mcp_manager.write(config, scope).await
+    async fn write_mcp_config(&self, config: &McpConfig, scope: &Scope) -> anyhow::Result<()> {
+        self.mcp_manager.write_mcp_config(config, scope).await
     }
 }
 
