@@ -138,7 +138,7 @@ fn find_sequence_preserving_last_n(
         // If the last message is a tool result and the next one is also a tool result,
         // we need to adjust the end.
         let mut adjusted_end = end;
-        while adjusted_end >= start && (messages[adjusted_end].has_tool_result()) {
+        while adjusted_end >= start && messages[adjusted_end].has_tool_result() {
             adjusted_end = adjusted_end.saturating_sub(1);
         }
         end = adjusted_end.saturating_sub(1);
