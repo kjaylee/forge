@@ -1,19 +1,6 @@
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::Error;
-use forge_app::{
-    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
-    FsCreateOutput, FsCreateService, FsPatchService, FsRemoveOutput, FsUndoOutput, HttpResponse,
-    McpConfigManager, PatchOutput, ProviderService, ReadOutput, SearchResult, ShellOutput,
-    TemplateService, WorkflowService,
-};
-use forge_domain::{
-    Attachment, ChatCompletionMessage, Context, Conversation, ConversationId, Environment, File,
-    McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope, ToolCallFull, ToolDefinition,
-    ToolOutput, Workflow,
-};
-use serde::Serialize;
+use forge_app::{EnvironmentService, Services};
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
@@ -107,7 +94,7 @@ impl<
         }
     }
 }
-
+/*
 #[async_trait::async_trait]
 impl<F: McpServerInfra> ProviderService for ForgeServices<F> {
     async fn chat(
@@ -355,5 +342,112 @@ impl<
 
     async fn call(&self, call: ToolCallFull) -> anyhow::Result<ToolOutput> {
         self.mcp_service.call(call).await
+    }
+}
+*/
+
+impl<
+        F: FileReaderInfra
+            + FileWriterInfra
+            + CommandInfra
+            + UserInfra
+            + SnapshotInfra
+            + McpServerInfra
+            + FileRemoverInfra
+            + FileInfoInfra
+            + FileDirectoryInfra
+            + EnvironmentService
+            + Clone,
+    > Services for ForgeServices<F>
+{
+    type ProviderService = ForgeProviderService;
+    type ConversationService = ForgeConversationService<McpService<F>>;
+    type TemplateService = ForgeTemplateService<F>;
+    type AttachmentService = ForgeChatRequest<F>;
+    type EnvironmentService = F;
+    type WorkflowService = ForgeWorkflowService<F>;
+    type FileDiscoveryService = ForgeDiscoveryService<F>;
+    type McpConfigManager = ForgeMcpManager<F>;
+    type FsCreateService = ForgeFsCreate<F>;
+    type FsPatchService = ForgeFsPatch<F>;
+    type FsReadService = ForgeFsRead<F>;
+    type FsRemoveService = ForgeFsRemove<F>;
+    type FsSearchService = ForgeFsSearch;
+    type FollowUpService = ForgeFollowup<F>;
+    type FsUndoService = ForgeFsUndo<F>;
+    type NetFetchService = ForgeFetch;
+    type ShellService = ForgeShell<F>;
+    type McpService = McpService<F>;
+
+    fn provider_service(&self) -> &Self::ProviderService {
+        &self.provider_service
+    }
+
+    fn conversation_service(&self) -> &Self::ConversationService {
+        &self.conversation_service
+    }
+
+    fn template_service(&self) -> &Self::TemplateService {
+        &self.template_service
+    }
+
+    fn attachment_service(&self) -> &Self::AttachmentService {
+        &self.attachment_service
+    }
+
+    fn environment_service(&self) -> &Self::EnvironmentService {
+        &self.infra
+    }
+
+    fn workflow_service(&self) -> &Self::WorkflowService {
+        self.workflow_service.as_ref()
+    }
+
+    fn file_discovery_service(&self) -> &Self::FileDiscoveryService {
+        self.discovery_service.as_ref()
+    }
+
+    fn mcp_config_manager(&self) -> &Self::McpConfigManager {
+        self.mcp_manager.as_ref()
+    }
+
+    fn fs_create_service(&self) -> &Self::FsCreateService {
+        &self.file_create_service
+    }
+
+    fn fs_patch_service(&self) -> &Self::FsPatchService {
+        &self.file_patch_service
+    }
+
+    fn fs_read_service(&self) -> &Self::FsReadService {
+        &self.file_read_service
+    }
+
+    fn fs_remove_service(&self) -> &Self::FsRemoveService {
+        &self.file_remove_service
+    }
+
+    fn fs_search_service(&self) -> &Self::FsSearchService {
+        &self.file_search_service
+    }
+
+    fn follow_up_service(&self) -> &Self::FollowUpService {
+        &self.followup_service
+    }
+
+    fn fs_undo_service(&self) -> &Self::FsUndoService {
+        &self.file_undo_service
+    }
+
+    fn net_fetch_service(&self) -> &Self::NetFetchService {
+        &self.fetch_service
+    }
+
+    fn shell_service(&self) -> &Self::ShellService {
+        &self.shell_service
+    }
+
+    fn mcp_service(&self) -> &Self::McpService {
+        &self.mcp_service
     }
 }
