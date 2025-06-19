@@ -16,7 +16,8 @@ expression: tools
       "end_line": {
         "description": "Optional end position in lines (inclusive). If provided, reading will end at this line position.",
         "type": "integer",
-        "format": "int32",
+        "format": "uint64",
+        "minimum": 0.0,
         "nullable": true
       },
       "explanation": {
@@ -32,7 +33,8 @@ expression: tools
       "start_line": {
         "description": "Optional start position in lines (1-based). If provided, reading will start from this line position.",
         "type": "integer",
-        "format": "int32",
+        "format": "uint64",
+        "minimum": 0.0,
         "nullable": true
       }
     }
