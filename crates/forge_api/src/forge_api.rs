@@ -76,7 +76,7 @@ impl<A: Services, F: CommandInfra> API for ForgeAPI<A, F> {
     }
 
     fn environment(&self) -> Environment {
-        self.app.as_ref().get_environment().clone()
+        self.app.get_environment().clone()
     }
 
     async fn read_workflow(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
