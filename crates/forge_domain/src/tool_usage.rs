@@ -38,28 +38,21 @@ impl Display for ToolUsagePrompt<'_> {
                 .flat_map(|(name, props)| {
                     let object = props.into_object();
                     let instance = object.instance_type.clone();
-                    let is_nullable = object
-                        .extensions
-                        .get("nullable")
-                        .map(|v| v.as_bool())
-                        .unwrap_or_default()
-                        .unwrap_or_default();
                     object
                         .metadata
                         .into_iter()
-                        .map(move |meta| (name.clone(), meta, instance.clone(), is_nullable))
+                        .map(move |meta| (name.clone(), meta, instance.clone()))
                 })
-                .flat_map(|(name, meta, instance, is_nullable)| {
+                .flat_map(|(name, meta, instance)| {
                     meta.description
                         .into_iter()
-                        .map(move |desc| (name.clone(), desc, instance.clone(), is_nullable))
+                        .map(move |desc| (name.clone(), desc, instance.clone()))
                 })
-                .map(|(name, desc, instance, is_nullable)| {
+                .map(|(name, desc, instance)| {
                     let parameter = Parameter {
                         description: desc,
                         type_of: instance,
                         is_required: required.contains(&name),
-                        is_nullable,
                     };
 
                     (name, parameter)
@@ -92,8 +85,6 @@ struct Parameter {
     #[serde(rename = "type")]
     type_of: Option<SingleOrVec<InstanceType>>,
     is_required: bool,
-    #[serde(rename = "nullable")]
-    is_nullable: bool,
 }
 
 impl Display for Schema {
