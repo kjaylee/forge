@@ -2,10 +2,66 @@ use std::path::{Path, PathBuf};
 
 use forge_domain::{
     Attachment, ChatCompletionMessage, CommandOutput, Context, Conversation, ConversationId,
-    Environment, File, McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope,
+    Environment, File, McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope, Stats, Task,
     ToolCallFull, ToolDefinition, ToolOutput, Workflow,
 };
 use merge::Merge;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskListInput {
+    pub operation: TaskOperation,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskOperation {
+    Append { task: String },
+    Prepend { task: String },
+    PopFront,
+    PopBack,
+    MarkDone { task_id: u32 },
+    List,
+    Clear,
+    Stats,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskListOutput {
+    TaskAdded {
+        task: Task,
+        stats: Stats,
+        message: String,
+    },
+    TaskPopped {
+        task: Task,
+        stats: Stats,
+        message: String,
+    },
+    TaskCompleted {
+        completed_task: Task,
+        next_task: Option<Task>,
+        stats: Stats,
+        message: String,
+    },
+    TaskList {
+        markdown: String,
+        stats: Stats,
+    },
+    StatsOnly {
+        stats: Stats,
+    },
+    Cleared {
+        message: String,
+    },
+    Empty {
+        message: String,
+    },
+    Error {
+        message: String,
+    },
+}
 
 #[derive(Debug)]
 pub struct ShellOutput {
@@ -272,6 +328,12 @@ pub trait ShellService: Send + Sync {
     ) -> anyhow::Result<ShellOutput>;
 }
 
+#[async_trait::async_trait]
+pub trait TaskListService: Send + Sync {
+    /// Executes a task list operation and returns the result.
+    async fn execute_task_list(&self, input: TaskListInput) -> anyhow::Result<TaskListOutput>;
+}
+
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
@@ -294,6 +356,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     type NetFetchService: NetFetchService;
     type ShellService: ShellService;
     type McpService: McpService;
+    type TaskListService: TaskListService;
 
     fn provider_service(&self) -> &Self::ProviderService;
     fn conversation_service(&self) -> &Self::ConversationService;
@@ -313,6 +376,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn shell_service(&self) -> &Self::ShellService;
     fn mcp_service(&self) -> &Self::McpService;
     fn environment_service(&self) -> &Self::EnvironmentService;
+    fn task_list_service(&self) -> &Self::TaskListService;
 }
 
 #[async_trait::async_trait]
@@ -506,6 +570,13 @@ impl<I: Services> FollowUpService for I {
         self.follow_up_service()
             .follow_up(question, options, multiple)
             .await
+    }
+}
+
+#[async_trait::async_trait]
+impl<I: Services> TaskListService for I {
+    async fn execute_task_list(&self, input: TaskListInput) -> anyhow::Result<TaskListOutput> {
+        self.task_list_service().execute_task_list(input).await
     }
 }
 

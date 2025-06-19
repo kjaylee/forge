@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 use console::strip_ansi_codes;
 use derive_setters::Setters;
 use forge_display::DiffFormat;
-use forge_domain::{Environment, FSPatch, FSRead, FSRemove, FSSearch, FSUndo, FSWrite, NetFetch};
+use forge_domain::{
+    Environment, FSPatch, FSRead, FSRemove, FSSearch, FSUndo, FSWrite, NetFetch, TaskListTool,
+};
 use forge_template::Element;
 
 use crate::truncation::{
@@ -14,7 +16,7 @@ use crate::truncation::{
 use crate::utils::display_path;
 use crate::{
     Content, EnvironmentService, FsCreateOutput, FsCreateService, FsUndoOutput, HttpResponse,
-    PatchOutput, ReadOutput, ResponseContext, SearchResult, ShellOutput,
+    PatchOutput, ReadOutput, ResponseContext, SearchResult, ShellOutput, TaskListOutput,
 };
 
 #[derive(Debug, Default, Setters)]
@@ -60,6 +62,10 @@ pub enum Operation {
         output: Option<String>,
     },
     AttemptCompletion,
+    TaskList {
+        _input: TaskListTool,
+        output: TaskListOutput,
+    },
 }
 
 /// Helper function to create stdout or stderr elements with consistent
@@ -310,6 +316,87 @@ impl Operation {
                 Element::new("success")
                     .text("[Task was completed successfully. Now wait for user feedback]"),
             ),
+            Operation::TaskList { _input: _, output } => match output {
+                crate::TaskListOutput::TaskAdded { task, stats, message } => {
+                    let elm = Element::new("task_added")
+                        .attr("task_id", task.id)
+                        .attr("task_text", &task.task)
+                        .attr("status", task.status_name())
+                        .attr("total_tasks", stats.total_tasks)
+                        .attr("pending_tasks", stats.pending_tasks)
+                        .attr("in_progress_tasks", stats.in_progress_tasks)
+                        .attr("done_tasks", stats.done_tasks)
+                        .text(message);
+                    forge_domain::ToolOutput::text(elm)
+                }
+                crate::TaskListOutput::TaskPopped { task, stats, message } => {
+                    let elm = Element::new("task_popped")
+                        .attr("task_id", task.id)
+                        .attr("task_text", &task.task)
+                        .attr("status", task.status_name())
+                        .attr("total_tasks", stats.total_tasks)
+                        .attr("pending_tasks", stats.pending_tasks)
+                        .attr("in_progress_tasks", stats.in_progress_tasks)
+                        .attr("done_tasks", stats.done_tasks)
+                        .text(message);
+                    forge_domain::ToolOutput::text(elm)
+                }
+                crate::TaskListOutput::TaskCompleted {
+                    completed_task,
+                    next_task,
+                    stats,
+                    message,
+                } => {
+                    let mut elm = Element::new("task_completed")
+                        .attr("completed_task_id", completed_task.id)
+                        .attr("completed_task_text", &completed_task.task)
+                        .attr("completed_status", completed_task.status_name())
+                        .attr("total_tasks", stats.total_tasks)
+                        .attr("pending_tasks", stats.pending_tasks)
+                        .attr("in_progress_tasks", stats.in_progress_tasks)
+                        .attr("done_tasks", stats.done_tasks);
+
+                    if let Some(next) = next_task {
+                        elm = elm
+                            .attr("next_task_id", next.id)
+                            .attr("next_task_text", &next.task)
+                            .attr("next_status", next.status_name());
+                    }
+
+                    elm = elm.text(message);
+                    forge_domain::ToolOutput::text(elm)
+                }
+                crate::TaskListOutput::TaskList { markdown, stats } => {
+                    let elm = Element::new("task_list")
+                        .attr("total_tasks", stats.total_tasks)
+                        .attr("pending_tasks", stats.pending_tasks)
+                        .attr("in_progress_tasks", stats.in_progress_tasks)
+                        .attr("done_tasks", stats.done_tasks)
+                        .cdata(markdown);
+                    forge_domain::ToolOutput::text(elm)
+                }
+                crate::TaskListOutput::StatsOnly { stats } => {
+                    let elm = Element::new("task_stats")
+                        .attr("total_tasks", stats.total_tasks)
+                        .attr("pending_tasks", stats.pending_tasks)
+                        .attr("in_progress_tasks", stats.in_progress_tasks)
+                        .attr("done_tasks", stats.done_tasks)
+                        .text("Task statistics retrieved successfully.");
+                    forge_domain::ToolOutput::text(elm)
+                }
+                crate::TaskListOutput::Cleared { message } => {
+                    let elm = Element::new("task_list_cleared").text(message);
+                    forge_domain::ToolOutput::text(elm)
+                }
+                crate::TaskListOutput::Empty { message } => {
+                    let elm = Element::new("task_list_empty").text(message);
+                    forge_domain::ToolOutput::text(elm)
+                }
+                crate::TaskListOutput::Error { message } => {
+                    let elm = Element::new("task_error").text(message);
+                    forge_domain::ToolOutput::text(elm)
+                }
+            },
         }
     }
 

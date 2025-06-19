@@ -6,9 +6,10 @@ use crate::error::Error;
 use crate::fmt_input::{FormatInput, InputFormat};
 use crate::fmt_output::FormatOutput;
 use crate::operation::Operation;
+use crate::services::{ShellService, TaskListService};
 use crate::{
     EnvironmentService, FollowUpService, FsCreateService, FsPatchService, FsReadService,
-    FsRemoveService, FsSearchService, FsUndoService, NetFetchService, ShellService,
+    FsRemoveService, FsSearchService, FsUndoService, NetFetchService,
 };
 
 pub struct ToolExecutor<S> {
@@ -25,7 +26,8 @@ impl<
         + FsUndoService
         + ShellService
         + FollowUpService
-        + EnvironmentService,
+        + EnvironmentService
+        + TaskListService,
 > ToolExecutor<S>
 {
     pub fn new(services: Arc<S>) -> Self {
@@ -120,6 +122,28 @@ impl<
             }
             Tools::ForgeToolAttemptCompletion(_input) => {
                 crate::operation::Operation::AttemptCompletion
+            }
+            Tools::ForgeToolTaskList(input) => {
+                let task_input = crate::TaskListInput {
+                    operation: match &input.operation {
+                        forge_domain::TaskListOperation::Append { task } => {
+                            crate::TaskOperation::Append { task: task.clone() }
+                        }
+                        forge_domain::TaskListOperation::Prepend { task } => {
+                            crate::TaskOperation::Prepend { task: task.clone() }
+                        }
+                        forge_domain::TaskListOperation::PopFront => crate::TaskOperation::PopFront,
+                        forge_domain::TaskListOperation::PopBack => crate::TaskOperation::PopBack,
+                        forge_domain::TaskListOperation::MarkDone { task_id } => {
+                            crate::TaskOperation::MarkDone { task_id: *task_id }
+                        }
+                        forge_domain::TaskListOperation::List => crate::TaskOperation::List,
+                        forge_domain::TaskListOperation::Clear => crate::TaskOperation::Clear,
+                        forge_domain::TaskListOperation::Stats => crate::TaskOperation::Stats,
+                    },
+                };
+                let output = self.services.execute_task_list(task_input).await?;
+                (input, output).into()
             }
         })
     }

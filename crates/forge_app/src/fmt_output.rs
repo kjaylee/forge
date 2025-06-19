@@ -32,6 +32,7 @@ impl FormatOutput for Operation {
             Operation::Shell { output: _ } => None,
             Operation::FollowUp { output: _ } => None,
             Operation::AttemptCompletion => None,
+            Operation::TaskList { _input: _, output: _ } => None,
         }
     }
 }

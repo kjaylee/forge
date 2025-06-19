@@ -93,6 +93,25 @@ impl FormatInput for Tools {
                 .sub_title(&input.question)
                 .into(),
             Tools::ForgeToolAttemptCompletion(input) => InputFormat::Summary(input.result.clone()),
+            Tools::ForgeToolTaskList(input) => {
+                let operation_desc = match &input.operation {
+                    forge_domain::TaskListOperation::Append { task } => {
+                        format!("Add task: {task}")
+                    }
+                    forge_domain::TaskListOperation::Prepend { task } => {
+                        format!("Prepend task: {task}")
+                    }
+                    forge_domain::TaskListOperation::PopFront => "Pop first task".to_string(),
+                    forge_domain::TaskListOperation::PopBack => "Pop last task".to_string(),
+                    forge_domain::TaskListOperation::MarkDone { task_id } => {
+                        format!("Mark task {task_id} done")
+                    }
+                    forge_domain::TaskListOperation::List => "List tasks".to_string(),
+                    forge_domain::TaskListOperation::Clear => "Clear all tasks".to_string(),
+                    forge_domain::TaskListOperation::Stats => "Show task stats".to_string(),
+                };
+                TitleFormat::debug("TASK").sub_title(&operation_desc).into()
+            }
         }
     }
 }

@@ -44,6 +44,7 @@ pub enum Tools {
     ForgeToolNetFetch(NetFetch),
     ForgeToolFollowup(Followup),
     ForgeToolAttemptCompletion(AttemptCompletion),
+    ForgeToolTaskList(TaskListTool),
 }
 
 /// Input structure for agent tool calls. This serves as the generic schema
@@ -371,6 +372,45 @@ pub struct AttemptCompletion {
     pub result: String,
 }
 
+/// Task list management tool for organizing and tracking work items during
+/// development sessions. Supports operations like append, prepend, pop, mark
+/// done, list, clear, and stats. Tasks are stored in conversation state and
+/// persist across agent interactions. Use this tool to maintain focus on
+/// objectives and track progress through complex workflows.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+pub struct TaskListTool {
+    /// The operation to perform on the task list
+    pub operation: TaskListOperation,
+    /// One sentence explanation as to why this specific tool is being used, and
+    /// how it contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Available operations for task list management
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[derive(Default)]
+pub enum TaskListOperation {
+    /// Add a new task to the end of the list
+    Append { task: String },
+    /// Add a new task to the beginning of the list
+    Prepend { task: String },
+    /// Remove and mark the first task as IN_PROGRESS
+    PopFront,
+    /// Remove and mark the last task as IN_PROGRESS
+    PopBack,
+    /// Mark a specific task as DONE by its ID
+    MarkDone { task_id: u32 },
+    /// Display the current task list with stats
+    #[default]
+    List,
+    /// Remove all tasks from the list
+    Clear,
+    /// Show only the task statistics
+    Stats,
+}
+
 fn default_raw() -> Option<bool> {
     Some(false)
 }
@@ -492,6 +532,7 @@ impl ToolDescription for Tools {
             Tools::ForgeToolFsRemove(v) => v.description(),
             Tools::ForgeToolFsUndo(v) => v.description(),
             Tools::ForgeToolFsCreate(v) => v.description(),
+            Tools::ForgeToolTaskList(v) => v.description(),
         }
     }
 }
@@ -526,6 +567,7 @@ impl Tools {
             Tools::ForgeToolFsRemove(_) => gen.into_root_schema_for::<FSRemove>(),
             Tools::ForgeToolFsUndo(_) => gen.into_root_schema_for::<FSUndo>(),
             Tools::ForgeToolFsCreate(_) => gen.into_root_schema_for::<FSWrite>(),
+            Tools::ForgeToolTaskList(_) => gen.into_root_schema_for::<TaskListOperation>(),
         }
     }
 

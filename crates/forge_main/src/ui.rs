@@ -87,6 +87,27 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
         Ok(())
     }
 
+    // Handle tasks command - display task list
+    async fn on_tasks(&mut self) -> Result<()> {
+        self.spinner.start(Some("Loading tasks"))?;
+
+        // Get the current conversation ID
+        let conversation_id = self.init_conversation().await?;
+
+        // Get the task list using the new API method
+        let markdown = self.api.get_task_list(&conversation_id).await?;
+
+        if markdown.trim() == "No tasks found." || markdown.contains("**No tasks**") {
+            self.writeln(TitleFormat::info(
+                "No tasks found. Use the task management tool to add tasks.",
+            ))?;
+        } else {
+            self.writeln(self.markdown.render(&markdown))?;
+        }
+
+        Ok(())
+    }
+
     async fn active_workflow(&self) -> Result<Workflow> {
         // Read the current workflow to validate the agent
         let workflow = self.api.read_workflow(self.cli.workflow.as_deref()).await?;
@@ -413,6 +434,9 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 if let Ok(selected_agent) = select_prompt.prompt() {
                     self.on_agent_change(selected_agent.id).await?;
                 }
+            }
+            Command::Tasks => {
+                self.on_tasks().await?;
             }
         }
 
