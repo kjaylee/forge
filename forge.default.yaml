@@ -46,6 +46,7 @@ agents:
       - forge_tool_net_fetch
       - forge_tool_fs_search
       - forge_tool_fs_undo
+      - forge_tool_task_list
     max_walker_depth: 1
 
   - id: muse

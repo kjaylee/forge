@@ -16,6 +16,7 @@ impl TaskService {
     }
 
     pub fn append(&mut self, task: impl Into<String>) -> Result<(Task, Stats)> {
+        println!("hx");
         let result = self.task_list.append(task);
         Ok(result)
     }

@@ -85,6 +85,7 @@ impl TaskList {
     }
 
     pub fn append(&mut self, task: impl Into<String>) -> (Task, Stats) {
+        println!("hx1");
         let task = Task::new(self.next_id, task);
         self.next_id += 1;
         self.tasks.push(task.clone());
