@@ -344,3 +344,113 @@ expression: tools
     }
   }
 }
+{
+  "name": "forge_tool_task_list",
+  "description": "Task list management tool for organizing and tracking work items during\n development sessions. Supports operations like append, prepend, pop, mark\n done, list, clear, and stats. Tasks are stored in conversation state and\n persist across agent interactions. Use this tool to maintain focus on\n objectives and track progress through complex workflows.",
+  "input_schema": {
+    "title": "TaskListOperation",
+    "description": "Available operations for task list management",
+    "oneOf": [
+      {
+        "description": "Add a new task to the end of the list",
+        "type": "object",
+        "required": [
+          "append"
+        ],
+        "properties": {
+          "append": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Add a new task to the beginning of the list",
+        "type": "object",
+        "required": [
+          "prepend"
+        ],
+        "properties": {
+          "prepend": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Remove and mark the first task as IN_PROGRESS",
+        "type": "string",
+        "enum": [
+          "pop_front"
+        ]
+      },
+      {
+        "description": "Remove and mark the last task as IN_PROGRESS",
+        "type": "string",
+        "enum": [
+          "pop_back"
+        ]
+      },
+      {
+        "description": "Mark a specific task as DONE by its ID",
+        "type": "object",
+        "required": [
+          "mark_done"
+        ],
+        "properties": {
+          "mark_done": {
+            "type": "object",
+            "required": [
+              "task_id"
+            ],
+            "properties": {
+              "task_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Display the current task list with stats",
+        "type": "string",
+        "enum": [
+          "list"
+        ]
+      },
+      {
+        "description": "Remove all tasks from the list",
+        "type": "string",
+        "enum": [
+          "clear"
+        ]
+      },
+      {
+        "description": "Show only the task statistics",
+        "type": "string",
+        "enum": [
+          "stats"
+        ]
+      }
+    ]
+  }
+}
