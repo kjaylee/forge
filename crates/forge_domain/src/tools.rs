@@ -567,7 +567,7 @@ impl Tools {
             Tools::ForgeToolFsRemove(_) => gen.into_root_schema_for::<FSRemove>(),
             Tools::ForgeToolFsUndo(_) => gen.into_root_schema_for::<FSUndo>(),
             Tools::ForgeToolFsCreate(_) => gen.into_root_schema_for::<FSWrite>(),
-            Tools::ForgeToolTaskList(_) => gen.into_root_schema_for::<TaskListOperation>(),
+            Tools::ForgeToolTaskList(_) => gen.into_root_schema_for::<TaskListTool>(),
         }
     }
 
