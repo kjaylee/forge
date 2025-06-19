@@ -299,7 +299,6 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn conversation_service(&self) -> &Self::ConversationService;
     fn template_service(&self) -> &Self::TemplateService;
     fn attachment_service(&self) -> &Self::AttachmentService;
-    fn environment_service(&self) -> &Self::EnvironmentService;
     fn workflow_service(&self) -> &Self::WorkflowService;
     fn file_discovery_service(&self) -> &Self::FileDiscoveryService;
     fn mcp_config_manager(&self) -> &Self::McpConfigManager;
@@ -313,6 +312,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn net_fetch_service(&self) -> &Self::NetFetchService;
     fn shell_service(&self) -> &Self::ShellService;
     fn mcp_service(&self) -> &Self::McpService;
+    fn environment_service(&self) -> &Self::EnvironmentService;
 }
 
 #[async_trait::async_trait]
@@ -398,12 +398,6 @@ impl<I: Services> TemplateService for I {
 impl<I: Services> AttachmentService for I {
     async fn attachments(&self, url: &str) -> anyhow::Result<Vec<Attachment>> {
         self.attachment_service().attachments(url).await
-    }
-}
-
-impl<I: Services> EnvironmentService for I {
-    fn get_environment(&self) -> Environment {
-        self.environment_service().get_environment()
     }
 }
 
@@ -538,5 +532,11 @@ impl<I: Services> ShellService for I {
         keep_ansi: bool,
     ) -> anyhow::Result<ShellOutput> {
         self.shell_service().execute(command, cwd, keep_ansi).await
+    }
+}
+
+impl<I: Services> EnvironmentService for I {
+    fn get_environment(&self) -> Environment {
+        self.environment_service().get_environment()
     }
 }

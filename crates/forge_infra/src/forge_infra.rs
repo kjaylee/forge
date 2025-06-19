@@ -3,15 +3,10 @@ use std::process::ExitStatus;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use forge_app::EnvironmentService;
 use forge_domain::{CommandOutput, Environment, McpServerConfig};
 use forge_fs::FileInfo as FileInfoData;
-use forge_services::{
-    CommandInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra, FileRemoverInfra,
-    FileWriterInfra, McpServerInfra, SnapshotInfra, UserInfra,
-};
-
-use crate::env::ForgeEnvironmentService;
+use forge_services::{CommandInfra, EnvironmentInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra, FileRemoverInfra, FileWriterInfra, McpServerInfra, SnapshotInfra, UserInfra};
+use crate::env::ForgeEnvironmentInfra;
 use crate::executor::ForgeCommandExecutorService;
 use crate::fs_create_dirs::ForgeCreateDirsService;
 use crate::fs_meta::ForgeFileMetaService;
@@ -27,7 +22,7 @@ use crate::mcp_server::ForgeMcpServer;
 pub struct ForgeInfra {
     file_read_service: Arc<ForgeFileReadService>,
     file_write_service: Arc<ForgeFileWriteService<ForgeFileSnapshotService>>,
-    environment_service: Arc<ForgeEnvironmentService>,
+    environment_service: Arc<ForgeEnvironmentInfra>,
     file_snapshot_service: Arc<ForgeFileSnapshotService>,
     file_meta_service: Arc<ForgeFileMetaService>,
     file_remove_service: Arc<ForgeFileRemoveService<ForgeFileSnapshotService>>,
@@ -39,7 +34,7 @@ pub struct ForgeInfra {
 
 impl ForgeInfra {
     pub fn new(restricted: bool) -> Self {
-        let environment_service = Arc::new(ForgeEnvironmentService::new(restricted));
+        let environment_service = Arc::new(ForgeEnvironmentInfra::new(restricted));
         let env = environment_service.get_environment();
         let file_snapshot_service = Arc::new(ForgeFileSnapshotService::new(env.clone()));
         Self {
@@ -62,7 +57,7 @@ impl ForgeInfra {
     }
 }
 
-impl EnvironmentService for ForgeInfra {
+impl EnvironmentInfra for ForgeInfra {
     fn get_environment(&self) -> Environment {
         self.environment_service.get_environment()
     }

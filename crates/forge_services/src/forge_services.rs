@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use forge_app::{EnvironmentService, Services};
+use forge_app::Services;
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
 use crate::discovery::ForgeDiscoveryService;
+use crate::env::ForgeEnvironmentService;
 use crate::mcp::{ForgeMcpManager, ForgeMcpService};
 use crate::provider::ForgeProviderService;
 use crate::template::ForgeTemplateService;
@@ -14,8 +15,8 @@ use crate::tool_services::{
 };
 use crate::workflow::ForgeWorkflowService;
 use crate::{
-    CommandInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra, FileRemoverInfra,
-    FileWriterInfra, McpServerInfra, SnapshotInfra, UserInfra,
+    CommandInfra, EnvironmentInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra,
+    FileRemoverInfra, FileWriterInfra, McpServerInfra, SnapshotInfra, UserInfra,
 };
 
 type McpService<F> = ForgeMcpService<ForgeMcpManager<F>, F, <F as McpServerInfra>::Client>;
@@ -28,7 +29,6 @@ type McpService<F> = ForgeMcpService<ForgeMcpManager<F>, F, <F as McpServerInfra
 ///   environment, file reading, vector indexing, and embedding.
 #[derive(Clone)]
 pub struct ForgeServices<F: McpServerInfra> {
-    infra: Arc<F>,
     provider_service: Arc<ForgeProviderService>,
     conversation_service: Arc<ForgeConversationService<McpService<F>>>,
     template_service: Arc<ForgeTemplateService<F>>,
@@ -46,11 +46,11 @@ pub struct ForgeServices<F: McpServerInfra> {
     fetch_service: Arc<ForgeFetch>,
     followup_service: Arc<ForgeFollowup<F>>,
     mcp_service: Arc<McpService<F>>,
+    env_service: Arc<ForgeEnvironmentService<F>>,
 }
 
-impl<
-        F: McpServerInfra + EnvironmentService + FileWriterInfra + FileInfoInfra + FileReaderInfra,
-    > ForgeServices<F>
+impl<F: McpServerInfra + EnvironmentInfra + FileWriterInfra + FileInfoInfra + FileReaderInfra>
+    ForgeServices<F>
 {
     pub fn new(infra: Arc<F>) -> Self {
         let mcp_manager = Arc::new(ForgeMcpManager::new(infra.clone()));
@@ -72,8 +72,8 @@ impl<
         let shell_service = Arc::new(ForgeShell::new(infra.clone()));
         let fetch_service = Arc::new(ForgeFetch::new());
         let followup_service = Arc::new(ForgeFollowup::new(infra.clone()));
+        let env_service = Arc::new(ForgeEnvironmentService::new(infra));
         Self {
-            infra,
             conversation_service,
             attachment_service,
             provider_service,
@@ -91,6 +91,7 @@ impl<
             fetch_service,
             followup_service,
             mcp_service,
+            env_service,
         }
     }
 }
@@ -105,7 +106,7 @@ impl<
             + FileRemoverInfra
             + FileInfoInfra
             + FileDirectoryInfra
-            + EnvironmentService
+            + EnvironmentInfra
             + Clone,
     > Services for ForgeServices<F>
 {
@@ -113,7 +114,7 @@ impl<
     type ConversationService = ForgeConversationService<McpService<F>>;
     type TemplateService = ForgeTemplateService<F>;
     type AttachmentService = ForgeChatRequest<F>;
-    type EnvironmentService = F;
+    type EnvironmentService = ForgeEnvironmentService<F>;
     type WorkflowService = ForgeWorkflowService<F>;
     type FileDiscoveryService = ForgeDiscoveryService<F>;
     type McpConfigManager = ForgeMcpManager<F>;
@@ -145,7 +146,7 @@ impl<
     }
 
     fn environment_service(&self) -> &Self::EnvironmentService {
-        &self.infra
+        &self.env_service
     }
 
     fn workflow_service(&self) -> &Self::WorkflowService {

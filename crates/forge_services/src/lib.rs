@@ -10,6 +10,7 @@ mod template;
 mod tool_services;
 mod utils;
 mod workflow;
+mod env;
 
 pub use clipper::*;
 pub use discovery::*;

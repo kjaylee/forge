@@ -2,17 +2,17 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use forge_app::{AttachmentService, EnvironmentService};
+use forge_app::AttachmentService;
 use forge_domain::{Attachment, AttachmentContent, Image};
 
-use crate::FileReaderInfra;
+use crate::{EnvironmentInfra, FileReaderInfra};
 
 #[derive(Clone)]
 pub struct ForgeChatRequest<F> {
     infra: Arc<F>,
 }
 
-impl<F: FileReaderInfra + EnvironmentService> ForgeChatRequest<F> {
+impl<F: FileReaderInfra + EnvironmentInfra> ForgeChatRequest<F> {
     pub fn new(infra: Arc<F>) -> Self {
         Self { infra }
     }
@@ -60,7 +60,7 @@ impl<F: FileReaderInfra + EnvironmentService> ForgeChatRequest<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: FileReaderInfra + EnvironmentService> AttachmentService for ForgeChatRequest<F> {
+impl<F: FileReaderInfra + EnvironmentInfra> AttachmentService for ForgeChatRequest<F> {
     async fn attachments(&self, url: &str) -> anyhow::Result<Vec<Attachment>> {
         self.prepare_attachments(Attachment::parse_all(url)).await
     }
@@ -74,7 +74,7 @@ pub mod tests {
 
     use base64::Engine;
     use bytes::Bytes;
-    use forge_app::{AttachmentService, EnvironmentService};
+    use forge_app::AttachmentService;
     use forge_domain::{
         AttachmentContent, CommandOutput, Environment, Provider, ToolDefinition, ToolName,
         ToolOutput,
@@ -85,15 +85,16 @@ pub mod tests {
     use crate::attachment::ForgeChatRequest;
     use crate::utils::AttachmentExtension;
     use crate::{
-        CommandInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra, FileRemoverInfra,
-        FileWriterInfra, McpClientInfra, McpServerInfra, SnapshotInfra, UserInfra,
+        CommandInfra, EnvironmentInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra,
+        FileRemoverInfra, FileWriterInfra, McpClientInfra, McpServerInfra, SnapshotInfra,
+        UserInfra,
     };
 
     #[derive(Debug)]
-    pub struct MockEnvironmentService {}
+    pub struct MockEnvironmentInfra {}
 
     #[async_trait::async_trait]
-    impl EnvironmentService for MockEnvironmentService {
+    impl EnvironmentInfra for MockEnvironmentInfra {
         fn get_environment(&self) -> Environment {
             Environment {
                 os: "test".to_string(),
@@ -468,14 +469,14 @@ pub mod tests {
     #[derive(Debug, Clone)]
     pub struct MockCompositeService {
         file_service: Arc<MockFileService>,
-        env_service: Arc<MockEnvironmentService>,
+        env_service: Arc<MockEnvironmentInfra>,
     }
 
     impl MockCompositeService {
         pub fn new() -> Self {
             Self {
                 file_service: Arc::new(MockFileService::new()),
-                env_service: Arc::new(MockEnvironmentService {}),
+                env_service: Arc::new(MockEnvironmentInfra {}),
             }
         }
 
@@ -507,7 +508,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl EnvironmentService for MockCompositeService {
+    impl EnvironmentInfra for MockCompositeService {
         fn get_environment(&self) -> Environment {
             self.env_service.get_environment()
         }
