@@ -5,7 +5,11 @@ use std::sync::Arc;
 use bytes::Bytes;
 use forge_domain::{CommandOutput, Environment, McpServerConfig};
 use forge_fs::FileInfo as FileInfoData;
-use forge_services::{CommandInfra, EnvironmentInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra, FileRemoverInfra, FileWriterInfra, McpServerInfra, SnapshotInfra, UserInfra};
+use forge_services::{
+    CommandInfra, EnvironmentInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra,
+    FileRemoverInfra, FileWriterInfra, McpServerInfra, SnapshotInfra, UserInfra,
+};
+
 use crate::env::ForgeEnvironmentInfra;
 use crate::executor::ForgeCommandExecutorService;
 use crate::fs_create_dirs::ForgeCreateDirsService;

@@ -2,9 +2,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use bytes::Bytes;
-use forge_domain::{CommandOutput, Environment, McpServerConfig, ToolDefinition, ToolName, ToolOutput};
+use forge_domain::{
+    CommandOutput, Environment, McpServerConfig, ToolDefinition, ToolName, ToolOutput,
+};
 use forge_snaps::Snapshot;
-
 
 pub trait EnvironmentInfra: Send + Sync {
     fn get_environment(&self) -> Environment;

@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use crate::EnvironmentInfra;
 use anyhow::Result;
 use forge_app::FileDiscoveryService;
 use forge_domain::File;
 use forge_walker::Walker;
+
+use crate::EnvironmentInfra;
 
 pub struct ForgeDiscoveryService<F> {
     env_service: Arc<F>,

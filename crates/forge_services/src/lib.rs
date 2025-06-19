@@ -2,6 +2,7 @@ mod attachment;
 mod clipper;
 mod conversation;
 mod discovery;
+mod env;
 mod forge_services;
 mod infra;
 mod mcp;
@@ -10,7 +11,6 @@ mod template;
 mod tool_services;
 mod utils;
 mod workflow;
-mod env;
 
 pub use clipper::*;
 pub use discovery::*;

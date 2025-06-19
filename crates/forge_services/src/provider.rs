@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use crate::EnvironmentInfra;
 use anyhow::Result;
 use forge_app::ProviderService;
 use forge_domain::{ChatCompletionMessage, Context as ChatContext, Model, ModelId, ResultStream};
 use forge_provider::Client;
+
+use crate::EnvironmentInfra;
 
 #[derive(Clone)]
 pub struct ForgeProviderService {
