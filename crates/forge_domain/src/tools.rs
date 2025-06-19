@@ -79,12 +79,12 @@ pub struct FSRead {
     /// Optional start position in lines (1-based). If provided, reading
     /// will start from this line position.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub start_line: Option<i32>,
+    pub start_line: Option<u64>,
 
     /// Optional end position in lines (inclusive). If provided, reading
     /// will end at this line position.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub end_line: Option<i32>,
+    pub end_line: Option<u64>,
     /// One sentence explanation as to why this specific tool is being used, and
     /// how it contributes to the goal.
     #[serde(default)]
