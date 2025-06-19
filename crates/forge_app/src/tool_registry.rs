@@ -13,12 +13,7 @@ use crate::agent_executor::AgentExecutor;
 use crate::error::Error;
 use crate::mcp_executor::McpExecutor;
 use crate::tool_executor::ToolExecutor;
-use crate::{
-    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
-    FollowUpService, FsCreateService, FsPatchService, FsReadService, FsRemoveService,
-    FsSearchService, FsUndoService, McpService, NetFetchService, ProviderService, ShellService,
-    TemplateService, WorkflowService,
-};
+use crate::{McpService, Services};
 
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -28,27 +23,7 @@ pub struct ToolRegistry<S> {
     mcp_executor: McpExecutor<S>,
 }
 
-impl<
-    S: FsReadService
-        + FsCreateService
-        + FsSearchService
-        + NetFetchService
-        + FsRemoveService
-        + FsPatchService
-        + FsUndoService
-        + ShellService
-        + FollowUpService
-        + EnvironmentService
-        + WorkflowService
-        + ConversationService
-        + McpService
-        + ProviderService
-        + FileDiscoveryService
-        + TemplateService
-        + AttachmentService
-        + Clone,
-> ToolRegistry<S>
-{
+impl<S: Services> ToolRegistry<S> {
     pub fn new(services: Arc<S>) -> Self {
         Self {
             tool_executor: ToolExecutor::new(services.clone()),

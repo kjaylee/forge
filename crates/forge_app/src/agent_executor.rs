@@ -9,39 +9,14 @@ use futures::StreamExt;
 use tokio::sync::RwLock;
 
 use crate::error::Error;
-use crate::{
-    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
-    FollowUpService, FsCreateService, FsPatchService, FsReadService, FsRemoveService,
-    FsSearchService, FsUndoService, McpService, NetFetchService, ProviderService, ShellService,
-    TemplateService, WorkflowService,
-};
+use crate::{ConversationService, Services, WorkflowService};
 
 pub struct AgentExecutor<S> {
     services: Arc<S>,
     pub tool_agents: Arc<RwLock<Option<Vec<ToolDefinition>>>>,
 }
 
-impl<
-    S: FsReadService
-        + FsCreateService
-        + FsSearchService
-        + NetFetchService
-        + FsRemoveService
-        + FsPatchService
-        + FsUndoService
-        + ShellService
-        + FollowUpService
-        + EnvironmentService
-        + WorkflowService
-        + ConversationService
-        + McpService
-        + ProviderService
-        + FileDiscoveryService
-        + TemplateService
-        + AttachmentService
-        + Clone,
-> AgentExecutor<S>
-{
+impl<S: Services> AgentExecutor<S> {
     pub fn new(services: Arc<S>) -> Self {
         Self { services, tool_agents: Arc::new(RwLock::new(None)) }
     }

@@ -6,19 +6,14 @@ use forge_domain::{
 };
 
 use crate::tool_registry::ToolRegistry;
-use crate::{
-    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
-    FollowUpService, FsCreateService, FsPatchService, FsReadService, FsRemoveService,
-    FsSearchService, FsUndoService, McpService, NetFetchService, ProviderService, ShellService,
-    TemplateService, WorkflowService,
-};
+use crate::{ConversationService, ProviderService, Services, TemplateService};
 
 /// Agent service trait that provides core chat and tool call functionality.
 /// This trait abstracts the essential operations needed by the Orchestrator.
 #[async_trait::async_trait]
 pub trait AgentService: Send + Sync + 'static {
     /// Execute a chat completion request
-    async fn chat(
+    async fn chat_agent(
         &self,
         id: &ModelId,
         context: Context,
@@ -45,28 +40,8 @@ pub trait AgentService: Send + Sync + 'static {
 
 /// Blanket implementation of AgentService for any type that implements Services
 #[async_trait::async_trait]
-impl<
-    T: ProviderService
-        + FsReadService
-        + FsCreateService
-        + FsSearchService
-        + NetFetchService
-        + FsRemoveService
-        + FsPatchService
-        + FsUndoService
-        + ShellService
-        + FollowUpService
-        + EnvironmentService
-        + WorkflowService
-        + ConversationService
-        + McpService
-        + AttachmentService
-        + FileDiscoveryService
-        + TemplateService
-        + Clone,
-> AgentService for T
-{
-    async fn chat(
+impl<T: Services> AgentService for T {
+    async fn chat_agent(
         &self,
         id: &ModelId,
         context: Context,
@@ -89,7 +64,7 @@ impl<
         template: &str,
         object: &(impl serde::Serialize + Sync),
     ) -> anyhow::Result<String> {
-        self.render(template, object).await
+        self.render_template(template, object).await
     }
 
     async fn update(&self, conversation: Conversation) -> anyhow::Result<()> {

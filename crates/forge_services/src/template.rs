@@ -120,7 +120,7 @@ impl<F: EnvironmentService + FileReaderInfra> TemplateService for ForgeTemplateS
         Ok(())
     }
 
-    async fn render(
+    async fn render_template(
         &self,
         template: impl ToString + Send,
         object: &(impl serde::Serialize + Sync),
@@ -151,7 +151,7 @@ mod tests {
 
         // Actual: Render a simple template
         let template = "App: {{name}} v{{version}} - Features: {{#each features}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}";
-        let actual = service.render(template, &data).await.unwrap();
+        let actual = service.render_template(template, &data).await.unwrap();
 
         // Expected: Result should match the expected string
         let expected = "App: Forge v1.0 - Features: templates, rendering, handlebars";
@@ -178,7 +178,7 @@ mod tests {
 
         // Actual: Render the partial-system-info template
         let actual = service
-            .render("{{> forge-partial-system-info.hbs }}", &data)
+            .render_template("{{> forge-partial-system-info.hbs }}", &data)
             .await
             .unwrap();
 

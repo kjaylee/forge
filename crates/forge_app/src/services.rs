@@ -124,7 +124,7 @@ pub trait ConversationService: Send + Sync {
 #[async_trait::async_trait]
 pub trait TemplateService: Send + Sync {
     async fn register_template(&self, path: PathBuf) -> anyhow::Result<()>;
-    async fn render(
+    async fn render_template(
         &self,
         template: impl ToString + Send,
         object: &(impl serde::Serialize + Sync),
@@ -383,12 +383,14 @@ impl<I: Services> TemplateService for I {
         self.template_service().register_template(path).await
     }
 
-    async fn render(
+    async fn render_template(
         &self,
         template: impl ToString + Send,
         object: &(impl serde::Serialize + Sync),
     ) -> anyhow::Result<String> {
-        self.template_service().render(template, object).await
+        self.template_service()
+            .render_template(template, object)
+            .await
     }
 }
 

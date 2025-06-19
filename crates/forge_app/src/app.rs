@@ -11,9 +11,7 @@ use crate::services::TemplateService;
 use crate::tool_registry::ToolRegistry;
 use crate::{
     AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
-    FollowUpService, FsCreateService, FsPatchService, FsReadService, FsRemoveService,
-    FsSearchService, FsUndoService, McpService, NetFetchService, ProviderService, ShellService,
-    WorkflowService,
+    ProviderService, Services, WorkflowService,
 };
 
 /// ForgeApp handles the core chat functionality by orchestrating various
@@ -24,27 +22,7 @@ pub struct ForgeApp<S> {
     tool_registry: ToolRegistry<S>,
 }
 
-impl<
-    S: FsReadService
-        + FsCreateService
-        + FsSearchService
-        + NetFetchService
-        + FsRemoveService
-        + FsPatchService
-        + FsUndoService
-        + ShellService
-        + FollowUpService
-        + EnvironmentService
-        + WorkflowService
-        + ConversationService
-        + McpService
-        + ProviderService
-        + FileDiscoveryService
-        + TemplateService
-        + AttachmentService
-        + Clone,
-> ForgeApp<S>
-{
+impl<S: Services> ForgeApp<S> {
     /// Creates a new ForgeApp instance with the provided services.
     pub fn new(services: Arc<S>) -> Self {
         Self { tool_registry: ToolRegistry::new(services.clone()), services }

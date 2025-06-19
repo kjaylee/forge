@@ -3,10 +3,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_app::{
-    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
-    FollowUpService, ForgeApp, FsCreateService, FsPatchService, FsReadService, FsRemoveService,
-    FsSearchService, FsUndoService, McpConfigManager, McpService, NetFetchService, ProviderService,
-    ShellService, TemplateService, WorkflowService,
+    ConversationService, EnvironmentService, FileDiscoveryService, ForgeApp, McpConfigManager,
+    ProviderService, Services, WorkflowService,
 };
 use forge_domain::*;
 use forge_infra::ForgeInfra;
@@ -35,29 +33,7 @@ impl ForgeAPI<ForgeServices<ForgeInfra>, ForgeInfra> {
 }
 
 #[async_trait::async_trait]
-impl<
-        A: ProviderService
-            + FsReadService
-            + FsCreateService
-            + FsSearchService
-            + NetFetchService
-            + FsRemoveService
-            + FsPatchService
-            + FsUndoService
-            + ShellService
-            + FollowUpService
-            + EnvironmentService
-            + WorkflowService
-            + ConversationService
-            + McpService
-            + AttachmentService
-            + FileDiscoveryService
-            + TemplateService
-            + McpConfigManager
-            + Clone,
-        F: CommandInfra,
-    > API for ForgeAPI<A, F>
-{
+impl<A: Services, F: CommandInfra> API for ForgeAPI<A, F> {
     async fn discover(&self) -> Result<Vec<File>> {
         self.app.collect(None).await
     }
