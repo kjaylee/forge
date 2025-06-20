@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::fs::File;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -39,9 +38,9 @@ impl FSSearchHelper<'_> {
         })
     }
 
-    fn match_file_path(&self, path: &Path) -> anyhow::Result<bool> {
+    async fn match_file_path(&self, path: &Path) -> anyhow::Result<bool> {
         // Don't process directories
-        if path.is_dir() {
+        if tokio::fs::metadata(path).await?.is_dir() {
             return Ok(false);
         }
 
@@ -110,7 +109,7 @@ impl<W: WalkerInfra> FsSearchService for ForgeFsSearch<W> {
         let mut matches = Vec::new();
 
         for path in paths {
-            if !helper.match_file_path(path.as_path())? {
+            if !helper.match_file_path(path.as_path()).await? {
                 continue;
             }
 
@@ -125,11 +124,11 @@ impl<W: WalkerInfra> FsSearchService for ForgeFsSearch<W> {
                 let mut searcher = grep_searcher::Searcher::new();
                 let path_string = path.to_string_lossy().to_string();
 
-                let file = File::open(path)?;
+                let content = tokio::fs::read_to_string(path).await?;
                 let mut found_match = false;
-                searcher.search_file(
+                searcher.search_slice(
                     regex,
-                    &file,
+                    content.as_bytes(),
                     UTF8(|line_num, line| {
                         found_match = true;
                         matches.push(Match {
@@ -163,7 +162,8 @@ impl<W: WalkerInfra> FsSearchService for ForgeFsSearch<W> {
 
 impl<W: WalkerInfra> ForgeFsSearch<W> {
     async fn retrieve_file_paths(&self, dir: &Path) -> anyhow::Result<Vec<std::path::PathBuf>> {
-        if dir.is_dir() {
+        let metadata = tokio::fs::metadata(dir).await?;
+        if metadata.is_dir() {
             // note: Paths needs mutable to avoid flaky tests.
             #[allow(unused_mut)]
             let mut paths = self
@@ -205,16 +205,17 @@ mod test {
         async fn walk(&self, config: crate::WalkerConfig) -> anyhow::Result<Vec<WalkedFile>> {
             // Simple mock that just returns files in the directory
             let mut files = Vec::new();
-            if config.cwd.is_dir() {
-                for entry in std::fs::read_dir(&config.cwd)? {
-                    let entry = entry?;
+            let metadata = tokio::fs::metadata(&config.cwd).await?;
+            if metadata.is_dir() {
+                let mut entries = tokio::fs::read_dir(&config.cwd).await?;
+                while let Some(entry) = entries.next_entry().await? {
                     let path = entry.path();
                     let relative_path = path
                         .strip_prefix(&config.cwd)?
                         .to_string_lossy()
                         .to_string();
                     let file_name = path.file_name().map(|n| n.to_string_lossy().to_string());
-                    let size = entry.metadata()?.len();
+                    let size = entry.metadata().await?.len();
 
                     files.push(WalkedFile { path: relative_path, file_name, size });
                 }
