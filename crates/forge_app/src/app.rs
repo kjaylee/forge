@@ -48,9 +48,7 @@ impl<S: Services> ForgeApp<S> {
         let models = services.models().await?;
 
         // Discover files using the discovery service
-        let workflow = WorkflowService::read_workflow(services.as_ref(), None)
-            .await
-            .unwrap_or_default();
+        let workflow = services.read_merged(None).await.unwrap_or_default();
         let max_depth = workflow.max_walker_depth;
         let files = services
             .collect(max_depth)
