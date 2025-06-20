@@ -16,3 +16,4 @@ mod walker;
 
 pub use executor::ForgeCommandExecutorService;
 pub use forge_infra::*;
+pub use walker::{ForgeWalkerService, InternalWalker};

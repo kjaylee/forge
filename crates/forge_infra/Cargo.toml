@@ -25,4 +25,5 @@ tracing.workspace = true
 backon.workspace = true
 thiserror.workspace = true
 forge_app.workspace = true
-forge_walker.workspace = true
+ignore.workspace = true
+derive_setters.workspace = true

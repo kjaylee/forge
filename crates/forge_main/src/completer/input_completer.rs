@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use forge_walker::Walker;
+use forge_infra::InternalWalker;
 use reedline::{Completer, Suggestion};
 
 use crate::completer::search_term::SearchTerm;
@@ -10,13 +10,13 @@ use crate::model::ForgeCommandManager;
 
 #[derive(Clone)]
 pub struct InputCompleter {
-    walker: Walker,
+    walker: InternalWalker,
     command: CommandCompleter,
 }
 
 impl InputCompleter {
     pub fn new(cwd: PathBuf, command_manager: Arc<ForgeCommandManager>) -> Self {
-        let walker = Walker::max_all().cwd(cwd).skip_binary(true);
+        let walker = InternalWalker::max_all().cwd(cwd).skip_binary(true);
         Self { walker, command: CommandCompleter::new(command_manager) }
     }
 }
