@@ -11,12 +11,7 @@ impl TaskService {
         Self { task_list: TaskList::new() }
     }
 
-    pub fn from_task_list(task_list: TaskList) -> Self {
-        Self { task_list }
-    }
-
     pub fn append(&mut self, task: impl Into<String>) -> Result<(Task, Stats)> {
-        println!("hx");
         let result = self.task_list.append(task);
         Ok(result)
     }

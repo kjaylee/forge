@@ -47,7 +47,6 @@ pub struct ForgeServices<F: McpServerInfra> {
     followup_service: Arc<ForgeFollowup<F>>,
     mcp_service: Arc<McpService<F>>,
     env_service: Arc<ForgeEnvironmentService<F>>,
-    task_list_service: Arc<ForgeTaskList>,
 }
 
 impl<F: McpServerInfra + EnvironmentInfra + FileWriterInfra + FileInfoInfra + FileReaderInfra>
@@ -74,9 +73,6 @@ impl<F: McpServerInfra + EnvironmentInfra + FileWriterInfra + FileInfoInfra + Fi
         let fetch_service = Arc::new(ForgeFetch::new());
         let followup_service = Arc::new(ForgeFollowup::new(infra.clone()));
         let env_service = Arc::new(ForgeEnvironmentService::new(infra));
-        let task_list_service = Arc::new(ForgeTaskList::new(Arc::new(std::sync::RwLock::new(
-            crate::TaskService::new(),
-        ))));
         Self {
             conversation_service,
             attachment_service,
@@ -96,7 +92,6 @@ impl<F: McpServerInfra + EnvironmentInfra + FileWriterInfra + FileInfoInfra + Fi
             followup_service,
             mcp_service,
             env_service,
-            task_list_service,
         }
     }
 }
@@ -133,7 +128,6 @@ impl<
     type NetFetchService = ForgeFetch;
     type ShellService = ForgeShell<F>;
     type McpService = McpService<F>;
-    type TaskListService = ForgeTaskList;
 
     fn provider_service(&self) -> &Self::ProviderService {
         &self.provider_service
@@ -205,9 +199,5 @@ impl<
 
     fn mcp_service(&self) -> &Self::McpService {
         &self.mcp_service
-    }
-
-    fn task_list_service(&self) -> &Self::TaskListService {
-        &self.task_list_service
     }
 }

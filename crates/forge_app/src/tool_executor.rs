@@ -6,10 +6,10 @@ use crate::error::Error;
 use crate::fmt_input::{FormatInput, InputFormat};
 use crate::fmt_output::FormatOutput;
 use crate::operation::Operation;
-use crate::services::{ShellService, TaskListService};
+use crate::services::ShellService;
 use crate::{
-    EnvironmentService, FollowUpService, FsCreateService, FsPatchService, FsReadService,
-    FsRemoveService, FsSearchService, FsUndoService, NetFetchService,
+    ConversationService, EnvironmentService, FollowUpService, FsCreateService, FsPatchService,
+    FsReadService, FsRemoveService, FsSearchService, FsUndoService, NetFetchService,
 };
 
 pub struct ToolExecutor<S> {
@@ -26,8 +26,8 @@ impl<
         + FsUndoService
         + ShellService
         + FollowUpService
-        + EnvironmentService
-        + TaskListService,
+        + ConversationService
+        + EnvironmentService,
 > ToolExecutor<S>
 {
     pub fn new(services: Arc<S>) -> Self {

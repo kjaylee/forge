@@ -175,6 +175,10 @@ pub trait ConversationService: Send + Sync {
     async fn update<F, T>(&self, id: &ConversationId, f: F) -> anyhow::Result<T>
     where
         F: FnOnce(&mut Conversation) -> T + Send;
+
+    fn task_list(&self) -> TaskListService {
+        TaskListService::new(self.clone())
+    }
 }
 
 #[async_trait::async_trait]
@@ -328,12 +332,6 @@ pub trait ShellService: Send + Sync {
     ) -> anyhow::Result<ShellOutput>;
 }
 
-#[async_trait::async_trait]
-pub trait TaskListService: Send + Sync {
-    /// Executes a task list operation and returns the result.
-    async fn execute_task_list(&self, input: TaskListInput) -> anyhow::Result<TaskListOutput>;
-}
-
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
@@ -356,7 +354,6 @@ pub trait Services: Send + Sync + 'static + Clone {
     type NetFetchService: NetFetchService;
     type ShellService: ShellService;
     type McpService: McpService;
-    type TaskListService: TaskListService;
 
     fn provider_service(&self) -> &Self::ProviderService;
     fn conversation_service(&self) -> &Self::ConversationService;
@@ -376,7 +373,6 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn shell_service(&self) -> &Self::ShellService;
     fn mcp_service(&self) -> &Self::McpService;
     fn environment_service(&self) -> &Self::EnvironmentService;
-    fn task_list_service(&self) -> &Self::TaskListService;
 }
 
 #[async_trait::async_trait]
@@ -570,13 +566,6 @@ impl<I: Services> FollowUpService for I {
         self.follow_up_service()
             .follow_up(question, options, multiple)
             .await
-    }
-}
-
-#[async_trait::async_trait]
-impl<I: Services> TaskListService for I {
-    async fn execute_task_list(&self, input: TaskListInput) -> anyhow::Result<TaskListOutput> {
-        self.task_list_service().execute_task_list(input).await
     }
 }
 
