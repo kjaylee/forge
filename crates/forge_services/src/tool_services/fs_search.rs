@@ -190,10 +190,10 @@ impl<W: WalkerInfra> ForgeFsSearch<W> {
 mod test {
     use std::sync::Arc;
 
+    use forge_app::{WalkedFile, Walker};
     use tokio::fs;
 
     use super::*;
-    use forge_app::{WalkedFile, Walker};
     use crate::utils::TempDir;
 
     // Mock WalkerInfra for testing

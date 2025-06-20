@@ -5,9 +5,9 @@ use forge_domain::{
     Environment, File, McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope,
     ToolCallFull, ToolDefinition, ToolOutput, Workflow,
 };
+use merge::Merge;
 
 use crate::Walker;
-use merge::Merge;
 
 #[derive(Debug)]
 pub struct ShellOutput {
