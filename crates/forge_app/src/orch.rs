@@ -46,6 +46,11 @@ impl<S: AgentService> Orchestrator<S> {
         }
     }
 
+    /// Get a reference to the internal conversation
+    pub fn get_conversation(&self) -> &Conversation {
+        &self.conversation
+    }
+
     // Helper function to get all tool results from a vector of tool calls
     #[async_recursion]
     async fn execute_tool_calls(
