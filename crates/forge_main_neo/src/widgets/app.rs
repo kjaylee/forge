@@ -1,36 +1,23 @@
-use derive_more::From;
-use edtui::{EditorEventHandler, EditorState, EditorTheme, EditorView};
-use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+use edtui::{EditorEventHandler, EditorTheme, EditorView};
+use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::style::{Style, Stylize};
 use ratatui::symbols::{border, line};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, StatefulWidget, Widget};
 
 use crate::widgets::status::StatusBar;
+use crate::{Action, State};
 
 #[derive(Default)]
 pub struct App {
     editor: EditorEventHandler,
 }
 
-#[derive(Default)]
-pub struct State {
-    pub messages: Vec<String>,
-    pub editor: EditorState,
-    pub exit: bool,
-}
-
-#[derive(From)]
-pub enum Action {
-    KeyEvent(KeyEvent),
-    MouseEvent(MouseEvent),
-}
-
 impl App {
     pub fn update(&mut self, action: impl Into<Action>, state: &mut State) {
         match action.into() {
             Action::KeyEvent(event) => {
-                if event.code == KeyCode::Char('c')
+                if event.code == KeyCode::Char('d')
                     && event.modifiers.contains(KeyModifiers::CONTROL)
                 {
                     state.exit = true;

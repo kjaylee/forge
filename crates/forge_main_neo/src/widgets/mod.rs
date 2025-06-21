@@ -1,4 +1,4 @@
 mod app;
 mod status;
 
-pub use app::{App, State};
+pub use app::App;
