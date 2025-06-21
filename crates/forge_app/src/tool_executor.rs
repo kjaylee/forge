@@ -124,6 +124,8 @@ impl<
                 crate::operation::Operation::AttemptCompletion
             }
             Tools::ForgeToolTaskList(input) => {
+                let before = tasks.clone();
+
                 match &input.operation {
                     forge_domain::TaskListOperation::Append { task } => {
                         tasks.append(task);
@@ -139,7 +141,7 @@ impl<
                     }
                 };
 
-                Operation::TaskList { _input: input, output: tasks.clone() }
+                Operation::TaskList { _input: input, before, after: tasks.clone() }
             }
         })
     }

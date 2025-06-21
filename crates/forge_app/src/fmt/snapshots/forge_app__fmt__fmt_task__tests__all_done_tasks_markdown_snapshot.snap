@@ -1,9 +1,7 @@
 ---
-source: crates/forge_domain/src/task.rs
+source: crates/forge_app/src/fmt/fmt_task.rs
 expression: actual
 ---
-# Task List
-
 1. ~~Complete feature A~~
 2. ~~Write tests~~
 3. ~~Update documentation~~

@@ -65,7 +65,8 @@ pub enum Operation {
     AttemptCompletion,
     TaskList {
         _input: TaskListTool,
-        output: TaskList,
+        before: TaskList,
+        after: TaskList,
     },
 }
 
@@ -317,14 +318,14 @@ impl Operation {
                 Element::new("success")
                     .text("[Task was completed successfully. Now wait for user feedback]"),
             ),
-            Operation::TaskList { _input: _, output } => {
-                let stats = forge_domain::TaskStats::from(&output);
+            Operation::TaskList { _input: _, before: _, after } => {
+                let stats = forge_domain::TaskStats::from(&after);
                 let elm = Element::new("task_list")
                     .attr("total_tasks", stats.total_tasks)
                     .attr("pending_tasks", stats.pending_tasks)
                     .attr("in_progress_tasks", stats.in_progress_tasks)
                     .attr("done_tasks", stats.done_tasks)
-                    .append(output.tasks().iter().map(|task| {
+                    .append(after.tasks().iter().map(|task| {
                         //
                         Element::new("task")
                             .attr("id", task.id)
@@ -910,7 +911,8 @@ mod tests {
                 operation: forge_domain::TaskListOperation::List,
                 explanation: Some("List empty tasks".to_string()),
             },
-            output: TaskList::new(),
+            before: TaskList::new(),
+            after: TaskList::new(),
         };
 
         let env = fixture_environment();
@@ -930,7 +932,8 @@ mod tests {
                 operation: forge_domain::TaskListOperation::List,
                 explanation: Some("List tasks with one pending".to_string()),
             },
-            output: task_list,
+            before: TaskList::new(),
+            after: task_list,
         };
 
         let env = fixture_environment();
@@ -958,7 +961,8 @@ mod tests {
                 operation: forge_domain::TaskListOperation::List,
                 explanation: Some("List tasks with mixed statuses".to_string()),
             },
-            output: task_list,
+            before: TaskList::new(),
+            after: task_list,
         };
 
         let env = fixture_environment();
@@ -989,7 +993,8 @@ mod tests {
                 operation: forge_domain::TaskListOperation::List,
                 explanation: Some("List complex task scenario".to_string()),
             },
-            output: task_list,
+            before: TaskList::new(),
+            after: task_list,
         };
 
         let env = fixture_environment();
@@ -1001,9 +1006,11 @@ mod tests {
 
     #[test]
     fn test_task_list_append_operation() {
-        let mut task_list = TaskList::new();
-        task_list.append("Existing task");
-        task_list.append("New task from append");
+        let mut before_task_list = TaskList::new();
+        before_task_list.append("Existing task");
+
+        let mut after_task_list = before_task_list.clone();
+        after_task_list.append("New task from append");
 
         let fixture = Operation::TaskList {
             _input: forge_domain::TaskListTool {
@@ -1012,7 +1019,8 @@ mod tests {
                 },
                 explanation: Some("Append new task".to_string()),
             },
-            output: task_list,
+            before: before_task_list,
+            after: after_task_list,
         };
 
         let env = fixture_environment();
@@ -1024,17 +1032,20 @@ mod tests {
 
     #[test]
     fn test_task_list_mark_done_operation() {
-        let mut task_list = TaskList::new();
-        let task1 = task_list.append("Task to complete");
-        task_list.append("Another task");
-        task_list.mark_done(task1.id);
+        let mut before_task_list = TaskList::new();
+        let task1 = before_task_list.append("Task to complete");
+        before_task_list.append("Another task");
+
+        let mut after_task_list = before_task_list.clone();
+        after_task_list.mark_done(task1.id);
 
         let fixture = Operation::TaskList {
             _input: forge_domain::TaskListTool {
                 operation: forge_domain::TaskListOperation::MarkDone { task_id: task1.id },
                 explanation: Some("Mark task as done".to_string()),
             },
-            output: task_list,
+            before: before_task_list,
+            after: after_task_list,
         };
 
         let env = fixture_environment();
@@ -1065,7 +1076,8 @@ mod tests {
                 operation: forge_domain::TaskListOperation::List,
                 explanation: Some("List tasks with large numbers".to_string()),
             },
-            output: task_list,
+            before: TaskList::new(),
+            after: task_list,
         };
 
         let env = fixture_environment();

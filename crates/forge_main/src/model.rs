@@ -183,7 +183,6 @@ impl ForgeCommandManager {
             "/model" => Ok(Command::Model),
             "/tools" => Ok(Command::Tools),
             "/agent" => Ok(Command::Agent),
-            "/tasks" => Ok(Command::Tasks),
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
@@ -271,11 +270,6 @@ pub enum Command {
         usage = "Switch between different AI agents. Use this command to change which agent handles your requests and see available options."
     ))]
     Agent,
-
-    /// Display and manage task list.
-    /// This can be triggered with the '/tasks' command.
-    #[strum(props(usage = "Display and manage your task list"))]
-    Tasks,
 }
 
 impl Command {
@@ -296,7 +290,6 @@ impl Command {
             Command::Custom(event) => &event.name,
             Command::Shell(_) => "!shell",
             Command::Agent => "/agent",
-            Command::Tasks => "/tasks",
         }
     }
 

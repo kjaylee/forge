@@ -1,9 +1,7 @@
 ---
-source: crates/forge_domain/src/task.rs
+source: crates/forge_app/src/fmt/fmt_task.rs
 expression: actual
 ---
-# Task List
-
 1. **Review pull request #123**
 2. Fix bug in authentication
 3. ~~Deploy to staging~~

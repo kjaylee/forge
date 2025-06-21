@@ -3,7 +3,7 @@ mod agent_executor;
 mod app;
 mod compact;
 mod error;
-mod fmt;
+pub mod fmt;
 mod mcp_executor;
 mod operation;
 mod orch;
