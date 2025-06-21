@@ -1,14 +1,22 @@
+use color_eyre::owo_colors::OwoColorize;
 use edtui::events::{KeyEvent, MouseEvent};
 use edtui::{EditorEventHandler, EditorState, EditorTheme, EditorView};
-use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout};
+use ratatui::style::{Color, Modifier, Style, Stylize};
+use ratatui::symbols::{border, line};
 use ratatui::text::Span;
-use ratatui::widgets::{Block, Borders, Padding, Widget};
+use ratatui::widgets::{Block, Borders, Padding, Paragraph, Widget};
 
 #[derive(Default)]
 pub struct App {
     editor: EditorEventHandler,
     editor_state: EditorState,
+    state: State,
+}
+
+#[derive(Default)]
+pub struct State {
+    messages: Vec<String>,
 }
 
 impl App {
@@ -47,10 +55,37 @@ impl Widget for &mut App {
                 .add_modifier(Modifier::BOLD),
         );
 
-        let block = Block::new()
-            .title(status)
-            .borders(Borders::all())
-            .padding(Padding::new(1, 1, 1, 1));
+        let content_block = Block::bordered()
+            .title(" Welcome to Forge ")
+            .padding(Padding::new(0, 0, 4, 0))
+            .title_alignment(Alignment::Center)
+            .border_set(border::Set {
+                bottom_right: line::VERTICAL_LEFT,
+                bottom_left: line::VERTICAL_RIGHT,
+                ..border::PLAIN
+            })
+            .border_style(Style::default().dark_gray())
+            .title_style(Style::default().dark_gray());
+
+        let content = Paragraph::new(vec![
+            "Use <CTRL+D> to exit".into(),
+            "Use <CTRL+T> to toggle between PLAN & ACT mode".into(),
+        ])
+        .style(Style::default().dark_gray())
+        .centered()
+        .block(content_block);
+
+        let user_block = Block::bordered()
+            .padding(Padding::new(0, 0, 0, 1))
+            .border_set(border::Set {
+                top_left: line::VERTICAL_RIGHT,
+                top_right: line::VERTICAL_LEFT,
+                ..border::PLAIN
+            })
+            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
+            .title_style(Style::default().dark_gray())
+            .border_style(Style::default().dark_gray())
+            .title_bottom(status);
 
         EditorView::new(&mut self.editor_state)
             .theme(
@@ -59,8 +94,9 @@ impl Widget for &mut App {
                     .hide_status_line(),
             )
             .wrap(true) // line wrapping
-            .render(block.inner(user), buf);
+            .render(user_block.inner(user), buf);
 
-        block.render(user, buf);
+        content.render(ass, buf);
+        user_block.render(user, buf);
     }
 }
