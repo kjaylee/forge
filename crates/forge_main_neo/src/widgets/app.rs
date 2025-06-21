@@ -1,4 +1,3 @@
-use color_eyre::owo_colors::OwoColorize;
 use edtui::events::{KeyEvent, MouseEvent};
 use edtui::{EditorEventHandler, EditorState, EditorTheme, EditorView};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
