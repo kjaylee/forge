@@ -44,7 +44,11 @@ pub enum Tools {
     ForgeToolNetFetch(NetFetch),
     ForgeToolFollowup(Followup),
     ForgeToolAttemptCompletion(AttemptCompletion),
-    ForgeToolTaskList(TaskListTool),
+    ForgeToolTaskListAppend(TaskListAppend),
+    ForgeToolTaskListAppendMultiple(TaskListAppendMultiple),
+    ForgeToolTaskListMarkDone(TaskListMarkDone),
+    ForgeToolTaskListList(TaskListList),
+    ForgeToolTaskListClear(TaskListClear),
 }
 
 /// Input structure for agent tool calls. This serves as the generic schema
@@ -372,64 +376,68 @@ pub struct AttemptCompletion {
     pub result: String,
 }
 
-/// Task list management tool for organizing and tracking work items during
-/// development sessions. Supports operations like append, prepend, pop, mark
-/// done, list, clear, and stats. Tasks are stored in conversation state and
-/// persist across agent interactions. Use this tool to maintain focus on
-/// objectives and track progress through complex workflows. Returns task
-/// status updates and list views in plain text format. Should be used when
-/// you need to organize work into discrete steps, track completion status,
-/// or maintain context across multiple interactions. Do not use for file
-/// management, code execution, or data persistence beyond the current session.
-/// Task IDs are auto-generated integers starting from 1.
+/// Add a new task to the end of the task list. Tasks are stored in conversation
+/// state and persist across agent interactions. Use this tool to add individual
+/// work items that need to be tracked during development sessions. Task IDs are
+/// auto-generated integers starting from 1.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
-pub struct TaskListTool {
-    /// The operation to perform on the task list
-    #[serde(deserialize_with = "deserialize_operation")]
-    pub operation: TaskListOperation,
+pub struct TaskListAppend {
+    /// The task description to add to the list
+    pub task: String,
     /// One sentence explanation as to why this specific tool is being used, and
     /// how it contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
 
-/// Custom deserializer that handles both direct TaskListOperation and JSON
-/// string
-fn deserialize_operation<'de, D>(deserializer: D) -> Result<TaskListOperation, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::de::Error;
-
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum OperationOrString {
-        Operation(TaskListOperation),
-        String(String),
-    }
-
-    match OperationOrString::deserialize(deserializer)? {
-        OperationOrString::Operation(op) => Ok(op),
-        OperationOrString::String(s) => serde_json::from_str(&s).map_err(D::Error::custom),
-    }
+/// Add multiple new tasks to the end of the task list. Tasks are stored in
+/// conversation state and persist across agent interactions. Use this tool to
+/// add several work items at once during development sessions. Task IDs are
+/// auto-generated integers starting from 1.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+pub struct TaskListAppendMultiple {
+    /// The list of task descriptions to add
+    pub tasks: Vec<String>,
+    /// One sentence explanation as to why this specific tool is being used, and
+    /// how it contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
 }
 
-/// Available operations for task list management
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
-#[serde(rename_all = "snake_case")]
-#[derive(Default)]
-pub enum TaskListOperation {
-    /// Add a new task to the end of the list
-    Append { task: String },
-    /// Add multiple new tasks to the end of the list
-    AppendMultiple { tasks: Vec<String> },
-    /// Mark a specific task as DONE by its ID
-    MarkDone { task_id: i32 },
-    /// Display the current task list with stats
-    #[default]
-    List,
-    /// Remove all tasks from the list
-    Clear,
+/// Mark a specific task as DONE by its ID. Use this tool when a task has been
+/// completed and you want to update its status. The task will remain in the
+/// list but marked as completed for tracking purposes.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+pub struct TaskListMarkDone {
+    /// The ID of the task to mark as done
+    pub task_id: i32,
+    /// One sentence explanation as to why this specific tool is being used, and
+    /// how it contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Display the current task list with statistics. Shows all tasks with their
+/// IDs, descriptions, and status (PENDING, IN_PROGRESS, DONE), along with
+/// summary statistics. Use this tool to review current work items and track
+/// progress through development sessions.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+pub struct TaskListList {
+    /// One sentence explanation as to why this specific tool is being used, and
+    /// how it contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Remove all tasks from the task list. This operation cannot be undone and
+/// will reset the task ID counter to 1. Use this tool when you want to start
+/// fresh with a clean task list.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+pub struct TaskListClear {
+    /// One sentence explanation as to why this specific tool is being used, and
+    /// how it contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
 }
 
 fn default_raw() -> Option<bool> {
@@ -553,7 +561,11 @@ impl ToolDescription for Tools {
             Tools::ForgeToolFsRemove(v) => v.description(),
             Tools::ForgeToolFsUndo(v) => v.description(),
             Tools::ForgeToolFsCreate(v) => v.description(),
-            Tools::ForgeToolTaskList(v) => v.description(),
+            Tools::ForgeToolTaskListAppend(v) => v.description(),
+            Tools::ForgeToolTaskListAppendMultiple(v) => v.description(),
+            Tools::ForgeToolTaskListMarkDone(v) => v.description(),
+            Tools::ForgeToolTaskListList(v) => v.description(),
+            Tools::ForgeToolTaskListClear(v) => v.description(),
         }
     }
 }
@@ -588,7 +600,13 @@ impl Tools {
             Tools::ForgeToolFsRemove(_) => gen.into_root_schema_for::<FSRemove>(),
             Tools::ForgeToolFsUndo(_) => gen.into_root_schema_for::<FSUndo>(),
             Tools::ForgeToolFsCreate(_) => gen.into_root_schema_for::<FSWrite>(),
-            Tools::ForgeToolTaskList(_) => gen.into_root_schema_for::<TaskListTool>(),
+            Tools::ForgeToolTaskListAppend(_) => gen.into_root_schema_for::<TaskListAppend>(),
+            Tools::ForgeToolTaskListAppendMultiple(_) => {
+                gen.into_root_schema_for::<TaskListAppendMultiple>()
+            }
+            Tools::ForgeToolTaskListMarkDone(_) => gen.into_root_schema_for::<TaskListMarkDone>(),
+            Tools::ForgeToolTaskListList(_) => gen.into_root_schema_for::<TaskListList>(),
+            Tools::ForgeToolTaskListClear(_) => gen.into_root_schema_for::<TaskListClear>(),
         }
     }
 

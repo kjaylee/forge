@@ -1,6 +1,7 @@
 ---
 source: crates/forge_domain/src/tools.rs
 expression: tools
+snapshot_kind: text
 ---
 {
   "name": "forge_tool_fs_read",
@@ -345,14 +346,14 @@ expression: tools
   }
 }
 {
-  "name": "forge_tool_task_list",
-  "description": "Task list management tool for organizing and tracking work items during\n development sessions. Supports operations like append, prepend, pop, mark\n done, list, clear, and stats. Tasks are stored in conversation state and\n persist across agent interactions. Use this tool to maintain focus on\n objectives and track progress through complex workflows. Returns task\n status updates and list views in plain text format. Should be used when\n you need to organize work into discrete steps, track completion status,\n or maintain context across multiple interactions. Do not use for file\n management, code execution, or data persistence beyond the current session.\n Task IDs are auto-generated integers starting from 1.",
+  "name": "forge_tool_task_list_append",
+  "description": "Add a new task to the end of the task list. Tasks are stored in conversation\n state and persist across agent interactions. Use this tool to add individual\n work items that need to be tracked during development sessions. Task IDs are\n auto-generated integers starting from 1.",
   "input_schema": {
-    "title": "TaskListTool",
-    "description": "Task list management tool for organizing and tracking work items during development sessions. Supports operations like append, prepend, pop, mark done, list, clear, and stats. Tasks are stored in conversation state and persist across agent interactions. Use this tool to maintain focus on objectives and track progress through complex workflows. Returns task status updates and list views in plain text format. Should be used when you need to organize work into discrete steps, track completion status, or maintain context across multiple interactions. Do not use for file management, code execution, or data persistence beyond the current session. Task IDs are auto-generated integers starting from 1.",
+    "title": "TaskListAppend",
+    "description": "Add a new task to the end of the task list. Tasks are stored in conversation state and persist across agent interactions. Use this tool to add individual work items that need to be tracked during development sessions. Task IDs are auto-generated integers starting from 1.",
     "type": "object",
     "required": [
-      "operation"
+      "task"
     ],
     "properties": {
       "explanation": {
@@ -361,91 +362,95 @@ expression: tools
         "type": "string",
         "nullable": true
       },
-      "operation": {
-        "description": "The operation to perform on the task list",
-        "oneOf": [
-          {
-            "description": "Add a new task to the end of the list",
-            "type": "object",
-            "required": [
-              "append"
-            ],
-            "properties": {
-              "append": {
-                "type": "object",
-                "required": [
-                  "task"
-                ],
-                "properties": {
-                  "task": {
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "description": "Add multiple new tasks to the end of the list",
-            "type": "object",
-            "required": [
-              "append_multiple"
-            ],
-            "properties": {
-              "append_multiple": {
-                "type": "object",
-                "required": [
-                  "tasks"
-                ],
-                "properties": {
-                  "tasks": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "description": "Mark a specific task as DONE by its ID",
-            "type": "object",
-            "required": [
-              "mark_done"
-            ],
-            "properties": {
-              "mark_done": {
-                "type": "object",
-                "required": [
-                  "task_id"
-                ],
-                "properties": {
-                  "task_id": {
-                    "type": "integer",
-                    "format": "int32"
-                  }
-                }
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "description": "Display the current task list with stats",
-            "type": "string",
-            "enum": [
-              "list"
-            ]
-          },
-          {
-            "description": "Remove all tasks from the list",
-            "type": "string",
-            "enum": [
-              "clear"
-            ]
-          }
-        ]
+      "task": {
+        "description": "The task description to add to the list",
+        "type": "string"
+      }
+    }
+  }
+}
+{
+  "name": "forge_tool_task_list_append_multiple",
+  "description": "Add multiple new tasks to the end of the task list. Tasks are stored in\n conversation state and persist across agent interactions. Use this tool to\n add several work items at once during development sessions. Task IDs are\n auto-generated integers starting from 1.",
+  "input_schema": {
+    "title": "TaskListAppendMultiple",
+    "description": "Add multiple new tasks to the end of the task list. Tasks are stored in conversation state and persist across agent interactions. Use this tool to add several work items at once during development sessions. Task IDs are auto-generated integers starting from 1.",
+    "type": "object",
+    "required": [
+      "tasks"
+    ],
+    "properties": {
+      "explanation": {
+        "description": "One sentence explanation as to why this specific tool is being used, and how it contributes to the goal.",
+        "default": null,
+        "type": "string",
+        "nullable": true
+      },
+      "tasks": {
+        "description": "The list of task descriptions to add",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
+{
+  "name": "forge_tool_task_list_mark_done",
+  "description": "Mark a specific task as DONE by its ID. Use this tool when a task has been\n completed and you want to update its status. The task will remain in the\n list but marked as completed for tracking purposes.",
+  "input_schema": {
+    "title": "TaskListMarkDone",
+    "description": "Mark a specific task as DONE by its ID. Use this tool when a task has been completed and you want to update its status. The task will remain in the list but marked as completed for tracking purposes.",
+    "type": "object",
+    "required": [
+      "task_id"
+    ],
+    "properties": {
+      "explanation": {
+        "description": "One sentence explanation as to why this specific tool is being used, and how it contributes to the goal.",
+        "default": null,
+        "type": "string",
+        "nullable": true
+      },
+      "task_id": {
+        "description": "The ID of the task to mark as done",
+        "type": "integer",
+        "format": "int32"
+      }
+    }
+  }
+}
+{
+  "name": "forge_tool_task_list_list",
+  "description": "Display the current task list with statistics. Shows all tasks with their\n IDs, descriptions, and status (PENDING, IN_PROGRESS, DONE), along with\n summary statistics. Use this tool to review current work items and track\n progress through development sessions.",
+  "input_schema": {
+    "title": "TaskListList",
+    "description": "Display the current task list with statistics. Shows all tasks with their IDs, descriptions, and status (PENDING, IN_PROGRESS, DONE), along with summary statistics. Use this tool to review current work items and track progress through development sessions.",
+    "type": "object",
+    "properties": {
+      "explanation": {
+        "description": "One sentence explanation as to why this specific tool is being used, and how it contributes to the goal.",
+        "default": null,
+        "type": "string",
+        "nullable": true
+      }
+    }
+  }
+}
+{
+  "name": "forge_tool_task_list_clear",
+  "description": "Remove all tasks from the task list. This operation cannot be undone and\n will reset the task ID counter to 1. Use this tool when you want to start\n fresh with a clean task list.",
+  "input_schema": {
+    "title": "TaskListClear",
+    "description": "Remove all tasks from the task list. This operation cannot be undone and will reset the task ID counter to 1. Use this tool when you want to start fresh with a clean task list.",
+    "type": "object",
+    "properties": {
+      "explanation": {
+        "description": "One sentence explanation as to why this specific tool is being used, and how it contributes to the goal.",
+        "default": null,
+        "type": "string",
+        "nullable": true
       }
     }
   }

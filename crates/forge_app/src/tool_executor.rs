@@ -123,28 +123,30 @@ impl<
             Tools::ForgeToolAttemptCompletion(_input) => {
                 crate::operation::Operation::AttemptCompletion
             }
-            Tools::ForgeToolTaskList(input) => {
+            Tools::ForgeToolTaskListAppend(input) => {
                 let before = tasks.clone();
-
-                match &input.operation {
-                    forge_domain::TaskListOperation::Append { task } => {
-                        tasks.append(task);
-                    }
-                    forge_domain::TaskListOperation::AppendMultiple { tasks: task_list } => {
-                        tasks.append_multiple(task_list.clone());
-                    }
-                    forge_domain::TaskListOperation::MarkDone { task_id } => {
-                        tasks.mark_done(*task_id).context("Task not found")?;
-                    }
-                    forge_domain::TaskListOperation::List => {
-                        // No operation needed, just return the current state
-                    }
-                    forge_domain::TaskListOperation::Clear => {
-                        tasks.clear();
-                    }
-                };
-
-                Operation::TaskList { _input: input, before, after: tasks.clone() }
+                tasks.append(&input.task);
+                Operation::TaskListAppend { _input: input, before, after: tasks.clone() }
+            }
+            Tools::ForgeToolTaskListAppendMultiple(input) => {
+                let before = tasks.clone();
+                tasks.append_multiple(input.tasks.clone());
+                Operation::TaskListAppendMultiple { _input: input, before, after: tasks.clone() }
+            }
+            Tools::ForgeToolTaskListMarkDone(input) => {
+                let before = tasks.clone();
+                tasks.mark_done(input.task_id).context("Task not found")?;
+                Operation::TaskListMarkDone { _input: input, before, after: tasks.clone() }
+            }
+            Tools::ForgeToolTaskListList(input) => {
+                let before = tasks.clone();
+                // No operation needed, just return the current state
+                Operation::TaskListList { _input: input, before, after: tasks.clone() }
+            }
+            Tools::ForgeToolTaskListClear(input) => {
+                let before = tasks.clone();
+                tasks.clear();
+                Operation::TaskListClear { _input: input, before, after: tasks.clone() }
             }
         })
     }

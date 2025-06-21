@@ -6,7 +6,7 @@ use derive_setters::Setters;
 use forge_display::DiffFormat;
 use forge_domain::{
     Environment, FSPatch, FSRead, FSRemove, FSSearch, FSUndo, FSWrite, NetFetch, TaskList,
-    TaskListTool,
+    TaskListAppend, TaskListAppendMultiple, TaskListClear, TaskListList, TaskListMarkDone,
 };
 use forge_template::Element;
 
@@ -63,8 +63,28 @@ pub enum Operation {
         output: Option<String>,
     },
     AttemptCompletion,
-    TaskList {
-        _input: TaskListTool,
+    TaskListAppend {
+        _input: TaskListAppend,
+        before: TaskList,
+        after: TaskList,
+    },
+    TaskListAppendMultiple {
+        _input: TaskListAppendMultiple,
+        before: TaskList,
+        after: TaskList,
+    },
+    TaskListMarkDone {
+        _input: TaskListMarkDone,
+        before: TaskList,
+        after: TaskList,
+    },
+    TaskListList {
+        _input: TaskListList,
+        before: TaskList,
+        after: TaskList,
+    },
+    TaskListClear {
+        _input: TaskListClear,
         before: TaskList,
         after: TaskList,
     },
@@ -318,7 +338,11 @@ impl Operation {
                 Element::new("success")
                     .text("[Task was completed successfully. Now wait for user feedback]"),
             ),
-            Operation::TaskList { _input: _, before: _, after } => {
+            Operation::TaskListAppend { _input: _, before: _, after }
+            | Operation::TaskListAppendMultiple { _input: _, before: _, after }
+            | Operation::TaskListMarkDone { _input: _, before: _, after }
+            | Operation::TaskListList { _input: _, before: _, after }
+            | Operation::TaskListClear { _input: _, before: _, after } => {
                 let stats = forge_domain::TaskStats::from(&after);
                 let elm = Element::new("task_list")
                     .attr("total_tasks", stats.total_tasks)
@@ -906,9 +930,8 @@ mod tests {
     }
     #[test]
     fn test_task_list_empty() {
-        let fixture = Operation::TaskList {
-            _input: forge_domain::TaskListTool {
-                operation: forge_domain::TaskListOperation::List,
+        let fixture = Operation::TaskListList {
+            _input: forge_domain::TaskListList {
                 explanation: Some("List empty tasks".to_string()),
             },
             before: TaskList::new(),
@@ -927,9 +950,8 @@ mod tests {
         let mut task_list = TaskList::new();
         task_list.append("Write documentation");
 
-        let fixture = Operation::TaskList {
-            _input: forge_domain::TaskListTool {
-                operation: forge_domain::TaskListOperation::List,
+        let fixture = Operation::TaskListList {
+            _input: forge_domain::TaskListList {
                 explanation: Some("List tasks with one pending".to_string()),
             },
             before: TaskList::new(),
@@ -956,9 +978,8 @@ mod tests {
         // Mark first task as in progress manually
         task_list.get_task_mut(0).unwrap().mark_in_progress();
 
-        let fixture = Operation::TaskList {
-            _input: forge_domain::TaskListTool {
-                operation: forge_domain::TaskListOperation::List,
+        let fixture = Operation::TaskListList {
+            _input: forge_domain::TaskListList {
                 explanation: Some("List tasks with mixed statuses".to_string()),
             },
             before: TaskList::new(),
@@ -988,9 +1009,8 @@ mod tests {
         task_list.get_task_mut(0).unwrap().mark_in_progress(); // Mark first task as in progress
         task_list.get_task_mut(4).unwrap().mark_in_progress(); // Mark last task as in progress
 
-        let fixture = Operation::TaskList {
-            _input: forge_domain::TaskListTool {
-                operation: forge_domain::TaskListOperation::List,
+        let fixture = Operation::TaskListList {
+            _input: forge_domain::TaskListList {
                 explanation: Some("List complex task scenario".to_string()),
             },
             before: TaskList::new(),
@@ -1012,11 +1032,9 @@ mod tests {
         let mut after_task_list = before_task_list.clone();
         after_task_list.append("New task from append");
 
-        let fixture = Operation::TaskList {
-            _input: forge_domain::TaskListTool {
-                operation: forge_domain::TaskListOperation::Append {
-                    task: "New task from append".to_string(),
-                },
+        let fixture = Operation::TaskListAppend {
+            _input: forge_domain::TaskListAppend {
+                task: "New task from append".to_string(),
                 explanation: Some("Append new task".to_string()),
             },
             before: before_task_list,
@@ -1039,9 +1057,9 @@ mod tests {
         let mut after_task_list = before_task_list.clone();
         after_task_list.mark_done(task1.id);
 
-        let fixture = Operation::TaskList {
-            _input: forge_domain::TaskListTool {
-                operation: forge_domain::TaskListOperation::MarkDone { task_id: task1.id },
+        let fixture = Operation::TaskListMarkDone {
+            _input: forge_domain::TaskListMarkDone {
+                task_id: task1.id,
                 explanation: Some("Mark task as done".to_string()),
             },
             before: before_task_list,
@@ -1071,9 +1089,8 @@ mod tests {
         task_list.get_task_mut(1).unwrap().mark_in_progress(); // Mark task 2 as in progress
         task_list.get_task_mut(2).unwrap().mark_in_progress(); // Mark task 3 as in progress
 
-        let fixture = Operation::TaskList {
-            _input: forge_domain::TaskListTool {
-                operation: forge_domain::TaskListOperation::List,
+        let fixture = Operation::TaskListList {
+            _input: forge_domain::TaskListList {
                 explanation: Some("List tasks with large numbers".to_string()),
             },
             before: TaskList::new(),

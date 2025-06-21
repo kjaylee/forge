@@ -31,9 +31,13 @@ impl FormatContent for Operation {
             Operation::Shell { output: _ } => None,
             Operation::FollowUp { output: _ } => None,
             Operation::AttemptCompletion => None,
-            Operation::TaskList { _input: _, before, after } => Some(ContentFormat::Markdown(
-                crate::fmt::fmt_task::to_markdown(before, after),
-            )),
+            Operation::TaskListAppend { _input: _, before, after }
+            | Operation::TaskListAppendMultiple { _input: _, before, after }
+            | Operation::TaskListMarkDone { _input: _, before, after }
+            | Operation::TaskListList { _input: _, before, after }
+            | Operation::TaskListClear { _input: _, before, after } => Some(
+                ContentFormat::Markdown(crate::fmt::fmt_task::to_markdown(before, after)),
+            ),
         }
     }
 }

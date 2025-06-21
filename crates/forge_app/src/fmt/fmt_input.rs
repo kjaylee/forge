@@ -81,23 +81,15 @@ impl FormatContent for Tools {
             Tools::ForgeToolAttemptCompletion(input) => {
                 ContentFormat::Markdown(input.result.clone())
             }
-            Tools::ForgeToolTaskList(input) => match input.operation {
-                forge_domain::TaskListOperation::Append { .. } => {
-                    TitleFormat::debug("Task +1".to_string()).into()
-                }
-                forge_domain::TaskListOperation::AppendMultiple { ref tasks } => {
-                    TitleFormat::debug(format!("Task +{}", tasks.len())).into()
-                }
-                forge_domain::TaskListOperation::MarkDone { .. } => {
-                    TitleFormat::debug("Task Done".to_string()).into()
-                }
-                forge_domain::TaskListOperation::List => {
-                    TitleFormat::debug("Task Read".to_string()).into()
-                }
-                forge_domain::TaskListOperation::Clear => {
-                    TitleFormat::debug("Task Clear".to_string()).into()
-                }
-            },
+            Tools::ForgeToolTaskListAppend(_) => TitleFormat::debug("Task +1".to_string()).into(),
+            Tools::ForgeToolTaskListAppendMultiple(input) => {
+                TitleFormat::debug(format!("Task +{}", input.tasks.len())).into()
+            }
+            Tools::ForgeToolTaskListMarkDone(_) => {
+                TitleFormat::debug("Task Done".to_string()).into()
+            }
+            Tools::ForgeToolTaskListList(_) => TitleFormat::debug("Task Read".to_string()).into(),
+            Tools::ForgeToolTaskListClear(_) => TitleFormat::debug("Task Clear".to_string()).into(),
         };
 
         Some(output)
