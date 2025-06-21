@@ -14,13 +14,13 @@ pub enum Status {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Setters)]
 #[setters(strip_option, into)]
 pub struct Task {
-    pub id: u32,
+    pub id: i32,
     pub task: String,
     pub status: Status,
 }
 
 impl Task {
-    pub fn new(id: u32, task: impl Into<String>) -> Self {
+    pub fn new(id: i32, task: impl Into<String>) -> Self {
         Self { id, task: task.into(), status: Status::default() }
     }
 
@@ -79,7 +79,7 @@ impl From<&TaskList> for TaskStats {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TaskList {
     tasks: VecDeque<Task>,
-    next_id: u32,
+    next_id: i32,
 }
 
 impl TaskList {
@@ -113,7 +113,7 @@ impl TaskList {
         created_tasks
     }
 
-    pub fn mark_done(&mut self, task_id: u32) -> Option<Task> {
+    pub fn mark_done(&mut self, task_id: i32) -> Option<Task> {
         let task_index = self.tasks.iter().position(|t| t.id == task_id)?;
         self.tasks[task_index].mark_done();
         Some(self.tasks[task_index].clone())

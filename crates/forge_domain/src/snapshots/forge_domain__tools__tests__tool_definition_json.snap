@@ -424,8 +424,7 @@ expression: tools
                 "properties": {
                   "task_id": {
                     "type": "integer",
-                    "format": "uint32",
-                    "minimum": 0.0
+                    "format": "int32"
                   }
                 }
               }

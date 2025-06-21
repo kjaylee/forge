@@ -8,7 +8,7 @@ pub fn to_markdown(before: &TaskList, after: &TaskList) -> String {
     let mut markdown: Vec<String> = Vec::new();
 
     // Create a map of before tasks for comparison
-    let before_tasks: std::collections::HashMap<u32, &forge_domain::Task> =
+    let before_tasks: std::collections::HashMap<i32, &forge_domain::Task> =
         before.tasks().iter().map(|task| (task.id, task)).collect();
 
     for task in after.tasks().iter() {
