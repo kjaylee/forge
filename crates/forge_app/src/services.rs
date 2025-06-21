@@ -63,6 +63,8 @@ pub enum TaskListOutput {
     },
 }
 
+use crate::Walker;
+
 #[derive(Debug)]
 pub struct ShellOutput {
     pub output: CommandOutput,
@@ -236,7 +238,7 @@ pub trait WorkflowService {
 
 #[async_trait::async_trait]
 pub trait FileDiscoveryService: Send + Sync {
-    async fn collect(&self, max_depth: Option<usize>) -> anyhow::Result<Vec<File>>;
+    async fn collect_files(&self, config: Walker) -> anyhow::Result<Vec<File>>;
 }
 
 #[async_trait::async_trait]
@@ -495,8 +497,8 @@ impl<I: Services> WorkflowService for I {
 
 #[async_trait::async_trait]
 impl<I: Services> FileDiscoveryService for I {
-    async fn collect(&self, max_depth: Option<usize>) -> anyhow::Result<Vec<File>> {
-        self.file_discovery_service().collect(max_depth).await
+    async fn collect_files(&self, config: Walker) -> anyhow::Result<Vec<File>> {
+        self.file_discovery_service().collect_files(config).await
     }
 }
 
