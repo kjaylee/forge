@@ -324,7 +324,7 @@ impl Operation {
                     .attr("pending_tasks", stats.pending_tasks)
                     .attr("in_progress_tasks", stats.in_progress_tasks)
                     .attr("done_tasks", stats.done_tasks)
-                    .append(output.tasks.iter().map(|task| {
+                    .append(output.tasks().iter().map(|task| {
                         //
                         Element::new("task")
                             .attr("id", task.id)
@@ -951,7 +951,7 @@ mod tests {
         task_list.mark_done(task2.id);
 
         // Mark first task as in progress manually
-        task_list.tasks[0].mark_in_progress();
+        task_list.get_task_mut(0).unwrap().mark_in_progress();
 
         let fixture = Operation::TaskList {
             _input: forge_domain::TaskListTool {
@@ -981,8 +981,8 @@ mod tests {
         task_list.mark_done(task3.id);
 
         // Mark some tasks as in progress manually
-        task_list.tasks[0].mark_in_progress(); // Mark first task as in progress
-        task_list.tasks[4].mark_in_progress(); // Mark last task as in progress
+        task_list.get_task_mut(0).unwrap().mark_in_progress(); // Mark first task as in progress
+        task_list.get_task_mut(4).unwrap().mark_in_progress(); // Mark last task as in progress
 
         let fixture = Operation::TaskList {
             _input: forge_domain::TaskListTool {
@@ -1057,8 +1057,8 @@ mod tests {
         task_list.mark_done(5);
         task_list.mark_done(10);
         // Mark some tasks as in progress manually
-        task_list.tasks[1].mark_in_progress(); // Mark task 2 as in progress
-        task_list.tasks[2].mark_in_progress(); // Mark task 3 as in progress
+        task_list.get_task_mut(1).unwrap().mark_in_progress(); // Mark task 2 as in progress
+        task_list.get_task_mut(2).unwrap().mark_in_progress(); // Mark task 3 as in progress
 
         let fixture = Operation::TaskList {
             _input: forge_domain::TaskListTool {

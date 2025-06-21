@@ -72,14 +72,24 @@ impl TaskStats {
 
 impl From<&TaskList> for TaskStats {
     fn from(task_list: &TaskList) -> Self {
-        Self::from_tasks(&task_list.tasks)
+        Self::from_tasks(task_list.tasks())
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TaskList {
-    pub tasks: VecDeque<Task>,
+    tasks: VecDeque<Task>,
     next_id: u32,
+}
+
+impl TaskList {
+    pub fn tasks(&self) -> &VecDeque<Task> {
+        &self.tasks
+    }
+
+    pub fn get_task_mut(&mut self, index: usize) -> Option<&mut Task> {
+        self.tasks.get_mut(index)
+    }
 }
 
 impl TaskList {
@@ -106,7 +116,7 @@ impl TaskList {
     }
 
     pub fn to_markdown(&self) -> String {
-        if self.tasks.is_empty() {
+        if self.tasks().is_empty() {
             return "No tasks in the list.".to_string();
         }
 
@@ -115,13 +125,13 @@ impl TaskList {
 
         // Calculate the width needed for padding based on the highest task ID
         let max_id_width = self
-            .tasks
+            .tasks()
             .iter()
             .map(|task| task.id.to_string().len())
             .max()
             .unwrap_or(1);
 
-        for task in &self.tasks {
+        for task in self.tasks() {
             let formatted_task = match task.status {
                 Status::Pending => {
                     format!("{:width$}. {}\n", task.id, task.task, width = max_id_width)
@@ -242,7 +252,7 @@ mod tests {
 
         assert_eq!(task.id, 1);
         assert_eq!(task.task, "First task");
-        assert_eq!(task_list.tasks.len(), 1);
+        assert_eq!(task_list.tasks().len(), 1);
     }
 
     #[test]
@@ -277,7 +287,7 @@ mod tests {
 
         task_list.clear();
 
-        assert!(task_list.tasks.is_empty());
+        assert!(task_list.tasks().is_empty());
         assert_eq!(task_list.next_id, 1);
     }
 
@@ -331,7 +341,7 @@ mod tests {
         fixture.mark_done(task2.id);
 
         // Mark first task as in progress manually
-        fixture.tasks[0].mark_in_progress();
+        fixture.get_task_mut(0).unwrap().mark_in_progress();
 
         let actual = fixture.to_markdown();
         insta::assert_snapshot!(actual);
@@ -365,8 +375,8 @@ mod tests {
         fixture.mark_done(task3.id);
 
         // Mark two tasks as in progress manually (without removing them)
-        fixture.tasks[0].mark_in_progress(); // "Review pull request #123"
-        fixture.tasks[4].mark_in_progress(); // "Refactor user service"
+        fixture.get_task_mut(0).unwrap().mark_in_progress(); // "Review pull request #123"
+        fixture.get_task_mut(4).unwrap().mark_in_progress(); // "Refactor user service"
 
         let actual = fixture.to_markdown();
         insta::assert_snapshot!(actual);
