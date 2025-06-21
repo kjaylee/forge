@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tokio::sync::mpsc::Sender;
 
-use crate::ChatResponse;
+use crate::{ChatResponse, Conversation};
 
 /// Type alias for Arc<Sender<Result<ChatResponse>>>
 type ArcSender = Arc<Sender<anyhow::Result<ChatResponse>>>;
@@ -11,6 +11,7 @@ type ArcSender = Arc<Sender<anyhow::Result<ChatResponse>>>;
 #[derive(Default, Clone, Debug)]
 pub struct ToolCallContext {
     sender: Option<ArcSender>,
+    convo: Conversation,
 }
 
 impl ToolCallContext {

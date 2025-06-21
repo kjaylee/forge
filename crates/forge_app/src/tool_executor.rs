@@ -127,6 +127,7 @@ impl<
                 let task_input = crate::TaskListInput {
                     operation: match &input.operation {
                         forge_domain::TaskListOperation::Append { task } => {
+                            self.services.task_list()
                             crate::TaskOperation::Append { task: task.clone() }
                         }
                         forge_domain::TaskListOperation::Prepend { task } => {
