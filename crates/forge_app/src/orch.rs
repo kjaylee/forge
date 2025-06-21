@@ -373,7 +373,8 @@ impl<S: AgentService> Orchestrator<S> {
                 })
                 .await?;
             }
-            let mut tool_context = ToolCallContext::new(self.conversation.task_list.clone()).sender(self.sender.clone());
+            let mut tool_context = ToolCallContext::new(self.conversation.task_list.clone())
+                .sender(self.sender.clone());
 
             // Process tool calls and update context
             context = context.append_message(

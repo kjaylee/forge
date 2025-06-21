@@ -148,8 +148,7 @@ impl<
                         }
                     }
                     forge_domain::TaskListOperation::PopFront => {
-                        let (task, stats) =
-                            task_list.pop_front().context("Task list is empty")?;
+                        let (task, stats) = task_list.pop_front().context("Task list is empty")?;
                         TaskListOutput::TaskPopped {
                             task,
                             stats,
@@ -213,7 +212,9 @@ impl<
 
         // Send tool call information
 
-        let execution_result = self.call_internal(tool_input.clone(), &mut context.task_list).await;
+        let execution_result = self
+            .call_internal(tool_input.clone(), &mut context.task_list)
+            .await;
         if let Err(ref error) = execution_result {
             tracing::error!(error = ?error, "Tool execution failed");
         }

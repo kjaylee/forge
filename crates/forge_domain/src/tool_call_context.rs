@@ -1,5 +1,6 @@
-use derive_setters::Setters;
 use std::sync::Arc;
+
+use derive_setters::Setters;
 use tokio::sync::mpsc::Sender;
 
 use crate::{ChatResponse, TaskList};
