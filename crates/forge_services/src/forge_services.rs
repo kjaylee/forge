@@ -11,7 +11,7 @@ use crate::provider::ForgeProviderService;
 use crate::template::ForgeTemplateService;
 use crate::tool_services::{
     ForgeFetch, ForgeFollowup, ForgeFsCreate, ForgeFsPatch, ForgeFsRead, ForgeFsRemove,
-    ForgeFsSearch, ForgeFsUndo, ForgeShell, ForgeTaskList,
+    ForgeFsSearch, ForgeFsUndo, ForgeShell,
 };
 use crate::workflow::ForgeWorkflowService;
 use crate::{

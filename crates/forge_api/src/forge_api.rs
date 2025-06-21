@@ -130,14 +130,4 @@ impl<A: Services, F: CommandInfra> API for ForgeAPI<A, F> {
     ) -> anyhow::Result<std::process::ExitStatus> {
         self.infra.execute_command_raw(command).await
     }
-
-    async fn get_task_list(&self, conversation_id: &ConversationId) -> Result<String> {
-        // Get the conversation to access its task list
-        if let Some(conversation) = self.app.find(conversation_id).await? {
-            let task_list = &conversation.task_list;
-            Ok(task_list.to_markdown())
-        } else {
-            Ok("No tasks found.".to_string())
-        }
-    }
 }

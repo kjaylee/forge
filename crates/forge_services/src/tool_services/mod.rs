@@ -8,7 +8,6 @@ mod fs_search;
 mod fs_undo;
 mod shell;
 mod syn;
-mod task_list;
 
 pub use fetch::*;
 pub use followup::*;
@@ -19,4 +18,3 @@ pub use fs_remove::*;
 pub use fs_search::*;
 pub use fs_undo::*;
 pub use shell::*;
-pub use task_list::*;

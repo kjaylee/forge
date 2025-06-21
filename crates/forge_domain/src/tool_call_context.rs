@@ -1,23 +1,23 @@
+use derive_setters::Setters;
 use std::sync::Arc;
-
 use tokio::sync::mpsc::Sender;
 
-use crate::{ChatResponse, Conversation};
+use crate::{ChatResponse, TaskList};
 
 /// Type alias for Arc<Sender<Result<ChatResponse>>>
 type ArcSender = Arc<Sender<anyhow::Result<ChatResponse>>>;
 
 /// Provides additional context for tool calls.
-#[derive(Default, Clone, Debug)]
+#[derive(Debug, Setters)]
 pub struct ToolCallContext {
     sender: Option<ArcSender>,
-    convo: Conversation,
+    pub task_list: TaskList,
 }
 
 impl ToolCallContext {
     /// Creates a new ToolCallContext with default values
-    pub fn new(sender: Option<ArcSender>) -> Self {
-        Self { sender }
+    pub fn new(task_list: TaskList) -> Self {
+        Self { sender: None, task_list }
     }
 
     /// Send a message through the sender if available
@@ -55,7 +55,7 @@ mod tests {
 
     #[test]
     fn test_create_context() {
-        let context = ToolCallContext::default();
+        let context = ToolCallContext::new(TaskList::new());
         assert!(context.sender.is_none());
     }
 
@@ -63,7 +63,7 @@ mod tests {
     fn test_with_sender() {
         // This is just a type check test - we don't actually create a sender
         // as it's complex to set up in a unit test
-        let context = ToolCallContext::default();
+        let context = ToolCallContext::new(TaskList::new());
         assert!(context.sender.is_none());
     }
 }

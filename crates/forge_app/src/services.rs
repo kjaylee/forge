@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use forge_domain::{
     Attachment, ChatCompletionMessage, CommandOutput, Context, Conversation, ConversationId,
     Environment, File, McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope, Stats, Task,
-    TaskList, ToolCallFull, ToolDefinition, ToolOutput, Workflow,
+    ToolCallFull, ToolDefinition, ToolOutput, Workflow,
 };
 use merge::Merge;
 use serde::{Deserialize, Serialize};
@@ -175,12 +175,6 @@ pub trait ConversationService: Send + Sync {
     async fn update<F, T>(&self, id: &ConversationId, f: F) -> anyhow::Result<T>
     where
         F: FnOnce(&mut Conversation) -> T + Send;
-    async fn task_list(&self, conversation_id: &ConversationId) -> anyhow::Result<TaskList>;
-    async fn set_task_list(
-        &self,
-        conversation_id: &ConversationId,
-        task_list: TaskList,
-    ) -> anyhow::Result<()>;
 }
 
 #[async_trait::async_trait]
@@ -400,7 +394,7 @@ impl<I: Services> ConversationService for I {
         self.conversation_service().update(id, f).await
     }
 
-    async fn task_list(&self, conversation_id: &ConversationId) -> anyhow::Result<TaskList> {
+    /*    async fn task_list(&self, conversation_id: &ConversationId) -> anyhow::Result<TaskList> {
         self.conversation_service().task_list(conversation_id).await
     }
 
@@ -412,7 +406,7 @@ impl<I: Services> ConversationService for I {
         self.conversation_service()
             .set_task_list(conversation_id, task_list)
             .await
-    }
+    }*/
 }
 #[async_trait::async_trait]
 impl<I: Services> ProviderService for I {

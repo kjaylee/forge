@@ -90,21 +90,16 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
     // Handle tasks command - display task list
     async fn on_tasks(&mut self) -> Result<()> {
         self.spinner.start(Some("Loading tasks"))?;
-
-        // Get the current conversation ID
-        let conversation_id = self.init_conversation().await?;
-
-        // Get the task list using the new API method
-        let markdown = self.api.get_task_list(&conversation_id).await?;
-
-        if markdown.trim() == "No tasks found." || markdown.contains("**No tasks**") {
-            self.writeln(TitleFormat::info(
-                "No tasks found. Use the task management tool to add tasks.",
-            ))?;
+        if let Some(conversation_id) = self.state.conversation_id.as_ref() {
+            // Get the task list using the new API method
+            if let Some(convo) = self.api.conversation(conversation_id).await? {
+                self.writeln(self.markdown.render(convo.task_list.to_markdown()))?;
+            } else {
+                self.writeln(TitleFormat::info("No tasks found."))?;
+            }
         } else {
-            self.writeln(self.markdown.render(&markdown))?;
-        }
-
+            self.writeln(TitleFormat::info("No tasks found."))?;
+        };
         Ok(())
     }
 

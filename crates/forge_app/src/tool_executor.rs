@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use forge_domain::{ToolCallContext, ToolCallFull, ToolOutput, Tools};
+use anyhow::Context;
+use forge_domain::{TaskList, ToolCallContext, ToolCallFull, ToolOutput, Tools};
 
 use crate::error::Error;
 use crate::fmt_input::{FormatInput, InputFormat};
@@ -10,6 +11,7 @@ use crate::services::ShellService;
 use crate::{
     ConversationService, EnvironmentService, FollowUpService, FsCreateService, FsPatchService,
     FsReadService, FsRemoveService, FsSearchService, FsUndoService, NetFetchService,
+    TaskListOutput,
 };
 
 pub struct ToolExecutor<S> {
@@ -34,7 +36,11 @@ impl<
         Self { services }
     }
 
-    async fn call_internal(&self, input: Tools) -> anyhow::Result<Operation> {
+    async fn call_internal(
+        &self,
+        input: Tools,
+        task_list: &mut TaskList,
+    ) -> anyhow::Result<Operation> {
         Ok(match input {
             Tools::ForgeToolFsRead(input) => {
                 let output = self
@@ -124,27 +130,71 @@ impl<
                 crate::operation::Operation::AttemptCompletion
             }
             Tools::ForgeToolTaskList(input) => {
-                let task_input = crate::TaskListInput {
-                    operation: match &input.operation {
-                        forge_domain::TaskListOperation::Append { task } => {
-                            self.services.task_list()
-                            crate::TaskOperation::Append { task: task.clone() }
+                let output = match &input.operation {
+                    forge_domain::TaskListOperation::Append { task } => {
+                        let (task, stats) = task_list.append(task);
+                        TaskListOutput::TaskAdded {
+                            task,
+                            stats,
+                            message: "Task appended to the list.".to_string(),
                         }
-                        forge_domain::TaskListOperation::Prepend { task } => {
-                            crate::TaskOperation::Prepend { task: task.clone() }
+                    }
+                    forge_domain::TaskListOperation::Prepend { task } => {
+                        let (task, stats) = task_list.prepend(task);
+                        TaskListOutput::TaskAdded {
+                            task,
+                            stats,
+                            message: "Task prepended to the list.".to_string(),
                         }
-                        forge_domain::TaskListOperation::PopFront => crate::TaskOperation::PopFront,
-                        forge_domain::TaskListOperation::PopBack => crate::TaskOperation::PopBack,
-                        forge_domain::TaskListOperation::MarkDone { task_id } => {
-                            crate::TaskOperation::MarkDone { task_id: *task_id }
+                    }
+                    forge_domain::TaskListOperation::PopFront => {
+                        let (task, stats) =
+                            task_list.pop_front().context("Task list is empty")?;
+                        TaskListOutput::TaskPopped {
+                            task,
+                            stats,
+                            message: "Task popped from the front of the list.".to_string(),
                         }
-                        forge_domain::TaskListOperation::List => crate::TaskOperation::List,
-                        forge_domain::TaskListOperation::Clear => crate::TaskOperation::Clear,
-                        forge_domain::TaskListOperation::Stats => crate::TaskOperation::Stats,
+                    }
+                    forge_domain::TaskListOperation::PopBack => match task_list.pop_back() {
+                        Some((task, stats)) => TaskListOutput::TaskPopped {
+                            task,
+                            stats,
+                            message: "Task popped from the back of the list.".to_string(),
+                        },
+                        None => {
+                            TaskListOutput::Error { message: "Task list is empty.".to_string() }
+                        }
                     },
+                    forge_domain::TaskListOperation::MarkDone { task_id } => {
+                        let result = task_list.mark_done(*task_id);
+                        if let Some((completed_task, next_task, stats)) = result {
+                            TaskListOutput::TaskCompleted {
+                                completed_task,
+                                next_task,
+                                stats,
+                                message: "Task marked as done.".to_string(),
+                            }
+                        } else {
+                            TaskListOutput::Error { message: "Task not found.".to_string() }
+                        }
+                    }
+                    forge_domain::TaskListOperation::List => {
+                        let markdown = task_list.to_markdown();
+                        let stats = task_list.stats();
+                        TaskListOutput::TaskList { markdown, stats }
+                    }
+                    forge_domain::TaskListOperation::Clear => {
+                        task_list.clear();
+                        TaskListOutput::Cleared { message: "Task list cleared.".to_string() }
+                    }
+                    forge_domain::TaskListOperation::Stats => {
+                        let stats = task_list.stats();
+                        TaskListOutput::StatsOnly { stats }
+                    }
                 };
-                let output = self.services.execute_task_list(task_input).await?;
-                (input, output).into()
+
+                Operation::TaskList { _input: input, output }
             }
         })
     }
@@ -163,7 +213,7 @@ impl<
 
         // Send tool call information
 
-        let execution_result = self.call_internal(tool_input.clone()).await;
+        let execution_result = self.call_internal(tool_input.clone(), &mut context.task_list).await;
         if let Err(ref error) = execution_result {
             tracing::error!(error = ?error, "Tool execution failed");
         }

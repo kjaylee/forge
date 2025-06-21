@@ -83,7 +83,4 @@ pub trait API: Sync + Send {
     /// user's home directory Local configuration is stored in the current
     /// project directory
     async fn write_mcp_config(&self, scope: &Scope, config: &McpConfig) -> Result<()>;
-
-    /// Gets the task list for the current conversation
-    async fn get_task_list(&self, conversation_id: &ConversationId) -> Result<String>;
 }

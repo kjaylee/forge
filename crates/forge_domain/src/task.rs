@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
@@ -63,7 +65,7 @@ impl Stats {
         Self { total_tasks, done_tasks, pending_tasks, in_progress_tasks }
     }
 
-    pub fn from_tasks(tasks: &[Task]) -> Self {
+    pub fn from_tasks(tasks: &VecDeque<Task>) -> Self {
         let total_tasks = tasks.len() as u32;
         let done_tasks = tasks.iter().filter(|t| t.is_done()).count() as u32;
         let pending_tasks = tasks.iter().filter(|t| t.is_pending()).count() as u32;
@@ -75,20 +77,19 @@ impl Stats {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TaskList {
-    pub tasks: Vec<Task>,
+    tasks: VecDeque<Task>,
     next_id: u32,
 }
 
 impl TaskList {
     pub fn new() -> Self {
-        Self { tasks: Vec::new(), next_id: 1 }
+        Self { tasks: VecDeque::new(), next_id: 1 }
     }
 
     pub fn append(&mut self, task: impl Into<String>) -> (Task, Stats) {
-        println!("hx1");
         let task = Task::new(self.next_id, task);
         self.next_id += 1;
-        self.tasks.push(task.clone());
+        self.tasks.push_back(task.clone());
         let stats = self.stats();
         (task, stats)
     }
@@ -96,7 +97,7 @@ impl TaskList {
     pub fn prepend(&mut self, task: impl Into<String>) -> (Task, Stats) {
         let task = Task::new(self.next_id, task);
         self.next_id += 1;
-        self.tasks.insert(0, task.clone());
+        self.tasks.push_front(task.clone());
         let stats = self.stats();
         (task, stats)
     }
@@ -106,7 +107,7 @@ impl TaskList {
             return None;
         }
 
-        let mut task = self.tasks.remove(0);
+        let mut task = self.tasks.pop_front()?;
         task.mark_in_progress();
         let stats = self.stats();
         Some((task, stats))
@@ -117,7 +118,7 @@ impl TaskList {
             return None;
         }
 
-        let mut task = self.tasks.pop().unwrap();
+        let mut task = self.tasks.pop_back()?;
         task.mark_in_progress();
         let stats = self.stats();
         Some((task, stats))
@@ -137,14 +138,6 @@ impl TaskList {
 
     pub fn stats(&self) -> Stats {
         Stats::from_tasks(&self.tasks)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.tasks.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.tasks.len()
     }
 
     pub fn clear(&mut self) {
@@ -235,7 +228,9 @@ mod tests {
             Task::new(2, "Task 2").status(Status::InProgress),
             Task::new(3, "Task 3").status(Status::Done),
             Task::new(4, "Task 4"), // Pending
-        ];
+        ]
+        .into_iter()
+        .collect();
 
         let stats = Stats::from_tasks(&tasks);
 

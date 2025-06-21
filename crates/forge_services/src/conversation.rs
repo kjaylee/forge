@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::{Context as AnyhowContext, Result};
 use forge_app::{ConversationService, McpService};
-use forge_domain::{Conversation, ConversationId, TaskList, Workflow};
+use forge_domain::{Conversation, ConversationId, Workflow};
 use tokio::sync::Mutex;
 
 /// Service for managing conversations, including creation, retrieval, and
@@ -61,23 +61,5 @@ impl<M: McpService> ConversationService for ForgeConversationService<M> {
             .await
             .insert(id.clone(), conversation.clone());
         Ok(conversation)
-    }
-
-    async fn task_list(&self, conversation_id: &ConversationId) -> Result<TaskList> {
-        let workflows = self.workflows.lock().await;
-        workflows
-            .get(conversation_id)
-            .map(|c| c.task_list.clone())
-            .context("Conversation not found")
-    }
-
-    async fn set_task_list(&self, conversation_id: &ConversationId, task_list: TaskList) -> Result<()> {
-        let mut workflows = self.workflows.lock().await;
-        if let Some(conversation) = workflows.get_mut(conversation_id) {
-            conversation.task_list = task_list;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Conversation not found"))
-        }
     }
 }
