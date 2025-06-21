@@ -1,0 +1,11 @@
+---
+source: crates/forge_domain/src/task.rs
+expression: actual
+snapshot_kind: text
+---
+# Task List
+
+2. ~~Second task~~
+3. Third task
+
+**Stats:** 2 total, 1 done, 0 in progress, 1 pending

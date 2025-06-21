@@ -1,0 +1,14 @@
+---
+source: crates/forge_domain/src/task.rs
+expression: actual
+snapshot_kind: text
+---
+# Task List
+
+1. **Review pull request #123**
+2. Fix bug in authentication
+3. ~~Deploy to staging~~
+4. Update API documentation
+5. **Refactor user service**
+
+**Stats:** 5 total, 1 done, 2 in progress, 2 pending

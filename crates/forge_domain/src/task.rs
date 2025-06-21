@@ -148,19 +148,37 @@ impl TaskList {
         let mut markdown = String::new();
         markdown.push_str("# Task List\n\n");
 
+        // Calculate the width needed for padding based on the highest task ID
+        let max_id_width = self
+            .tasks
+            .iter()
+            .map(|task| task.id.to_string().len())
+            .max()
+            .unwrap_or(1);
+
         for task in &self.tasks {
-            let status_icon = match task.status {
-                Status::Pending => "⏳",
-                Status::InProgress => "🔄",
-                Status::Done => "✅",
+            let formatted_task = match task.status {
+                Status::Pending => {
+                    format!("{:width$}. {}\n", task.id, task.task, width = max_id_width)
+                }
+                Status::InProgress => {
+                    format!(
+                        "{:width$}. **{}**\n",
+                        task.id,
+                        task.task,
+                        width = max_id_width
+                    )
+                }
+                Status::Done => {
+                    format!(
+                        "{:width$}. ~~{}~~\n",
+                        task.id,
+                        task.task,
+                        width = max_id_width
+                    )
+                }
             };
-            markdown.push_str(&format!(
-                "{}. {} {} - {}\n",
-                task.id,
-                status_icon,
-                task.status_name(),
-                task.task
-            ));
+            markdown.push_str(&formatted_task);
         }
 
         let stats = self.stats();
@@ -302,8 +320,8 @@ mod tests {
         let markdown = task_list.to_markdown();
 
         assert!(markdown.contains("# Task List"));
-        assert!(markdown.contains("⏳ PENDING - Task 1"));
-        assert!(markdown.contains("✅ DONE - Task 2"));
+        assert!(markdown.contains("1. Task 1"));
+        assert!(markdown.contains("~~Task 2~~"));
         assert!(markdown.contains("**Stats:**"));
     }
 
@@ -313,5 +331,73 @@ mod tests {
         let markdown = task_list.to_markdown();
 
         assert_eq!(markdown, "No tasks in the list.");
+    }
+
+    // Snapshot tests for markdown output
+    #[test]
+    fn test_empty_task_list_markdown_snapshot() {
+        let fixture = TaskList::new();
+        let actual = fixture.to_markdown();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn test_single_pending_task_markdown_snapshot() {
+        let mut fixture = TaskList::new();
+        fixture.append("Write documentation");
+        let actual = fixture.to_markdown();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn test_mixed_status_tasks_markdown_snapshot() {
+        let mut fixture = TaskList::new();
+        fixture.append("First task");
+        let (task2, _) = fixture.append("Second task");
+        fixture.append("Third task");
+
+        // Mark second task as done
+        fixture.mark_done(task2.id);
+
+        // Pop front to make first task in progress
+        fixture.pop_front();
+
+        let actual = fixture.to_markdown();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn test_all_done_tasks_markdown_snapshot() {
+        let mut fixture = TaskList::new();
+        let (task1, _) = fixture.append("Complete feature A");
+        let (task2, _) = fixture.append("Write tests");
+        let (task3, _) = fixture.append("Update documentation");
+
+        fixture.mark_done(task1.id);
+        fixture.mark_done(task2.id);
+        fixture.mark_done(task3.id);
+
+        let actual = fixture.to_markdown();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn test_complex_task_list_markdown_snapshot() {
+        let mut fixture = TaskList::new();
+        let (_task1, _) = fixture.append("Review pull request #123");
+        let (_task2, _) = fixture.append("Fix bug in authentication");
+        let (task3, _) = fixture.append("Deploy to staging");
+        let (_task4, _) = fixture.append("Update API documentation");
+        let (_task5, _) = fixture.append("Refactor user service");
+
+        // Mark one task as done
+        fixture.mark_done(task3.id);
+
+        // Mark two tasks as in progress manually (without removing them)
+        fixture.tasks[0].mark_in_progress(); // "Review pull request #123"
+        fixture.tasks[4].mark_in_progress(); // "Refactor user service"
+
+        let actual = fixture.to_markdown();
+        insta::assert_snapshot!(actual);
     }
 }

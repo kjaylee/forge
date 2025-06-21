@@ -1,0 +1,12 @@
+---
+source: crates/forge_domain/src/task.rs
+expression: actual
+snapshot_kind: text
+---
+# Task List
+
+1. ~~Complete feature A~~
+2. ~~Write tests~~
+3. ~~Update documentation~~
+
+**Stats:** 3 total, 3 done, 0 in progress, 0 pending
