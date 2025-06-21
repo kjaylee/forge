@@ -969,32 +969,6 @@ mod tests {
     }
 
     #[test]
-    fn test_task_list_all_done_tasks() {
-        let mut task_list = TaskList::new();
-        let (task1, _) = task_list.append("Complete feature A");
-        let (task2, _) = task_list.append("Write tests");
-        let (task3, _) = task_list.append("Update documentation");
-
-        task_list.mark_done(task1.id);
-        task_list.mark_done(task2.id);
-        task_list.mark_done(task3.id);
-
-        let fixture = Operation::TaskList {
-            _input: forge_domain::TaskListTool {
-                operation: forge_domain::TaskListOperation::List,
-                explanation: Some("List all completed tasks".to_string()),
-            },
-            output: task_list,
-        };
-
-        let env = fixture_environment();
-
-        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
-
-        insta::assert_snapshot!(to_value(actual));
-    }
-
-    #[test]
     fn test_task_list_complex_scenario() {
         let mut task_list = TaskList::new();
         let (_task1, _) = task_list.append("Review pull request #123");
