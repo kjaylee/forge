@@ -1,16 +1,7 @@
-use std::io::stdout;
-
 use color_eyre::Result;
 use forge_main_neo::App;
-use ratatui::{
-    DefaultTerminal,
-    crossterm::{
-        self,
-        cursor::MoveTo,
-        event::{self, Event, KeyCode, KeyModifiers},
-        execute,
-    },
-};
+use ratatui::DefaultTerminal;
+use ratatui::crossterm::event::{self, Event, KeyCode, KeyModifiers};
 
 fn main() -> Result<()> {
     color_eyre::install()?;

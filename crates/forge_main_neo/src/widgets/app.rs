@@ -1,13 +1,9 @@
-use color_eyre::owo_colors::OwoColorize;
-use edtui::{
-    events::{KeyEvent, MouseEvent}, EditorEventHandler, EditorState, EditorStatusLine, EditorTheme, EditorView
-};
-use ratatui::{
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::Span,
-    widgets::{Block, Borders, Padding, Widget},
-};
+use edtui::events::{KeyEvent, MouseEvent};
+use edtui::{EditorEventHandler, EditorState, EditorTheme, EditorView};
+use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::Span;
+use ratatui::widgets::{Block, Borders, Padding, Widget};
 
 #[derive(Default)]
 pub struct App {
