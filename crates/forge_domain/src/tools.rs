@@ -421,6 +421,8 @@ where
 pub enum TaskListOperation {
     /// Add a new task to the end of the list
     Append { task: String },
+    /// Add multiple new tasks to the end of the list
+    AppendMultiple { tasks: Vec<String> },
     /// Mark a specific task as DONE by its ID
     MarkDone { task_id: u32 },
     /// Display the current task list with stats

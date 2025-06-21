@@ -104,6 +104,15 @@ impl TaskList {
         task
     }
 
+    pub fn append_multiple(&mut self, tasks: Vec<String>) -> Vec<Task> {
+        let mut created_tasks = Vec::new();
+        for task_text in tasks {
+            let task = self.append(task_text);
+            created_tasks.push(task);
+        }
+        created_tasks
+    }
+
     pub fn mark_done(&mut self, task_id: u32) -> Option<Task> {
         let task_index = self.tasks.iter().position(|t| t.id == task_id)?;
         self.tasks[task_index].mark_done();
@@ -203,6 +212,38 @@ mod tests {
         assert_eq!(task.id, 1);
         assert_eq!(task.task, "First task");
         assert_eq!(task_list.tasks().len(), 1);
+    }
+
+    #[test]
+    fn test_task_list_append_multiple() {
+        let mut task_list = TaskList::new();
+        let task_texts = vec![
+            "Task 1".to_string(),
+            "Task 2".to_string(),
+            "Task 3".to_string(),
+        ];
+
+        let created_tasks = task_list.append_multiple(task_texts);
+
+        assert_eq!(created_tasks.len(), 3);
+        assert_eq!(created_tasks[0].id, 1);
+        assert_eq!(created_tasks[0].task, "Task 1");
+        assert_eq!(created_tasks[1].id, 2);
+        assert_eq!(created_tasks[1].task, "Task 2");
+        assert_eq!(created_tasks[2].id, 3);
+        assert_eq!(created_tasks[2].task, "Task 3");
+        assert_eq!(task_list.tasks().len(), 3);
+    }
+
+    #[test]
+    fn test_task_list_append_multiple_empty() {
+        let mut task_list = TaskList::new();
+        let task_texts = vec![];
+
+        let created_tasks = task_list.append_multiple(task_texts);
+
+        assert_eq!(created_tasks.len(), 0);
+        assert_eq!(task_list.tasks().len(), 0);
     }
 
     #[test]

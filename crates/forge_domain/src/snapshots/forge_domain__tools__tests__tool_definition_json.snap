@@ -386,6 +386,30 @@ expression: tools
             "additionalProperties": false
           },
           {
+            "description": "Add multiple new tasks to the end of the list",
+            "type": "object",
+            "required": [
+              "append_multiple"
+            ],
+            "properties": {
+              "append_multiple": {
+                "type": "object",
+                "required": [
+                  "tasks"
+                ],
+                "properties": {
+                  "tasks": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Mark a specific task as DONE by its ID",
             "type": "object",
             "required": [

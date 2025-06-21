@@ -81,7 +81,23 @@ impl FormatContent for Tools {
             Tools::ForgeToolAttemptCompletion(input) => {
                 ContentFormat::PlainText(input.result.clone())
             }
-            Tools::ForgeToolTaskList(_) => TitleFormat::debug("Task Update").into(),
+            Tools::ForgeToolTaskList(input) => match input.operation {
+                forge_domain::TaskListOperation::Append { .. } => {
+                    TitleFormat::debug(format!("Task +1")).into()
+                }
+                forge_domain::TaskListOperation::AppendMultiple { ref tasks } => {
+                    TitleFormat::debug(format!("Task +{}", tasks.len())).into()
+                }
+                forge_domain::TaskListOperation::MarkDone { .. } => {
+                    TitleFormat::debug(format!("Task Done")).into()
+                }
+                forge_domain::TaskListOperation::List => {
+                    TitleFormat::debug(format!("Task Read")).into()
+                }
+                forge_domain::TaskListOperation::Clear => {
+                    TitleFormat::debug(format!("Task Clear")).into()
+                }
+            },
         };
 
         Some(output)

@@ -130,6 +130,9 @@ impl<
                     forge_domain::TaskListOperation::Append { task } => {
                         tasks.append(task);
                     }
+                    forge_domain::TaskListOperation::AppendMultiple { tasks: task_list } => {
+                        tasks.append_multiple(task_list.clone());
+                    }
                     forge_domain::TaskListOperation::MarkDone { task_id } => {
                         tasks.mark_done(*task_id).context("Task not found")?;
                     }
