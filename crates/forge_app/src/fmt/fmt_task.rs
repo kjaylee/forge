@@ -36,7 +36,7 @@ pub fn to_markdown(before: &TaskList, after: &TaskList) -> String {
             Status::Done => format!("~~{text}~~"),
         };
 
-        text = format!("{} {}", glyph, text);
+        text = format!("{glyph} {text}");
 
         markdown.push(text);
     }
