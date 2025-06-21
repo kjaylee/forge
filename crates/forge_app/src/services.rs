@@ -395,20 +395,6 @@ impl<I: Services> ConversationService for I {
     {
         self.conversation_service().update(id, f).await
     }
-
-    /*    async fn task_list(&self, conversation_id: &ConversationId) -> anyhow::Result<TaskList> {
-        self.conversation_service().task_list(conversation_id).await
-    }
-
-    async fn set_task_list(
-        &self,
-        conversation_id: &ConversationId,
-        task_list: TaskList,
-    ) -> anyhow::Result<()> {
-        self.conversation_service()
-            .set_task_list(conversation_id, task_list)
-            .await
-    }*/
 }
 #[async_trait::async_trait]
 impl<I: Services> ProviderService for I {
