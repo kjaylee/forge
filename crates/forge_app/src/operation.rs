@@ -6,7 +6,7 @@ use derive_setters::Setters;
 use forge_display::DiffFormat;
 use forge_domain::{
     Environment, FSPatch, FSRead, FSRemove, FSSearch, FSUndo, FSWrite, NetFetch, TaskList,
-    TaskListAppend, TaskListAppendMultiple, TaskListClear, TaskListList, TaskListMarkDone,
+    TaskListAppend, TaskListAppendMultiple, TaskListClear, TaskListList, TaskListUpdate,
 };
 use forge_template::Element;
 
@@ -73,8 +73,8 @@ pub enum Operation {
         before: TaskList,
         after: TaskList,
     },
-    TaskListMarkDone {
-        _input: TaskListMarkDone,
+    TaskListUpdate {
+        _input: TaskListUpdate,
         before: TaskList,
         after: TaskList,
     },
@@ -340,7 +340,7 @@ impl Operation {
             ),
             Operation::TaskListAppend { _input: _, before: _, after }
             | Operation::TaskListAppendMultiple { _input: _, before: _, after }
-            | Operation::TaskListMarkDone { _input: _, before: _, after }
+            | Operation::TaskListUpdate { _input: _, before: _, after }
             | Operation::TaskListList { _input: _, before: _, after }
             | Operation::TaskListClear { _input: _, before: _, after } => {
                 let stats = forge_domain::TaskStats::from(&after);
@@ -1055,11 +1055,12 @@ mod tests {
         before_task_list.append("Another task");
 
         let mut after_task_list = before_task_list.clone();
-        after_task_list.mark_done(task1.id);
+        after_task_list.update_status(task1.id, forge_domain::Status::Done);
 
-        let fixture = Operation::TaskListMarkDone {
-            _input: forge_domain::TaskListMarkDone {
+        let fixture = Operation::TaskListUpdate {
+            _input: forge_domain::TaskListUpdate {
                 task_id: task1.id,
+                status: forge_domain::Status::Done,
                 explanation: Some("Mark task as done".to_string()),
             },
             before: before_task_list,

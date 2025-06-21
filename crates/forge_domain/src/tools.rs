@@ -11,7 +11,7 @@ use serde_json::json;
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumDiscriminants, EnumIter};
 
-use crate::{ToolCallFull, ToolDefinition, ToolDescription, ToolName};
+use crate::{Status, ToolCallFull, ToolDefinition, ToolDescription, ToolName};
 
 /// Enum representing all possible tool input types.
 ///
@@ -46,7 +46,7 @@ pub enum Tools {
     ForgeToolAttemptCompletion(AttemptCompletion),
     ForgeToolTaskListAppend(TaskListAppend),
     ForgeToolTaskListAppendMultiple(TaskListAppendMultiple),
-    ForgeToolTaskListMarkDone(TaskListMarkDone),
+    ForgeToolTaskListUpdate(TaskListUpdate),
     ForgeToolTaskListList(TaskListList),
     ForgeToolTaskListClear(TaskListClear),
 }
@@ -404,13 +404,15 @@ pub struct TaskListAppendMultiple {
     pub explanation: Option<String>,
 }
 
-/// Mark a specific task as DONE by its ID. Use this tool when a task has been
-/// completed and you want to update its status. The task will remain in the
-/// list but marked as completed for tracking purposes.
+/// Update the status of a specific task in the task list. Use this when a
+/// task's status changes (e.g., from Pending to InProgress, InProgress to Done,
+/// etc.). The task will remain in the list but with an updated status.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
-pub struct TaskListMarkDone {
-    /// The ID of the task to mark as done
+pub struct TaskListUpdate {
+    /// The ID of the task to update
     pub task_id: i32,
+    /// The new status for the task
+    pub status: Status,
     /// One sentence explanation as to why this specific tool is being used, and
     /// how it contributes to the goal.
     #[serde(default)]
@@ -563,7 +565,7 @@ impl ToolDescription for Tools {
             Tools::ForgeToolFsCreate(v) => v.description(),
             Tools::ForgeToolTaskListAppend(v) => v.description(),
             Tools::ForgeToolTaskListAppendMultiple(v) => v.description(),
-            Tools::ForgeToolTaskListMarkDone(v) => v.description(),
+            Tools::ForgeToolTaskListUpdate(v) => v.description(),
             Tools::ForgeToolTaskListList(v) => v.description(),
             Tools::ForgeToolTaskListClear(v) => v.description(),
         }
@@ -604,7 +606,7 @@ impl Tools {
             Tools::ForgeToolTaskListAppendMultiple(_) => {
                 gen.into_root_schema_for::<TaskListAppendMultiple>()
             }
-            Tools::ForgeToolTaskListMarkDone(_) => gen.into_root_schema_for::<TaskListMarkDone>(),
+            Tools::ForgeToolTaskListUpdate(_) => gen.into_root_schema_for::<TaskListUpdate>(),
             Tools::ForgeToolTaskListList(_) => gen.into_root_schema_for::<TaskListList>(),
             Tools::ForgeToolTaskListClear(_) => gen.into_root_schema_for::<TaskListClear>(),
         }

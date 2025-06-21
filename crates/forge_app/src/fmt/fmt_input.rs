@@ -87,8 +87,8 @@ impl FormatContent for Tools {
             Tools::ForgeToolTaskListAppendMultiple(input) => {
                 TitleFormat::debug(format!("Task +{} ADD", input.tasks.len())).into()
             }
-            Tools::ForgeToolTaskListMarkDone(_) => {
-                TitleFormat::debug("Task 1 Done".to_string()).into()
+            Tools::ForgeToolTaskListUpdate(_) => {
+                TitleFormat::debug("Task Update".to_string()).into()
             }
             Tools::ForgeToolTaskListList(_) => TitleFormat::debug("Task Read".to_string()).into(),
             Tools::ForgeToolTaskListClear(_) => TitleFormat::debug("Task Clear".to_string()).into(),

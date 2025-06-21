@@ -396,13 +396,14 @@ expression: tools
   }
 }
 {
-  "name": "forge_tool_task_list_mark_done",
-  "description": "Mark a specific task as DONE by its ID. Use this tool when a task has been\n completed and you want to update its status. The task will remain in the\n list but marked as completed for tracking purposes.",
+  "name": "forge_tool_task_list_update",
+  "description": "Update the status of a specific task in the task list. Use this when a\n task\\'s status changes (e.g., from Pending to InProgress, InProgress to Done,\n etc.). The task will remain in the list but with an updated status.",
   "input_schema": {
-    "title": "TaskListMarkDone",
-    "description": "Mark a specific task as DONE by its ID. Use this tool when a task has been completed and you want to update its status. The task will remain in the list but marked as completed for tracking purposes.",
+    "title": "TaskListUpdate",
+    "description": "Update the status of a specific task in the task list. Use this when a task's status changes (e.g., from Pending to InProgress, InProgress to Done, etc.). The task will remain in the list but with an updated status.",
     "type": "object",
     "required": [
+      "status",
       "task_id"
     ],
     "properties": {
@@ -412,8 +413,17 @@ expression: tools
         "type": "string",
         "nullable": true
       },
+      "status": {
+        "description": "The new status for the task",
+        "type": "string",
+        "enum": [
+          "Pending",
+          "InProgress",
+          "Done"
+        ]
+      },
       "task_id": {
-        "description": "The ID of the task to mark as done",
+        "description": "The ID of the task to update",
         "type": "integer",
         "format": "int32"
       }

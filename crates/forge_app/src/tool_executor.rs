@@ -133,10 +133,12 @@ impl<
                 tasks.append_multiple(input.tasks.clone());
                 Operation::TaskListAppendMultiple { _input: input, before, after: tasks.clone() }
             }
-            Tools::ForgeToolTaskListMarkDone(input) => {
+            Tools::ForgeToolTaskListUpdate(input) => {
                 let before = tasks.clone();
-                tasks.mark_done(input.task_id).context("Task not found")?;
-                Operation::TaskListMarkDone { _input: input, before, after: tasks.clone() }
+                tasks
+                    .update_status(input.task_id, input.status.clone())
+                    .context("Task not found")?;
+                Operation::TaskListUpdate { _input: input, before, after: tasks.clone() }
             }
             Tools::ForgeToolTaskListList(input) => {
                 let before = tasks.clone();

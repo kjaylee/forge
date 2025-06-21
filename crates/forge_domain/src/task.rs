@@ -1,9 +1,10 @@
 use std::collections::VecDeque;
 
 use derive_setters::Setters;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, JsonSchema)]
 pub enum Status {
     #[default]
     Pending,
@@ -116,6 +117,12 @@ impl TaskList {
     pub fn mark_done(&mut self, task_id: i32) -> Option<Task> {
         let task_index = self.tasks.iter().position(|t| t.id == task_id)?;
         self.tasks[task_index].mark_done();
+        Some(self.tasks[task_index].clone())
+    }
+
+    pub fn update_status(&mut self, task_id: i32, status: Status) -> Option<Task> {
+        let task_index = self.tasks.iter().position(|t| t.id == task_id)?;
+        self.tasks[task_index].status = status;
         Some(self.tasks[task_index].clone())
     }
 
@@ -280,5 +287,43 @@ mod tests {
 
         assert!(task_list.tasks().is_empty());
         assert_eq!(task_list.next_id, 1);
+    }
+
+    #[test]
+    fn test_task_list_update_status() {
+        let mut task_list = TaskList::new();
+        let task1 = task_list.append("Task 1");
+        task_list.append("Task 2");
+
+        // Update to InProgress
+        let result = task_list.update_status(task1.id, Status::InProgress);
+        assert!(result.is_some());
+        let updated_task = result.unwrap();
+        assert_eq!(updated_task.task, "Task 1");
+        assert!(updated_task.is_in_progress());
+
+        // Update to Done
+        let result = task_list.update_status(task1.id, Status::Done);
+        assert!(result.is_some());
+        let updated_task = result.unwrap();
+        assert_eq!(updated_task.task, "Task 1");
+        assert!(updated_task.is_done());
+
+        // Update back to Pending
+        let result = task_list.update_status(task1.id, Status::Pending);
+        assert!(result.is_some());
+        let updated_task = result.unwrap();
+        assert_eq!(updated_task.task, "Task 1");
+        assert!(updated_task.is_pending());
+    }
+
+    #[test]
+    fn test_task_list_update_status_nonexistent() {
+        let mut task_list = TaskList::new();
+        task_list.append("Task 1");
+
+        let result = task_list.update_status(999, Status::Done);
+
+        assert!(result.is_none());
     }
 }
