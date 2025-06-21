@@ -11,7 +11,6 @@ use crate::services::ShellService;
 use crate::{
     ConversationService, EnvironmentService, FollowUpService, FsCreateService, FsPatchService,
     FsReadService, FsRemoveService, FsSearchService, FsUndoService, NetFetchService,
-    TaskListOutput,
 };
 
 pub struct ToolExecutor<S> {
@@ -126,70 +125,34 @@ impl<
                 crate::operation::Operation::AttemptCompletion
             }
             Tools::ForgeToolTaskList(input) => {
-                let output = match &input.operation {
+                match &input.operation {
                     forge_domain::TaskListOperation::Append { task } => {
-                        let (task, stats) = tasks.append(task);
-                        TaskListOutput::TaskAdded {
-                            task,
-                            stats,
-                            message: "Task appended to the list.".to_string(),
-                        }
+                        tasks.append(task);
                     }
                     forge_domain::TaskListOperation::Prepend { task } => {
-                        let (task, stats) = tasks.prepend(task);
-                        TaskListOutput::TaskAdded {
-                            task,
-                            stats,
-                            message: "Task prepended to the list.".to_string(),
-                        }
+                        tasks.prepend(task);
                     }
                     forge_domain::TaskListOperation::PopFront => {
-                        let (task, stats) = tasks.pop_front().context("Task list is empty")?;
-                        TaskListOutput::TaskPopped {
-                            task,
-                            stats,
-                            message: "Task popped from the front of the list.".to_string(),
-                        }
+                        tasks.pop_front().context("Task list is empty")?;
                     }
-                    forge_domain::TaskListOperation::PopBack => match tasks.pop_back() {
-                        Some((task, stats)) => TaskListOutput::TaskPopped {
-                            task,
-                            stats,
-                            message: "Task popped from the back of the list.".to_string(),
-                        },
-                        None => {
-                            TaskListOutput::Error { message: "Task list is empty.".to_string() }
-                        }
-                    },
+                    forge_domain::TaskListOperation::PopBack => {
+                        tasks.pop_back().context("Task list is empty")?;
+                    }
                     forge_domain::TaskListOperation::MarkDone { task_id } => {
-                        let result = tasks.mark_done(*task_id);
-                        if let Some((completed_task, next_task, stats)) = result {
-                            TaskListOutput::TaskCompleted {
-                                completed_task,
-                                next_task,
-                                stats,
-                                message: "Task marked as done.".to_string(),
-                            }
-                        } else {
-                            TaskListOutput::Error { message: "Task not found.".to_string() }
-                        }
+                        tasks.mark_done(*task_id).context("Task not found")?;
                     }
                     forge_domain::TaskListOperation::List => {
-                        let markdown = tasks.to_markdown();
-                        let stats = tasks.stats();
-                        TaskListOutput::TaskList { markdown, stats }
+                        // No operation needed, just return the current state
                     }
                     forge_domain::TaskListOperation::Clear => {
                         tasks.clear();
-                        TaskListOutput::Cleared { message: "Task list cleared.".to_string() }
                     }
                     forge_domain::TaskListOperation::Stats => {
-                        let stats = tasks.stats();
-                        TaskListOutput::StatsOnly { stats }
+                        // No operation needed, just return the current state
                     }
                 };
 
-                Operation::TaskList { _input: input, output }
+                Operation::TaskList { _input: input, output: tasks.clone() }
             }
         })
     }

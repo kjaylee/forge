@@ -1,0 +1,21 @@
+---
+source: crates/forge_app/src/operation.rs
+expression: to_value(actual)
+---
+<task_list
+  total_tasks="2"
+  pending_tasks="2"
+  in_progress_tasks="0"
+  done_tasks="0"
+>
+<task
+  id="2"
+  status="PENDING"
+><![CDATA[Task 2]]>
+</task>
+<task
+  id="3"
+  status="PENDING"
+><![CDATA[Task 3]]>
+</task>
+</task_list>

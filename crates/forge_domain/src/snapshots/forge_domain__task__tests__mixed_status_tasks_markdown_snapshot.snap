@@ -1,7 +1,6 @@
 ---
 source: crates/forge_domain/src/task.rs
 expression: actual
-snapshot_kind: text
 ---
 # Task List
 

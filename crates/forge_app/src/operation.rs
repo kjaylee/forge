@@ -5,7 +5,8 @@ use console::strip_ansi_codes;
 use derive_setters::Setters;
 use forge_display::DiffFormat;
 use forge_domain::{
-    Environment, FSPatch, FSRead, FSRemove, FSSearch, FSUndo, FSWrite, NetFetch, TaskListTool,
+    Environment, FSPatch, FSRead, FSRemove, FSSearch, FSUndo, FSWrite, NetFetch, TaskList,
+    TaskListTool,
 };
 use forge_template::Element;
 
@@ -16,7 +17,7 @@ use crate::truncation::{
 use crate::utils::display_path;
 use crate::{
     Content, EnvironmentService, FsCreateOutput, FsCreateService, FsUndoOutput, HttpResponse,
-    PatchOutput, ReadOutput, ResponseContext, SearchResult, ShellOutput, TaskListOutput,
+    PatchOutput, ReadOutput, ResponseContext, SearchResult, ShellOutput,
 };
 
 #[derive(Debug, Default, Setters)]
@@ -64,7 +65,7 @@ pub enum Operation {
     AttemptCompletion,
     TaskList {
         _input: TaskListTool,
-        output: TaskListOutput,
+        output: TaskList,
     },
 }
 
@@ -316,87 +317,22 @@ impl Operation {
                 Element::new("success")
                     .text("[Task was completed successfully. Now wait for user feedback]"),
             ),
-            Operation::TaskList { _input: _, output } => match output {
-                crate::TaskListOutput::TaskAdded { task, stats, message } => {
-                    let elm = Element::new("task_added")
-                        .attr("task_id", task.id)
-                        .attr("task_text", &task.task)
-                        .attr("status", task.status_name())
-                        .attr("total_tasks", stats.total_tasks)
-                        .attr("pending_tasks", stats.pending_tasks)
-                        .attr("in_progress_tasks", stats.in_progress_tasks)
-                        .attr("done_tasks", stats.done_tasks)
-                        .text(message);
-                    forge_domain::ToolOutput::text(elm)
-                }
-                crate::TaskListOutput::TaskPopped { task, stats, message } => {
-                    let elm = Element::new("task_popped")
-                        .attr("task_id", task.id)
-                        .attr("task_text", &task.task)
-                        .attr("status", task.status_name())
-                        .attr("total_tasks", stats.total_tasks)
-                        .attr("pending_tasks", stats.pending_tasks)
-                        .attr("in_progress_tasks", stats.in_progress_tasks)
-                        .attr("done_tasks", stats.done_tasks)
-                        .text(message);
-                    forge_domain::ToolOutput::text(elm)
-                }
-                crate::TaskListOutput::TaskCompleted {
-                    completed_task,
-                    next_task,
-                    stats,
-                    message,
-                } => {
-                    let mut elm = Element::new("task_completed")
-                        .attr("completed_task_id", completed_task.id)
-                        .attr("completed_task_text", &completed_task.task)
-                        .attr("completed_status", completed_task.status_name())
-                        .attr("total_tasks", stats.total_tasks)
-                        .attr("pending_tasks", stats.pending_tasks)
-                        .attr("in_progress_tasks", stats.in_progress_tasks)
-                        .attr("done_tasks", stats.done_tasks);
-
-                    if let Some(next) = next_task {
-                        elm = elm
-                            .attr("next_task_id", next.id)
-                            .attr("next_task_text", &next.task)
-                            .attr("next_status", next.status_name());
-                    }
-
-                    elm = elm.text(message);
-                    forge_domain::ToolOutput::text(elm)
-                }
-                crate::TaskListOutput::TaskList { markdown, stats } => {
-                    let elm = Element::new("task_list")
-                        .attr("total_tasks", stats.total_tasks)
-                        .attr("pending_tasks", stats.pending_tasks)
-                        .attr("in_progress_tasks", stats.in_progress_tasks)
-                        .attr("done_tasks", stats.done_tasks)
-                        .cdata(markdown);
-                    forge_domain::ToolOutput::text(elm)
-                }
-                crate::TaskListOutput::StatsOnly { stats } => {
-                    let elm = Element::new("task_stats")
-                        .attr("total_tasks", stats.total_tasks)
-                        .attr("pending_tasks", stats.pending_tasks)
-                        .attr("in_progress_tasks", stats.in_progress_tasks)
-                        .attr("done_tasks", stats.done_tasks)
-                        .text("Task statistics retrieved successfully.");
-                    forge_domain::ToolOutput::text(elm)
-                }
-                crate::TaskListOutput::Cleared { message } => {
-                    let elm = Element::new("task_list_cleared").text(message);
-                    forge_domain::ToolOutput::text(elm)
-                }
-                crate::TaskListOutput::Empty { message } => {
-                    let elm = Element::new("task_list_empty").text(message);
-                    forge_domain::ToolOutput::text(elm)
-                }
-                crate::TaskListOutput::Error { message } => {
-                    let elm = Element::new("task_error").text(message);
-                    forge_domain::ToolOutput::text(elm)
-                }
-            },
+            Operation::TaskList { _input: _, output } => {
+                let stats = output.stats();
+                let elm = Element::new("task_list")
+                    .attr("total_tasks", stats.total_tasks)
+                    .attr("pending_tasks", stats.pending_tasks)
+                    .attr("in_progress_tasks", stats.in_progress_tasks)
+                    .attr("done_tasks", stats.done_tasks)
+                    .append(output.tasks.iter().map(|task| {
+                        //
+                        Element::new("task")
+                            .attr("id", task.id)
+                            .attr("status", task.status.status_name())
+                            .cdata(task.task.as_str())
+                    }));
+                forge_domain::ToolOutput::text(elm)
+            }
         }
     }
 
@@ -967,6 +903,249 @@ mod tests {
 
         insta::assert_snapshot!(to_value(actual));
     }
+    #[test]
+    fn test_task_list_empty() {
+        let fixture = Operation::TaskList {
+            _input: forge_domain::TaskListTool {
+                operation: forge_domain::TaskListOperation::List,
+                explanation: Some("List empty tasks".to_string()),
+            },
+            output: TaskList::new(),
+        };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_task_list_single_pending_task() {
+        let mut task_list = TaskList::new();
+        task_list.append("Write documentation");
+
+        let fixture = Operation::TaskList {
+            _input: forge_domain::TaskListTool {
+                operation: forge_domain::TaskListOperation::List,
+                explanation: Some("List tasks with one pending".to_string()),
+            },
+            output: task_list,
+        };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_task_list_mixed_status_tasks() {
+        let mut task_list = TaskList::new();
+        task_list.append("First task");
+        let (task2, _) = task_list.append("Second task");
+        task_list.append("Third task");
+
+        // Mark second task as done
+        task_list.mark_done(task2.id);
+
+        // Pop front to make first task in progress
+        task_list.pop_front();
+
+        let fixture = Operation::TaskList {
+            _input: forge_domain::TaskListTool {
+                operation: forge_domain::TaskListOperation::List,
+                explanation: Some("List tasks with mixed statuses".to_string()),
+            },
+            output: task_list,
+        };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_task_list_all_done_tasks() {
+        let mut task_list = TaskList::new();
+        let (task1, _) = task_list.append("Complete feature A");
+        let (task2, _) = task_list.append("Write tests");
+        let (task3, _) = task_list.append("Update documentation");
+
+        task_list.mark_done(task1.id);
+        task_list.mark_done(task2.id);
+        task_list.mark_done(task3.id);
+
+        let fixture = Operation::TaskList {
+            _input: forge_domain::TaskListTool {
+                operation: forge_domain::TaskListOperation::List,
+                explanation: Some("List all completed tasks".to_string()),
+            },
+            output: task_list,
+        };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_task_list_complex_scenario() {
+        let mut task_list = TaskList::new();
+        let (_task1, _) = task_list.append("Review pull request #123");
+        let (_task2, _) = task_list.append("Fix bug in authentication");
+        let (task3, _) = task_list.append("Deploy to staging");
+        let (_task4, _) = task_list.append("Update API documentation");
+        let (_task5, _) = task_list.append("Refactor user service");
+
+        // Mark one task as done
+        task_list.mark_done(task3.id);
+
+        // Pop some tasks to make them in progress
+        task_list.pop_front(); // Mark first task as in progress (removes it from list)
+        task_list.pop_back(); // Mark last task as in progress (removes it from list)
+
+        let fixture = Operation::TaskList {
+            _input: forge_domain::TaskListTool {
+                operation: forge_domain::TaskListOperation::List,
+                explanation: Some("List complex task scenario".to_string()),
+            },
+            output: task_list,
+        };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_task_list_append_operation() {
+        let mut task_list = TaskList::new();
+        task_list.append("Existing task");
+        task_list.append("New task from append");
+
+        let fixture = Operation::TaskList {
+            _input: forge_domain::TaskListTool {
+                operation: forge_domain::TaskListOperation::Append {
+                    task: "New task from append".to_string(),
+                },
+                explanation: Some("Append new task".to_string()),
+            },
+            output: task_list,
+        };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_task_list_prepend_operation() {
+        let mut task_list = TaskList::new();
+        task_list.append("Existing task");
+        task_list.prepend("Urgent task");
+
+        let fixture = Operation::TaskList {
+            _input: forge_domain::TaskListTool {
+                operation: forge_domain::TaskListOperation::Prepend {
+                    task: "Urgent task".to_string(),
+                },
+                explanation: Some("Prepend urgent task".to_string()),
+            },
+            output: task_list,
+        };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_task_list_mark_done_operation() {
+        let mut task_list = TaskList::new();
+        let (task1, _) = task_list.append("Task to complete");
+        task_list.append("Another task");
+        task_list.mark_done(task1.id);
+
+        let fixture = Operation::TaskList {
+            _input: forge_domain::TaskListTool {
+                operation: forge_domain::TaskListOperation::MarkDone { task_id: task1.id },
+                explanation: Some("Mark task as done".to_string()),
+            },
+            output: task_list,
+        };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_task_list_stats_only() {
+        let mut task_list = TaskList::new();
+        let (task1, _) = task_list.append("Task 1");
+        let (_task2, _) = task_list.append("Task 2");
+        let (_task3, _) = task_list.append("Task 3");
+        task_list.mark_done(task1.id);
+        task_list.pop_front(); // Mark task 2 as in progress
+
+        let fixture = Operation::TaskList {
+            _input: forge_domain::TaskListTool {
+                operation: forge_domain::TaskListOperation::Stats,
+                explanation: Some("Show task statistics".to_string()),
+            },
+            output: task_list,
+        };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_task_list_large_numbers() {
+        let mut task_list = TaskList::new();
+        // Create tasks with large IDs to test padding
+        for i in 1..=15 {
+            task_list.append(format!("Task number {}", i));
+        }
+
+        // Mark some tasks with different statuses
+        task_list.mark_done(1);
+        task_list.mark_done(5);
+        task_list.mark_done(10);
+        task_list.pop_front(); // Mark task 2 as in progress
+        task_list.pop_front(); // Mark task 3 as in progress
+
+        let fixture = Operation::TaskList {
+            _input: forge_domain::TaskListTool {
+                operation: forge_domain::TaskListOperation::List,
+                explanation: Some("List tasks with large numbers".to_string()),
+            },
+            output: task_list,
+        };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
 
     #[test]
     fn test_fs_create_with_warning() {
@@ -1290,6 +1469,17 @@ mod tests {
                 shell: "/bin/bash".to_string(),
             },
         };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_attempt_completion() {
+        let fixture = Operation::AttemptCompletion;
 
         let env = fixture_environment();
 

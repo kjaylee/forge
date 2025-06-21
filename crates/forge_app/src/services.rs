@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 
 use forge_domain::{
     Attachment, ChatCompletionMessage, CommandOutput, Context, Conversation, ConversationId,
-    Environment, File, McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope, Task,
-    TaskStats, ToolCallFull, ToolDefinition, ToolOutput, Workflow,
+    Environment, File, McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope,
+    ToolCallFull, ToolDefinition, ToolOutput, Workflow,
 };
 use merge::Merge;
 use serde::{Deserialize, Serialize};
@@ -24,43 +24,6 @@ pub enum TaskOperation {
     List,
     Clear,
     Stats,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TaskListOutput {
-    TaskAdded {
-        task: Task,
-        stats: TaskStats,
-        message: String,
-    },
-    TaskPopped {
-        task: Task,
-        stats: TaskStats,
-        message: String,
-    },
-    TaskCompleted {
-        completed_task: Task,
-        next_task: Option<Task>,
-        stats: TaskStats,
-        message: String,
-    },
-    TaskList {
-        markdown: String,
-        stats: TaskStats,
-    },
-    StatsOnly {
-        stats: TaskStats,
-    },
-    Cleared {
-        message: String,
-    },
-    Empty {
-        message: String,
-    },
-    Error {
-        message: String,
-    },
 }
 
 use crate::Walker;

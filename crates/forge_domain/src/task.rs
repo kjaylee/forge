@@ -72,7 +72,7 @@ impl TaskStats {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TaskList {
-    tasks: VecDeque<Task>,
+    pub tasks: VecDeque<Task>,
     next_id: u32,
 }
 
