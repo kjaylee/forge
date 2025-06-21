@@ -83,19 +83,19 @@ impl FormatContent for Tools {
             }
             Tools::ForgeToolTaskList(input) => match input.operation {
                 forge_domain::TaskListOperation::Append { .. } => {
-                    TitleFormat::debug(format!("Task +1")).into()
+                    TitleFormat::debug("Task +1".to_string()).into()
                 }
                 forge_domain::TaskListOperation::AppendMultiple { ref tasks } => {
                     TitleFormat::debug(format!("Task +{}", tasks.len())).into()
                 }
                 forge_domain::TaskListOperation::MarkDone { .. } => {
-                    TitleFormat::debug(format!("Task Done")).into()
+                    TitleFormat::debug("Task Done".to_string()).into()
                 }
                 forge_domain::TaskListOperation::List => {
-                    TitleFormat::debug(format!("Task Read")).into()
+                    TitleFormat::debug("Task Read".to_string()).into()
                 }
                 forge_domain::TaskListOperation::Clear => {
-                    TitleFormat::debug(format!("Task Clear")).into()
+                    TitleFormat::debug("Task Clear".to_string()).into()
                 }
             },
         };
