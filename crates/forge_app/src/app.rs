@@ -99,18 +99,9 @@ impl<S: Services> ForgeApp<S> {
                     let mut orch = orch.sender(tx.clone());
                     let dispatch_result = orch.chat(chat.event).await;
 
-                    // Get fresh conversation from service instead of stale orchestrator copy
-                    let save_result = match services.find(&chat.conversation_id).await {
-                        Ok(Some(fresh_conversation)) => services.upsert(fresh_conversation).await,
-                        Ok(None) => {
-                            // Conversation not found, this shouldn't happen but handle gracefully
-                            Err(anyhow::anyhow!(
-                                "Conversation {} not found after tool execution",
-                                chat.conversation_id
-                            ))
-                        }
-                        Err(err) => Err(err),
-                    };
+                    // Always save conversation using get_conversation()
+                    let conversation = orch.get_conversation().clone();
+                    let save_result = services.upsert(conversation).await;
 
                     // Send any error to the stream (prioritize dispatch error over save error)
                     #[allow(clippy::collapsible_if)]
