@@ -1,5 +1,5 @@
 use color_eyre::Result;
-use forge_main_neo::App;
+use forge_main_neo::{App, State};
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyModifiers};
 
@@ -12,11 +12,12 @@ fn main() -> Result<()> {
 }
 
 fn run(mut terminal: DefaultTerminal) -> Result<()> {
+    let mut state = State::default();
     let mut app = App::default();
 
     loop {
         terminal.draw(|frame| {
-            frame.render_widget(&mut app, frame.area());
+            frame.render_stateful_widget(&app, frame.area(), &mut state);
         })?;
 
         match event::read()? {
@@ -28,11 +29,11 @@ fn run(mut terminal: DefaultTerminal) -> Result<()> {
                         break Ok(());
                     }
                 } else {
-                    app.on_key_event(event);
+                    app.on_key_event(event, &mut state);
                 }
             }
             Event::Mouse(event) => {
-                app.on_mouse_event(event);
+                app.on_mouse_event(event, &mut state);
             }
             _ => {}
         }

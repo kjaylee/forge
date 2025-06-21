@@ -3,42 +3,45 @@ use edtui::{EditorEventHandler, EditorState, EditorTheme, EditorView};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::style::{Style, Stylize};
 use ratatui::symbols::{border, line};
-use ratatui::widgets::{Block, Borders, Padding, Paragraph, Widget};
+use ratatui::widgets::{Block, Borders, Padding, Paragraph, StatefulWidget, Widget};
 
 use crate::widgets::status::StatusBar;
 
 #[derive(Default)]
 pub struct App {
     editor: EditorEventHandler,
-    editor_state: EditorState,
-    state: State,
 }
 
 #[derive(Default)]
 pub struct State {
     messages: Vec<String>,
+    editor: EditorState,
 }
 
 impl App {
-    pub fn on_key_event<T>(&mut self, key_event: T)
+    pub fn on_key_event<T>(&mut self, key_event: T, state: &mut State)
     where
         T: Into<KeyEvent>,
     {
-        self.editor.on_key_event(key_event, &mut self.editor_state);
+        self.editor.on_key_event(key_event, &mut state.editor);
     }
 
-    pub fn on_mouse_event<T>(&mut self, key_event: T)
+    pub fn on_mouse_event<T>(&mut self, key_event: T, state: &mut State)
     where
         T: Into<MouseEvent>,
     {
-        self.editor
-            .on_mouse_event(key_event, &mut self.editor_state);
+        self.editor.on_mouse_event(key_event, &mut state.editor);
     }
 }
 
-impl Widget for &mut App {
-    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
-    where
+impl StatefulWidget for &App {
+    type State = State;
+    fn render(
+        self,
+        area: ratatui::prelude::Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &mut Self::State,
+    ) where
         Self: Sized,
     {
         let main_layout = Layout::new(
@@ -77,9 +80,9 @@ impl Widget for &mut App {
             .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
             .title_style(Style::default().dark_gray())
             .border_style(Style::default().dark_gray())
-            .title_bottom(StatusBar::new("FORGE", self.editor_state.mode.name()));
+            .title_bottom(StatusBar::new("FORGE", state.editor.mode.name()));
 
-        EditorView::new(&mut self.editor_state)
+        EditorView::new(&mut state.editor)
             .theme(
                 EditorTheme::default()
                     .base(Style::reset())
