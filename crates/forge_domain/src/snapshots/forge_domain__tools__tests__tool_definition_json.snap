@@ -1,6 +1,7 @@
 ---
 source: crates/forge_domain/src/tools.rs
 expression: tools
+snapshot_kind: text
 ---
 {
   "name": "forge_tool_fs_read",
@@ -346,10 +347,10 @@ expression: tools
 }
 {
   "name": "forge_tool_task_list",
-  "description": "Task list management tool for organizing and tracking work items during\n development sessions. Supports operations like append, prepend, pop, mark\n done, list, clear, and stats. Tasks are stored in conversation state and\n persist across agent interactions. Use this tool to maintain focus on\n objectives and track progress through complex workflows.",
+  "description": "Task list management tool for organizing and tracking work items during\n development sessions. Supports operations like append, prepend, pop, mark\n done, list, clear, and stats. Tasks are stored in conversation state and\n persist across agent interactions. Use this tool to maintain focus on\n objectives and track progress through complex workflows. Returns task\n status updates and list views in plain text format. Should be used when\n you need to organize work into discrete steps, track completion status,\n or maintain context across multiple interactions. Do not use for file\n management, code execution, or data persistence beyond the current session.\n Task IDs are auto-generated integers starting from 1.",
   "input_schema": {
     "title": "TaskListTool",
-    "description": "Task list management tool for organizing and tracking work items during development sessions. Supports operations like append, prepend, pop, mark done, list, clear, and stats. Tasks are stored in conversation state and persist across agent interactions. Use this tool to maintain focus on objectives and track progress through complex workflows.",
+    "description": "Task list management tool for organizing and tracking work items during development sessions. Supports operations like append, prepend, pop, mark done, list, clear, and stats. Tasks are stored in conversation state and persist across agent interactions. Use this tool to maintain focus on objectives and track progress through complex workflows. Returns task status updates and list views in plain text format. Should be used when you need to organize work into discrete steps, track completion status, or maintain context across multiple interactions. Do not use for file management, code execution, or data persistence beyond the current session. Task IDs are auto-generated integers starting from 1.",
     "type": "object",
     "required": [
       "operation"

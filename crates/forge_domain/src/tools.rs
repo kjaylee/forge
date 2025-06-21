@@ -376,7 +376,12 @@ pub struct AttemptCompletion {
 /// development sessions. Supports operations like append, prepend, pop, mark
 /// done, list, clear, and stats. Tasks are stored in conversation state and
 /// persist across agent interactions. Use this tool to maintain focus on
-/// objectives and track progress through complex workflows.
+/// objectives and track progress through complex workflows. Returns task
+/// status updates and list views in plain text format. Should be used when
+/// you need to organize work into discrete steps, track completion status,
+/// or maintain context across multiple interactions. Do not use for file
+/// management, code execution, or data persistence beyond the current session.
+/// Task IDs are auto-generated integers starting from 1.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
 pub struct TaskListTool {
     /// The operation to perform on the task list
