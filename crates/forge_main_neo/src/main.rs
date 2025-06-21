@@ -1,7 +1,16 @@
+use std::io::stdout;
+
 use color_eyre::Result;
-use crossterm::event::{self, Event};
 use forge_main_neo::App;
-use ratatui::DefaultTerminal;
+use ratatui::{
+    DefaultTerminal,
+    crossterm::{
+        self,
+        cursor::MoveTo,
+        event::{self, Event, KeyCode, KeyModifiers},
+        execute,
+    },
+};
 
 fn main() -> Result<()> {
     color_eyre::install()?;
@@ -12,13 +21,29 @@ fn main() -> Result<()> {
 }
 
 fn run(mut terminal: DefaultTerminal) -> Result<()> {
-    let app = App::default();
+    let mut app = App::default();
+
     loop {
         terminal.draw(|frame| {
-            frame.render_widget(&app, frame.area());
+            frame.render_widget(&mut app, frame.area());
         })?;
-        if matches!(event::read()?, Event::Key(_)) {
-            break Ok(());
+
+        match event::read()? {
+            Event::Key(event) => {
+                if event.code == KeyCode::Char('c')
+                    && event.modifiers.contains(KeyModifiers::CONTROL)
+                {
+                    {
+                        break Ok(());
+                    }
+                } else {
+                    app.on_key_event(event);
+                }
+            }
+            Event::Mouse(event) => {
+                app.on_mouse_event(event);
+            }
+            _ => {}
         }
     }
 }
