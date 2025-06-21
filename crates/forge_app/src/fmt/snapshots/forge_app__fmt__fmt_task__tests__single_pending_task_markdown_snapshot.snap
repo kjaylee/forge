@@ -2,6 +2,5 @@
 source: crates/forge_app/src/fmt/fmt_task.rs
 expression: actual
 ---
-1. Write documentation
-
-**Stats:** 1 total, 0 done, 0 in progress, 1 pending
+☐ **Write documentation**
+**Summary:** 1 total, 0 done, 0 in progress, 1 pending

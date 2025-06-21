@@ -81,7 +81,7 @@ impl FormatContent for Tools {
             Tools::ForgeToolAttemptCompletion(input) => {
                 ContentFormat::PlainText(input.result.clone())
             }
-            Tools::ForgeToolTaskList(_) => TitleFormat::debug("Tasks Updated").into(),
+            Tools::ForgeToolTaskList(_) => TitleFormat::debug("Task Update").into(),
         };
 
         Some(output)

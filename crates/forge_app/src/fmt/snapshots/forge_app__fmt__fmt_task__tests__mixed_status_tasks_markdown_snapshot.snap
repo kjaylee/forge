@@ -1,9 +1,9 @@
 ---
 source: crates/forge_app/src/fmt/fmt_task.rs
 expression: actual
+snapshot_kind: text
 ---
-1. **First task**
-2. ~~Second task~~
-3. Third task
-
-**Stats:** 3 total, 1 done, 1 in progress, 1 pending
+▣ __**First task**__
+◼ ~~**Second task**~~
+☐ Third task
+**Summary:** 3 total, 1 done, 1 in progress, 1 pending

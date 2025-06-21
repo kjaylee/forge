@@ -1,9 +1,9 @@
 ---
 source: crates/forge_app/src/fmt/fmt_task.rs
 expression: actual
+snapshot_kind: text
 ---
-1. ~~Complete feature A~~
-2. ~~Write tests~~
-3. ~~Update documentation~~
-
-**Stats:** 3 total, 3 done, 0 in progress, 0 pending
+◼ ~~**Complete feature A**~~
+◼ ~~**Write tests**~~
+◼ ~~**Update documentation**~~
+**Summary:** 3 total, 3 done, 0 in progress, 0 pending

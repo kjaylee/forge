@@ -1,11 +1,11 @@
 ---
 source: crates/forge_app/src/fmt/fmt_task.rs
 expression: actual
+snapshot_kind: text
 ---
-1. **Review pull request #123**
-2. Fix bug in authentication
-3. ~~Deploy to staging~~
-4. Update API documentation
-5. **Refactor user service**
-
-**Stats:** 5 total, 1 done, 2 in progress, 2 pending
+▣ __**Review pull request #123**__
+☐ Fix bug in authentication
+◼ ~~**Deploy to staging**~~
+☐ Update API documentation
+▣ __**Refactor user service**__
+**Summary:** 5 total, 1 done, 2 in progress, 2 pending

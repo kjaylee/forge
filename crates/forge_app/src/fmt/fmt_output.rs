@@ -31,8 +31,8 @@ impl FormatContent for Operation {
             Operation::Shell { output: _ } => None,
             Operation::FollowUp { output: _ } => None,
             Operation::AttemptCompletion => None,
-            Operation::TaskList { _input: _, before: _, after } => Some(ContentFormat::Markdown(
-                crate::fmt::fmt_task::to_markdown(after),
+            Operation::TaskList { _input: _, before, after } => Some(ContentFormat::Markdown(
+                crate::fmt::fmt_task::to_markdown(before, after),
             )),
         }
     }

@@ -1,52 +1,52 @@
 use forge_domain::{Status, TaskList, TaskStats};
 
-pub fn to_markdown(task_list: &TaskList) -> String {
-    if task_list.tasks().is_empty() {
+pub fn to_markdown(before: &TaskList, after: &TaskList) -> String {
+    if after.tasks().is_empty() {
         return "No tasks in the list.".to_string();
     }
 
-    let mut markdown = String::new();
+    let mut markdown: Vec<String> = Vec::new();
 
-    // Calculate the width needed for padding based on the highest task ID
-    let max_id_width = task_list
-        .tasks()
-        .iter()
-        .map(|task| task.id.to_string().len())
-        .max()
-        .unwrap_or(1);
+    // Create a map of before tasks for comparison
+    let before_tasks: std::collections::HashMap<u32, &forge_domain::Task> =
+        before.tasks().iter().map(|task| (task.id, task)).collect();
 
-    for task in task_list.tasks() {
-        let formatted_task = match task.status {
-            Status::Pending => {
-                format!("{:width$}. {}\n", task.id, task.task, width = max_id_width)
-            }
-            Status::InProgress => {
-                format!(
-                    "{:width$}. **{}**\n",
-                    task.id,
-                    task.task,
-                    width = max_id_width
-                )
-            }
-            Status::Done => {
-                format!(
-                    "{:width$}. ~~{}~~\n",
-                    task.id,
-                    task.task,
-                    width = max_id_width
-                )
-            }
+    for task in after.tasks().iter() {
+        // Check if task has changed by comparing with before state
+        let task_changed = match before_tasks.get(&task.id) {
+            Some(before_task) => before_task.status != task.status || before_task.task != task.task,
+            None => true, // New task
         };
-        markdown.push_str(&formatted_task);
+
+        let text = if task_changed {
+            format!("**{}**", task.task) // Bold for changed tasks
+        } else {
+            task.task.clone()
+        };
+
+        let glyph = match task.status {
+            Status::Pending => "☐",
+            Status::InProgress => "▣",
+            Status::Done => "◼",
+        };
+
+        let text = match task.status {
+            Status::Pending => text,
+            Status::InProgress => format!("__{text}__"),
+            Status::Done => format!("~~{text}~~"),
+        };
+
+        let formatted_task = format!("{glyph} {text}");
+        markdown.push(formatted_task);
     }
 
-    let stats = TaskStats::from(task_list);
-    markdown.push_str(&format!(
-        "\n**Stats:** {} total, {} done, {} in progress, {} pending\n",
+    let stats = TaskStats::from(after);
+    markdown.push(format!(
+        "**Summary:** {} total, {} done, {} in progress, {} pending",
         stats.total_tasks, stats.done_tasks, stats.in_progress_tasks, stats.pending_tasks
     ));
 
-    markdown
+    markdown.join("\n")
 }
 
 #[cfg(test)]
@@ -58,105 +58,134 @@ mod tests {
 
     #[test]
     fn test_to_markdown_empty_task_list() {
+        let before = TaskList::new();
         let fixture = TaskList::new();
-        let actual = to_markdown(&fixture);
+        let actual = to_markdown(&before, &fixture);
         let expected = "No tasks in the list.";
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_to_markdown_single_pending_task() {
+        let before = TaskList::new();
         let mut fixture = TaskList::new();
         fixture.append("Write documentation");
-        let actual = to_markdown(&fixture);
-        assert!(actual.contains("1. Write documentation"));
-        assert!(actual.contains("**Stats:**"));
+        let actual = to_markdown(&before, &fixture);
+        assert!(actual.contains("☐ **Write documentation**")); // New task should be bold
+        assert!(actual.contains("**Summary:**"));
     }
 
     #[test]
     fn test_to_markdown_mixed_status_tasks() {
-        let mut fixture = TaskList::new();
-        let _task1 = fixture.append("First task");
-        let task2 = fixture.append("Second task");
-        fixture.append("Third task");
+        let mut before = TaskList::new();
+        let _task1 = before.append("First task");
+        let task2 = before.append("Second task");
+        before.append("Third task");
 
+        let mut fixture = before.clone();
         // Mark second task as done
         fixture.mark_done(task2.id);
-
         // Mark first task as in progress manually
         fixture.get_task_mut(0).unwrap().mark_in_progress();
 
-        let actual = to_markdown(&fixture);
-        assert!(actual.contains("**First task**")); // in progress
-        assert!(actual.contains("~~Second task~~")); // done
-        assert!(actual.contains("3. Third task")); // pending
+        let actual = to_markdown(&before, &fixture);
+        assert!(actual.contains("**First task**")); // changed to in progress
+        assert!(actual.contains("**Second task**")); // changed to done
+        assert!(actual.contains("☐ Third task")); // unchanged pending
     }
 
     // Snapshot tests for markdown output
     #[test]
     fn test_empty_task_list_markdown_snapshot() {
+        let before = TaskList::new();
         let fixture = TaskList::new();
-        let actual = to_markdown(&fixture);
+        let actual = to_markdown(&before, &fixture);
         insta::assert_snapshot!(actual);
     }
 
     #[test]
+    fn test_task_comparison_changes_highlighted() {
+        // Test that demonstrates the comparison functionality
+        let mut before = TaskList::new();
+        let _task1 = before.append("Unchanged task");
+        let _task2 = before.append("Task to be modified");
+        let task3 = before.append("Task to be completed");
+
+        let mut after = before.clone();
+        // Modify task 2's text
+        after.get_task_mut(1).unwrap().task = "Modified task text".to_string();
+        // Complete task 3
+        after.mark_done(task3.id);
+
+        let actual = to_markdown(&before, &after);
+
+        // Unchanged task should not be bold
+        assert!(actual.contains("☐ Unchanged task"));
+        // Modified task should be bold
+        assert!(actual.contains("☐ **Modified task text**"));
+        // Completed task should be bold and use done glyph
+        assert!(actual.contains("◼ ~~**Task to be completed**~~"));
+    }
+
+    #[test]
     fn test_single_pending_task_markdown_snapshot() {
+        let before = TaskList::new();
         let mut fixture = TaskList::new();
         fixture.append("Write documentation");
-        let actual = to_markdown(&fixture);
+        let actual = to_markdown(&before, &fixture);
         insta::assert_snapshot!(actual);
     }
 
     #[test]
     fn test_mixed_status_tasks_markdown_snapshot() {
-        let mut fixture = TaskList::new();
-        let _task1 = fixture.append("First task");
-        let task2 = fixture.append("Second task");
-        fixture.append("Third task");
+        let mut before = TaskList::new();
+        let _task1 = before.append("First task");
+        let task2 = before.append("Second task");
+        before.append("Third task");
 
+        let mut fixture = before.clone();
         // Mark second task as done
         fixture.mark_done(task2.id);
-
         // Mark first task as in progress manually
         fixture.get_task_mut(0).unwrap().mark_in_progress();
 
-        let actual = to_markdown(&fixture);
+        let actual = to_markdown(&before, &fixture);
         insta::assert_snapshot!(actual);
     }
 
     #[test]
     fn test_all_done_tasks_markdown_snapshot() {
-        let mut fixture = TaskList::new();
-        let task1 = fixture.append("Complete feature A");
-        let task2 = fixture.append("Write tests");
-        let task3 = fixture.append("Update documentation");
+        let mut before = TaskList::new();
+        let task1 = before.append("Complete feature A");
+        let task2 = before.append("Write tests");
+        let task3 = before.append("Update documentation");
 
+        let mut fixture = before.clone();
         fixture.mark_done(task1.id);
         fixture.mark_done(task2.id);
         fixture.mark_done(task3.id);
 
-        let actual = to_markdown(&fixture);
+        let actual = to_markdown(&before, &fixture);
         insta::assert_snapshot!(actual);
     }
 
     #[test]
     fn test_complex_task_list_markdown_snapshot() {
-        let mut fixture = TaskList::new();
-        let _task1 = fixture.append("Review pull request #123");
-        let _task2 = fixture.append("Fix bug in authentication");
-        let task3 = fixture.append("Deploy to staging");
-        let _task4 = fixture.append("Update API documentation");
-        let _task5 = fixture.append("Refactor user service");
+        let mut before = TaskList::new();
+        let _task1 = before.append("Review pull request #123");
+        let _task2 = before.append("Fix bug in authentication");
+        let task3 = before.append("Deploy to staging");
+        let _task4 = before.append("Update API documentation");
+        let _task5 = before.append("Refactor user service");
 
+        let mut fixture = before.clone();
         // Mark one task as done
         fixture.mark_done(task3.id);
-
         // Mark two tasks as in progress manually (without removing them)
         fixture.get_task_mut(0).unwrap().mark_in_progress(); // "Review pull request #123"
         fixture.get_task_mut(4).unwrap().mark_in_progress(); // "Refactor user service"
 
-        let actual = to_markdown(&fixture);
+        let actual = to_markdown(&before, &fixture);
         insta::assert_snapshot!(actual);
     }
 }
