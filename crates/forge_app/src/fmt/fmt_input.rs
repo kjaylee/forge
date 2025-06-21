@@ -4,28 +4,14 @@ use std::path::Path;
 use forge_display::TitleFormat;
 use forge_domain::{Environment, Tools};
 
+use crate::fmt::content::{ContentFormat, FormatContent};
 use crate::utils::display_path;
 
-pub enum InputFormat {
-    Title(TitleFormat),
-    Summary(String),
-}
-
-impl From<TitleFormat> for InputFormat {
-    fn from(title: TitleFormat) -> Self {
-        InputFormat::Title(title)
-    }
-}
-
-pub trait FormatInput {
-    fn to_content(&self, env: &Environment) -> InputFormat;
-}
-
-impl FormatInput for Tools {
-    fn to_content(&self, env: &Environment) -> InputFormat {
+impl FormatContent for Tools {
+    fn to_content(&self, env: &Environment) -> Option<ContentFormat> {
         let display_path_for = |path: &str| display_path(env, Path::new(path));
 
-        match self {
+        let output = match self {
             Tools::ForgeToolFsRead(input) => {
                 let display_path = display_path_for(&input.path);
                 let is_explicit_range = input.start_line.is_some() || input.end_line.is_some();
@@ -92,9 +78,13 @@ impl FormatInput for Tools {
             Tools::ForgeToolFollowup(input) => TitleFormat::debug("Follow-up")
                 .sub_title(&input.question)
                 .into(),
-            Tools::ForgeToolAttemptCompletion(input) => InputFormat::Summary(input.result.clone()),
+            Tools::ForgeToolAttemptCompletion(input) => {
+                ContentFormat::PlainText(input.result.clone())
+            }
             Tools::ForgeToolTaskList(_) => TitleFormat::debug("Tasks Updated").into(),
-        }
+        };
+
+        Some(output)
     }
 }
 
@@ -106,13 +96,14 @@ mod tests {
     use forge_domain::{Environment, FSRead, FSWrite, Shell, Tools};
     use pretty_assertions::assert_eq;
 
-    use super::{FormatInput, InputFormat};
+    use super::{ContentFormat, FormatContent};
 
-    impl InputFormat {
+    impl ContentFormat {
         pub fn render(&self, with_timestamp: bool) -> String {
             match self {
-                InputFormat::Title(title) => title.render(with_timestamp),
-                InputFormat::Summary(summary) => summary.clone(),
+                ContentFormat::Title(title) => title.render(with_timestamp),
+                ContentFormat::PlainText(summary) => summary.clone(),
+                ContentFormat::Markdown(summary) => summary.clone(),
             }
         }
     }
@@ -157,7 +148,7 @@ mod tests {
         let env = fixture_environment();
 
         let actual_content = fixture.to_content(&env);
-        let rendered = actual_content.render(false);
+        let rendered = actual_content.unwrap().render(false);
         let actual = strip_ansi_codes(&rendered);
         let expected = "⏺ Read src/main.rs";
 
@@ -175,7 +166,7 @@ mod tests {
         let env = fixture_environment();
 
         let actual_content = fixture.to_content(&env);
-        let rendered = actual_content.render(false);
+        let rendered = actual_content.unwrap().render(false);
         let actual = strip_ansi_codes(&rendered);
         let expected = "⏺ Read src/main.rs [Range 10-20]";
 
@@ -193,7 +184,7 @@ mod tests {
         let env = fixture_environment();
 
         let actual_content = fixture.to_content(&env);
-        let rendered = actual_content.render(false);
+        let rendered = actual_content.unwrap().render(false);
         let actual = strip_ansi_codes(&rendered);
         let expected = "⏺ Create new_file.txt";
 
@@ -211,7 +202,7 @@ mod tests {
         let env = fixture_environment();
 
         let actual_content = fixture.to_content(&env);
-        let rendered = actual_content.render(false);
+        let rendered = actual_content.unwrap().render(false);
         let actual = strip_ansi_codes(&rendered);
         let expected = "⏺ Overwrite existing_file.txt";
 
@@ -229,7 +220,7 @@ mod tests {
         let env = fixture_environment();
 
         let actual_content = fixture.to_content(&env);
-        let rendered = actual_content.render(false);
+        let rendered = actual_content.unwrap().render(false);
         let actual = strip_ansi_codes(&rendered);
         let expected = "⏺ Execute [/bin/bash] ls -la";
 
@@ -245,7 +236,7 @@ mod tests {
             explanation: None,
         });
         let env = fixture_environment();
-        let content = fixture.to_content(&env);
+        let content = fixture.to_content(&env).unwrap();
 
         // Test render(false) - should not include timestamp
         let rendered_without = content.render(false);

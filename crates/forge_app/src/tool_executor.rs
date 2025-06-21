@@ -4,8 +4,7 @@ use anyhow::Context;
 use forge_domain::{TaskList, ToolCallContext, ToolCallFull, ToolOutput, Tools};
 
 use crate::error::Error;
-use crate::fmt_input::{FormatInput, InputFormat};
-use crate::fmt_output::FormatOutput;
+use crate::fmt::content::FormatContent;
 use crate::operation::Operation;
 use crate::services::ShellService;
 use crate::{
@@ -152,10 +151,9 @@ impl<
     ) -> anyhow::Result<ToolOutput> {
         let tool_input = Tools::try_from(input).map_err(Error::CallArgument)?;
         let env = self.services.get_environment();
-        match tool_input.to_content(&env) {
-            InputFormat::Title(title) => context.send_text(title).await?,
-            InputFormat::Summary(summary) => context.send_summary(summary).await?,
-        };
+        if let Some(content) = tool_input.to_content(&env) {
+            context.send(content).await?;
+        }
 
         // Send tool call information
 
@@ -170,7 +168,7 @@ impl<
 
         // Send formatted output message
         if let Some(output) = execution_result.to_content(&env) {
-            context.send_text(output).await?;
+            context.send(output).await?;
         }
 
         let truncation_path = execution_result

@@ -22,9 +22,9 @@ impl ToolCallContext {
     }
 
     /// Send a message through the sender if available
-    pub async fn send(&self, agent_message: ChatResponse) -> anyhow::Result<()> {
+    pub async fn send(&self, agent_message: impl Into<ChatResponse>) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
-            sender.send(Ok(agent_message)).await?
+            sender.send(Ok(agent_message.into())).await?
         }
         Ok(())
     }
