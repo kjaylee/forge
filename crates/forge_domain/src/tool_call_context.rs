@@ -29,16 +29,6 @@ impl ToolCallContext {
         Ok(())
     }
 
-    pub async fn send_summary(&self, content: String) -> anyhow::Result<()> {
-        self.send(ChatResponse::Text {
-            text: content,
-            is_complete: true,
-            is_md: false,
-            is_summary: true,
-        })
-        .await
-    }
-
     pub async fn send_text(&self, content: impl ToString) -> anyhow::Result<()> {
         self.send(ChatResponse::Text {
             text: content.to_string(),

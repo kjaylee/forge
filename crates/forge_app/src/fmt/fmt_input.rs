@@ -79,7 +79,7 @@ impl FormatContent for Tools {
                 .sub_title(&input.question)
                 .into(),
             Tools::ForgeToolAttemptCompletion(input) => {
-                ContentFormat::PlainText(input.result.clone())
+                ContentFormat::Markdown(input.result.clone())
             }
             Tools::ForgeToolTaskList(input) => match input.operation {
                 forge_domain::TaskListOperation::Append { .. } => {
