@@ -8,3 +8,4 @@ ratatui = "0.29.0"
 forge_api.workspace = true
 color-eyre = "0.6.5"
 edtui = {version = "0.9.6", features = ["mouse-support"]}
+derive_more.workspace = true

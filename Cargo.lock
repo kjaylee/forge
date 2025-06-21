@@ -1363,6 +1363,7 @@ name = "forge_main_neo"
 version = "0.1.0"
 dependencies = [
  "color-eyre",
+ "derive_more",
  "edtui",
  "forge_api",
  "ratatui",

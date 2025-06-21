@@ -1,5 +1,6 @@
-use edtui::events::{KeyEvent, MouseEvent};
+use derive_more::From;
 use edtui::{EditorEventHandler, EditorState, EditorTheme, EditorView};
+use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::style::{Style, Stylize};
 use ratatui::symbols::{border, line};
@@ -14,23 +15,33 @@ pub struct App {
 
 #[derive(Default)]
 pub struct State {
-    messages: Vec<String>,
-    editor: EditorState,
+    pub messages: Vec<String>,
+    pub editor: EditorState,
+    pub exit: bool,
+}
+
+#[derive(From)]
+pub enum Action {
+    KeyEvent(KeyEvent),
+    MouseEvent(MouseEvent),
 }
 
 impl App {
-    pub fn on_key_event<T>(&mut self, key_event: T, state: &mut State)
-    where
-        T: Into<KeyEvent>,
-    {
-        self.editor.on_key_event(key_event, &mut state.editor);
-    }
-
-    pub fn on_mouse_event<T>(&mut self, key_event: T, state: &mut State)
-    where
-        T: Into<MouseEvent>,
-    {
-        self.editor.on_mouse_event(key_event, &mut state.editor);
+    pub fn update(&mut self, action: impl Into<Action>, state: &mut State) {
+        match action.into() {
+            Action::KeyEvent(event) => {
+                if event.code == KeyCode::Char('c')
+                    && event.modifiers.contains(KeyModifiers::CONTROL)
+                {
+                    state.exit = true;
+                } else {
+                    self.editor.on_key_event(event, &mut state.editor);
+                }
+            }
+            Action::MouseEvent(event) => {
+                self.editor.on_mouse_event(event, &mut state.editor);
+            }
+        }
     }
 }
 
