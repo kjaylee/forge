@@ -2,10 +2,11 @@ use color_eyre::owo_colors::OwoColorize;
 use edtui::events::{KeyEvent, MouseEvent};
 use edtui::{EditorEventHandler, EditorState, EditorTheme, EditorView};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
-use ratatui::style::{Color, Modifier, Style, Stylize};
+use ratatui::style::{Style, Stylize};
 use ratatui::symbols::{border, line};
-use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, Widget};
+
+use crate::widgets::status::StatusBar;
 
 #[derive(Default)]
 pub struct App {
@@ -47,14 +48,6 @@ impl Widget for &mut App {
         );
         let [ass, user] = main_layout.areas(area);
 
-        let status = Span::styled(
-            format!(" {} ", self.editor_state.mode.name().to_ascii_uppercase()),
-            Style::default()
-                .fg(Color::Black)
-                .bg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        );
-
         let content_block = Block::bordered()
             .title(" Welcome to Forge ")
             .padding(Padding::new(0, 0, 4, 0))
@@ -85,7 +78,7 @@ impl Widget for &mut App {
             .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
             .title_style(Style::default().dark_gray())
             .border_style(Style::default().dark_gray())
-            .title_bottom(status);
+            .title_bottom(StatusBar::new("FORGE", self.editor_state.mode.name()));
 
         EditorView::new(&mut self.editor_state)
             .theme(
