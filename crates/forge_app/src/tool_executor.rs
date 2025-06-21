@@ -36,11 +36,7 @@ impl<
         Self { services }
     }
 
-    async fn call_internal(
-        &self,
-        input: Tools,
-        task_list: &mut TaskList,
-    ) -> anyhow::Result<Operation> {
+    async fn call_internal(&self, input: Tools, tasks: &mut TaskList) -> anyhow::Result<Operation> {
         Ok(match input {
             Tools::ForgeToolFsRead(input) => {
                 let output = self
@@ -132,7 +128,7 @@ impl<
             Tools::ForgeToolTaskList(input) => {
                 let output = match &input.operation {
                     forge_domain::TaskListOperation::Append { task } => {
-                        let (task, stats) = task_list.append(task);
+                        let (task, stats) = tasks.append(task);
                         TaskListOutput::TaskAdded {
                             task,
                             stats,
@@ -140,7 +136,7 @@ impl<
                         }
                     }
                     forge_domain::TaskListOperation::Prepend { task } => {
-                        let (task, stats) = task_list.prepend(task);
+                        let (task, stats) = tasks.prepend(task);
                         TaskListOutput::TaskAdded {
                             task,
                             stats,
@@ -148,14 +144,14 @@ impl<
                         }
                     }
                     forge_domain::TaskListOperation::PopFront => {
-                        let (task, stats) = task_list.pop_front().context("Task list is empty")?;
+                        let (task, stats) = tasks.pop_front().context("Task list is empty")?;
                         TaskListOutput::TaskPopped {
                             task,
                             stats,
                             message: "Task popped from the front of the list.".to_string(),
                         }
                     }
-                    forge_domain::TaskListOperation::PopBack => match task_list.pop_back() {
+                    forge_domain::TaskListOperation::PopBack => match tasks.pop_back() {
                         Some((task, stats)) => TaskListOutput::TaskPopped {
                             task,
                             stats,
@@ -166,7 +162,7 @@ impl<
                         }
                     },
                     forge_domain::TaskListOperation::MarkDone { task_id } => {
-                        let result = task_list.mark_done(*task_id);
+                        let result = tasks.mark_done(*task_id);
                         if let Some((completed_task, next_task, stats)) = result {
                             TaskListOutput::TaskCompleted {
                                 completed_task,
@@ -179,16 +175,16 @@ impl<
                         }
                     }
                     forge_domain::TaskListOperation::List => {
-                        let markdown = task_list.to_markdown();
-                        let stats = task_list.stats();
+                        let markdown = tasks.to_markdown();
+                        let stats = tasks.stats();
                         TaskListOutput::TaskList { markdown, stats }
                     }
                     forge_domain::TaskListOperation::Clear => {
-                        task_list.clear();
+                        tasks.clear();
                         TaskListOutput::Cleared { message: "Task list cleared.".to_string() }
                     }
                     forge_domain::TaskListOperation::Stats => {
-                        let stats = task_list.stats();
+                        let stats = tasks.stats();
                         TaskListOutput::StatsOnly { stats }
                     }
                 };
