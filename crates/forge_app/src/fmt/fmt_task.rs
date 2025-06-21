@@ -1,11 +1,11 @@
-use forge_domain::{Status, TaskList, TaskStats};
+use forge_domain::{Status, TaskList};
 
 pub fn to_markdown(before: &TaskList, after: &TaskList) -> String {
     if after.tasks().is_empty() {
         return "No tasks in the list.".to_string();
     }
 
-    let mut markdown: Vec<String> = Vec::new();
+    let mut markdown: Vec<String> = vec!["\n".to_string()];
 
     // Create a map of before tasks for comparison
     let before_tasks: std::collections::HashMap<i32, &forge_domain::Task> =
@@ -18,33 +18,30 @@ pub fn to_markdown(before: &TaskList, after: &TaskList) -> String {
             None => true, // New task
         };
 
-        let text = if task_changed {
-            format!("**{}**", task.task) // Bold for changed tasks
-        } else {
-            task.task.clone()
-        };
-
         let glyph = match task.status {
             Status::Pending => "☐",
             Status::InProgress => "▣",
             Status::Done => "◼",
         };
 
-        let text = match task.status {
+        let mut text = task.task.clone();
+
+        if task_changed {
+            text = format!("**{text}**");
+        }
+
+        text = match task.status {
             Status::Pending => text,
             Status::InProgress => format!("__{text}__"),
             Status::Done => format!("~~{text}~~"),
         };
 
-        let formatted_task = format!("{glyph} {text}");
-        markdown.push(formatted_task);
+        text = format!("{} {}", glyph, text);
+
+        markdown.push(text);
     }
 
-    let stats = TaskStats::from(after);
-    markdown.push(format!(
-        "**Summary:** {} total, {} done, {} in progress, {} pending",
-        stats.total_tasks, stats.done_tasks, stats.in_progress_tasks, stats.pending_tasks
-    ));
+    markdown.push("\n".to_owned());
 
     markdown.join("\n")
 }
@@ -72,7 +69,6 @@ mod tests {
         fixture.append("Write documentation");
         let actual = to_markdown(&before, &fixture);
         assert!(actual.contains("☐ **Write documentation**")); // New task should be bold
-        assert!(actual.contains("**Summary:**"));
     }
 
     #[test]
