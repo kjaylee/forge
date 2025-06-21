@@ -6,25 +6,6 @@ use forge_domain::{
     ToolCallFull, ToolDefinition, ToolOutput, Workflow,
 };
 use merge::Merge;
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaskListInput {
-    pub operation: TaskOperation,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TaskOperation {
-    Append { task: String },
-    Prepend { task: String },
-    PopFront,
-    PopBack,
-    MarkDone { task_id: u32 },
-    List,
-    Clear,
-    Stats,
-}
 
 use crate::Walker;
 
