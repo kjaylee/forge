@@ -48,20 +48,15 @@ impl Task {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Stats {
+pub struct TaskStats {
     pub total_tasks: u32,
     pub done_tasks: u32,
     pub pending_tasks: u32,
     pub in_progress_tasks: u32,
 }
 
-impl Stats {
-    pub fn new(
-        total_tasks: u32,
-        done_tasks: u32,
-        pending_tasks: u32,
-        in_progress_tasks: u32,
-    ) -> Self {
+impl TaskStats {
+    fn new(total_tasks: u32, done_tasks: u32, pending_tasks: u32, in_progress_tasks: u32) -> Self {
         Self { total_tasks, done_tasks, pending_tasks, in_progress_tasks }
     }
 
@@ -86,7 +81,7 @@ impl TaskList {
         Self { tasks: VecDeque::new(), next_id: 1 }
     }
 
-    pub fn append(&mut self, task: impl Into<String>) -> (Task, Stats) {
+    pub fn append(&mut self, task: impl Into<String>) -> (Task, TaskStats) {
         let task = Task::new(self.next_id, task);
         self.next_id += 1;
         self.tasks.push_back(task.clone());
@@ -94,7 +89,7 @@ impl TaskList {
         (task, stats)
     }
 
-    pub fn prepend(&mut self, task: impl Into<String>) -> (Task, Stats) {
+    pub fn prepend(&mut self, task: impl Into<String>) -> (Task, TaskStats) {
         let task = Task::new(self.next_id, task);
         self.next_id += 1;
         self.tasks.push_front(task.clone());
@@ -102,7 +97,7 @@ impl TaskList {
         (task, stats)
     }
 
-    pub fn pop_front(&mut self) -> Option<(Task, Stats)> {
+    pub fn pop_front(&mut self) -> Option<(Task, TaskStats)> {
         if self.tasks.is_empty() {
             return None;
         }
@@ -113,7 +108,7 @@ impl TaskList {
         Some((task, stats))
     }
 
-    pub fn pop_back(&mut self) -> Option<(Task, Stats)> {
+    pub fn pop_back(&mut self) -> Option<(Task, TaskStats)> {
         if self.tasks.is_empty() {
             return None;
         }
@@ -124,7 +119,7 @@ impl TaskList {
         Some((task, stats))
     }
 
-    pub fn mark_done(&mut self, task_id: u32) -> Option<(Task, Option<Task>, Stats)> {
+    pub fn mark_done(&mut self, task_id: u32) -> Option<(Task, Option<Task>, TaskStats)> {
         let task_index = self.tasks.iter().position(|t| t.id == task_id)?;
         self.tasks[task_index].mark_done();
         let completed_task = self.tasks[task_index].clone();
@@ -136,8 +131,8 @@ impl TaskList {
         Some((completed_task, next_task, stats))
     }
 
-    pub fn stats(&self) -> Stats {
-        Stats::from_tasks(&self.tasks)
+    pub fn stats(&self) -> TaskStats {
+        TaskStats::from_tasks(&self.tasks)
     }
 
     pub fn clear(&mut self) {
@@ -232,7 +227,7 @@ mod tests {
         .into_iter()
         .collect();
 
-        let stats = Stats::from_tasks(&tasks);
+        let stats = TaskStats::from_tasks(&tasks);
 
         assert_eq!(stats.total_tasks, 4);
         assert_eq!(stats.pending_tasks, 2);

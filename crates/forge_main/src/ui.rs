@@ -93,7 +93,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
         if let Some(conversation_id) = self.state.conversation_id.as_ref() {
             // Get the task list using the new API method
             if let Some(convo) = self.api.conversation(conversation_id).await? {
-                self.writeln(self.markdown.render(convo.task_list.to_markdown()))?;
+                self.writeln(self.markdown.render(convo.tasks.to_markdown()))?;
             } else {
                 self.writeln(TitleFormat::info("No tasks found."))?;
             }

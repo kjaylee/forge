@@ -38,7 +38,7 @@ pub struct Conversation {
     pub variables: HashMap<String, Value>,
     pub agents: Vec<Agent>,
     pub events: Vec<Event>,
-    pub task_list: TaskList,
+    pub tasks: TaskList,
 }
 
 impl Conversation {
@@ -159,7 +159,7 @@ impl Conversation {
             variables: workflow.variables.clone(),
             agents,
             events: Default::default(),
-            task_list: TaskList::new(),
+            tasks: TaskList::new(),
         }
     }
 

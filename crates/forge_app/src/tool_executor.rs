@@ -213,7 +213,7 @@ impl<
         // Send tool call information
 
         let execution_result = self
-            .call_internal(tool_input.clone(), &mut context.task_list)
+            .call_internal(tool_input.clone(), &mut context.tasks)
             .await;
         if let Err(ref error) = execution_result {
             tracing::error!(error = ?error, "Tool execution failed");

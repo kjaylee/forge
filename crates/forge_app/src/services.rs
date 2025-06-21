@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 
 use forge_domain::{
     Attachment, ChatCompletionMessage, CommandOutput, Context, Conversation, ConversationId,
-    Environment, File, McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope, Stats, Task,
-    ToolCallFull, ToolDefinition, ToolOutput, Workflow,
+    Environment, File, McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope, Task,
+    TaskStats, ToolCallFull, ToolDefinition, ToolOutput, Workflow,
 };
 use merge::Merge;
 use serde::{Deserialize, Serialize};
@@ -31,26 +31,26 @@ pub enum TaskOperation {
 pub enum TaskListOutput {
     TaskAdded {
         task: Task,
-        stats: Stats,
+        stats: TaskStats,
         message: String,
     },
     TaskPopped {
         task: Task,
-        stats: Stats,
+        stats: TaskStats,
         message: String,
     },
     TaskCompleted {
         completed_task: Task,
         next_task: Option<Task>,
-        stats: Stats,
+        stats: TaskStats,
         message: String,
     },
     TaskList {
         markdown: String,
-        stats: Stats,
+        stats: TaskStats,
     },
     StatsOnly {
-        stats: Stats,
+        stats: TaskStats,
     },
     Cleared {
         message: String,
