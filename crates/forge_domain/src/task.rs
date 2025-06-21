@@ -70,6 +70,12 @@ impl TaskStats {
     }
 }
 
+impl From<&TaskList> for TaskStats {
+    fn from(task_list: &TaskList) -> Self {
+        Self::from_tasks(&task_list.tasks)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TaskList {
     pub tasks: VecDeque<Task>,
@@ -81,58 +87,17 @@ impl TaskList {
         Self { tasks: VecDeque::new(), next_id: 1 }
     }
 
-    pub fn append(&mut self, task: impl Into<String>) -> (Task, TaskStats) {
+    pub fn append(&mut self, task: impl Into<String>) -> Task {
         let task = Task::new(self.next_id, task);
         self.next_id += 1;
         self.tasks.push_back(task.clone());
-        let stats = self.stats();
-        (task, stats)
+        task
     }
 
-    pub fn prepend(&mut self, task: impl Into<String>) -> (Task, TaskStats) {
-        let task = Task::new(self.next_id, task);
-        self.next_id += 1;
-        self.tasks.push_front(task.clone());
-        let stats = self.stats();
-        (task, stats)
-    }
-
-    pub fn pop_front(&mut self) -> Option<(Task, TaskStats)> {
-        if self.tasks.is_empty() {
-            return None;
-        }
-
-        let mut task = self.tasks.pop_front()?;
-        task.mark_in_progress();
-        let stats = self.stats();
-        Some((task, stats))
-    }
-
-    pub fn pop_back(&mut self) -> Option<(Task, TaskStats)> {
-        if self.tasks.is_empty() {
-            return None;
-        }
-
-        let mut task = self.tasks.pop_back()?;
-        task.mark_in_progress();
-        let stats = self.stats();
-        Some((task, stats))
-    }
-
-    pub fn mark_done(&mut self, task_id: u32) -> Option<(Task, Option<Task>, TaskStats)> {
+    pub fn mark_done(&mut self, task_id: u32) -> Option<Task> {
         let task_index = self.tasks.iter().position(|t| t.id == task_id)?;
         self.tasks[task_index].mark_done();
-        let completed_task = self.tasks[task_index].clone();
-
-        // Find next pending task
-        let next_task = self.tasks.iter().find(|t| t.is_pending()).cloned();
-        let stats = self.stats();
-
-        Some((completed_task, next_task, stats))
-    }
-
-    pub fn stats(&self) -> TaskStats {
-        TaskStats::from_tasks(&self.tasks)
+        Some(self.tasks[task_index].clone())
     }
 
     pub fn clear(&mut self) {
@@ -181,7 +146,7 @@ impl TaskList {
             markdown.push_str(&formatted_task);
         }
 
-        let stats = self.stats();
+        let stats = TaskStats::from(self);
         markdown.push_str(&format!(
             "\n**Stats:** {} total, {} done, {} in progress, {} pending\n",
             stats.total_tasks, stats.done_tasks, stats.in_progress_tasks, stats.pending_tasks
@@ -254,67 +219,73 @@ mod tests {
     }
 
     #[test]
+    fn test_stats_from_task_list() {
+        let mut task_list = TaskList::new();
+        task_list.append("Task 1"); // Pending
+        let task2 = task_list.append("Task 2");
+        task_list.append("Task 3"); // Pending
+        task_list.mark_done(task2.id); // Mark task 2 as done
+
+        let stats = TaskStats::from(&task_list);
+
+        assert_eq!(stats.total_tasks, 3);
+        assert_eq!(stats.pending_tasks, 2);
+        assert_eq!(stats.in_progress_tasks, 0);
+        assert_eq!(stats.done_tasks, 1);
+    }
+
+    #[test]
     fn test_task_list_append() {
         let mut task_list = TaskList::new();
 
-        let (task, stats) = task_list.append("First task");
+        let task = task_list.append("First task");
 
         assert_eq!(task.id, 1);
         assert_eq!(task.task, "First task");
-        assert_eq!(stats.total_tasks, 1);
-        assert_eq!(stats.pending_tasks, 1);
-    }
-
-    #[test]
-    fn test_task_list_prepend() {
-        let mut task_list = TaskList::new();
-        task_list.append("Second task");
-
-        let (task, stats) = task_list.prepend("First task");
-
-        assert_eq!(task.id, 2);
-        assert_eq!(task.task, "First task");
-        assert_eq!(task_list.tasks[0].task, "First task");
-        assert_eq!(stats.total_tasks, 2);
-    }
-
-    #[test]
-    fn test_task_list_pop_front() {
-        let mut task_list = TaskList::new();
-        task_list.append("Task 1");
-        task_list.append("Task 2");
-
-        let result = task_list.pop_front();
-
-        assert!(result.is_some());
-        let (task, stats) = result.unwrap();
-        assert_eq!(task.task, "Task 1");
-        assert!(task.is_in_progress());
-        assert_eq!(stats.total_tasks, 1);
+        assert_eq!(task_list.tasks.len(), 1);
     }
 
     #[test]
     fn test_task_list_mark_done() {
         let mut task_list = TaskList::new();
-        let (task1, _) = task_list.append("Task 1");
+        let task1 = task_list.append("Task 1");
         task_list.append("Task 2");
 
         let result = task_list.mark_done(task1.id);
 
         assert!(result.is_some());
-        let (completed_task, next_task, stats) = result.unwrap();
+        let completed_task = result.unwrap();
         assert_eq!(completed_task.task, "Task 1");
         assert!(completed_task.is_done());
-        assert!(next_task.is_some());
-        assert_eq!(next_task.unwrap().task, "Task 2");
-        assert_eq!(stats.done_tasks, 1);
+    }
+
+    #[test]
+    fn test_task_list_mark_done_nonexistent() {
+        let mut task_list = TaskList::new();
+        task_list.append("Task 1");
+
+        let result = task_list.mark_done(999);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_task_list_clear() {
+        let mut task_list = TaskList::new();
+        task_list.append("Task 1");
+        task_list.append("Task 2");
+
+        task_list.clear();
+
+        assert!(task_list.tasks.is_empty());
+        assert_eq!(task_list.next_id, 1);
     }
 
     #[test]
     fn test_task_list_to_markdown() {
         let mut task_list = TaskList::new();
         task_list.append("Task 1");
-        let (task2, _) = task_list.append("Task 2");
+        let task2 = task_list.append("Task 2");
         task_list.mark_done(task2.id);
 
         let markdown = task_list.to_markdown();
@@ -352,15 +323,15 @@ mod tests {
     #[test]
     fn test_mixed_status_tasks_markdown_snapshot() {
         let mut fixture = TaskList::new();
-        fixture.append("First task");
-        let (task2, _) = fixture.append("Second task");
+        let _task1 = fixture.append("First task");
+        let task2 = fixture.append("Second task");
         fixture.append("Third task");
 
         // Mark second task as done
         fixture.mark_done(task2.id);
 
-        // Pop front to make first task in progress
-        fixture.pop_front();
+        // Mark first task as in progress manually
+        fixture.tasks[0].mark_in_progress();
 
         let actual = fixture.to_markdown();
         insta::assert_snapshot!(actual);
@@ -369,9 +340,9 @@ mod tests {
     #[test]
     fn test_all_done_tasks_markdown_snapshot() {
         let mut fixture = TaskList::new();
-        let (task1, _) = fixture.append("Complete feature A");
-        let (task2, _) = fixture.append("Write tests");
-        let (task3, _) = fixture.append("Update documentation");
+        let task1 = fixture.append("Complete feature A");
+        let task2 = fixture.append("Write tests");
+        let task3 = fixture.append("Update documentation");
 
         fixture.mark_done(task1.id);
         fixture.mark_done(task2.id);
@@ -384,11 +355,11 @@ mod tests {
     #[test]
     fn test_complex_task_list_markdown_snapshot() {
         let mut fixture = TaskList::new();
-        let (_task1, _) = fixture.append("Review pull request #123");
-        let (_task2, _) = fixture.append("Fix bug in authentication");
-        let (task3, _) = fixture.append("Deploy to staging");
-        let (_task4, _) = fixture.append("Update API documentation");
-        let (_task5, _) = fixture.append("Refactor user service");
+        let _task1 = fixture.append("Review pull request #123");
+        let _task2 = fixture.append("Fix bug in authentication");
+        let task3 = fixture.append("Deploy to staging");
+        let _task4 = fixture.append("Update API documentation");
+        let _task5 = fixture.append("Refactor user service");
 
         // Mark one task as done
         fixture.mark_done(task3.id);

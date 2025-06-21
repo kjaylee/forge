@@ -421,12 +421,6 @@ where
 pub enum TaskListOperation {
     /// Add a new task to the end of the list
     Append { task: String },
-    /// Add a new task to the beginning of the list
-    Prepend { task: String },
-    /// Remove and mark the first task as IN_PROGRESS
-    PopFront,
-    /// Remove and mark the last task as IN_PROGRESS
-    PopBack,
     /// Mark a specific task as DONE by its ID
     MarkDone { task_id: u32 },
     /// Display the current task list with stats
@@ -434,8 +428,6 @@ pub enum TaskListOperation {
     List,
     /// Remove all tasks from the list
     Clear,
-    /// Show only the task statistics
-    Stats,
 }
 
 fn default_raw() -> Option<bool> {

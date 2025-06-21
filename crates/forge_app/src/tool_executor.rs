@@ -129,15 +129,6 @@ impl<
                     forge_domain::TaskListOperation::Append { task } => {
                         tasks.append(task);
                     }
-                    forge_domain::TaskListOperation::Prepend { task } => {
-                        tasks.prepend(task);
-                    }
-                    forge_domain::TaskListOperation::PopFront => {
-                        tasks.pop_front().context("Task list is empty")?;
-                    }
-                    forge_domain::TaskListOperation::PopBack => {
-                        tasks.pop_back().context("Task list is empty")?;
-                    }
                     forge_domain::TaskListOperation::MarkDone { task_id } => {
                         tasks.mark_done(*task_id).context("Task not found")?;
                     }
@@ -146,9 +137,6 @@ impl<
                     }
                     forge_domain::TaskListOperation::Clear => {
                         tasks.clear();
-                    }
-                    forge_domain::TaskListOperation::Stats => {
-                        // No operation needed, just return the current state
                     }
                 };
 

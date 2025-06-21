@@ -318,7 +318,7 @@ impl Operation {
                     .text("[Task was completed successfully. Now wait for user feedback]"),
             ),
             Operation::TaskList { _input: _, output } => {
-                let stats = output.stats();
+                let stats = forge_domain::TaskStats::from(&output);
                 let elm = Element::new("task_list")
                     .attr("total_tasks", stats.total_tasks)
                     .attr("pending_tasks", stats.pending_tasks)
@@ -944,14 +944,14 @@ mod tests {
     fn test_task_list_mixed_status_tasks() {
         let mut task_list = TaskList::new();
         task_list.append("First task");
-        let (task2, _) = task_list.append("Second task");
+        let task2 = task_list.append("Second task");
         task_list.append("Third task");
 
         // Mark second task as done
         task_list.mark_done(task2.id);
 
-        // Pop front to make first task in progress
-        task_list.pop_front();
+        // Mark first task as in progress manually
+        task_list.tasks[0].mark_in_progress();
 
         let fixture = Operation::TaskList {
             _input: forge_domain::TaskListTool {
@@ -971,18 +971,18 @@ mod tests {
     #[test]
     fn test_task_list_complex_scenario() {
         let mut task_list = TaskList::new();
-        let (_task1, _) = task_list.append("Review pull request #123");
-        let (_task2, _) = task_list.append("Fix bug in authentication");
-        let (task3, _) = task_list.append("Deploy to staging");
-        let (_task4, _) = task_list.append("Update API documentation");
-        let (_task5, _) = task_list.append("Refactor user service");
+        let _task1 = task_list.append("Review pull request #123");
+        let _task2 = task_list.append("Fix bug in authentication");
+        let task3 = task_list.append("Deploy to staging");
+        let _task4 = task_list.append("Update API documentation");
+        let _task5 = task_list.append("Refactor user service");
 
         // Mark one task as done
         task_list.mark_done(task3.id);
 
-        // Pop some tasks to make them in progress
-        task_list.pop_front(); // Mark first task as in progress (removes it from list)
-        task_list.pop_back(); // Mark last task as in progress (removes it from list)
+        // Mark some tasks as in progress manually
+        task_list.tasks[0].mark_in_progress(); // Mark first task as in progress
+        task_list.tasks[4].mark_in_progress(); // Mark last task as in progress
 
         let fixture = Operation::TaskList {
             _input: forge_domain::TaskListTool {
@@ -1023,32 +1023,9 @@ mod tests {
     }
 
     #[test]
-    fn test_task_list_prepend_operation() {
-        let mut task_list = TaskList::new();
-        task_list.append("Existing task");
-        task_list.prepend("Urgent task");
-
-        let fixture = Operation::TaskList {
-            _input: forge_domain::TaskListTool {
-                operation: forge_domain::TaskListOperation::Prepend {
-                    task: "Urgent task".to_string(),
-                },
-                explanation: Some("Prepend urgent task".to_string()),
-            },
-            output: task_list,
-        };
-
-        let env = fixture_environment();
-
-        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
-
-        insta::assert_snapshot!(to_value(actual));
-    }
-
-    #[test]
     fn test_task_list_mark_done_operation() {
         let mut task_list = TaskList::new();
-        let (task1, _) = task_list.append("Task to complete");
+        let task1 = task_list.append("Task to complete");
         task_list.append("Another task");
         task_list.mark_done(task1.id);
 
@@ -1056,30 +1033,6 @@ mod tests {
             _input: forge_domain::TaskListTool {
                 operation: forge_domain::TaskListOperation::MarkDone { task_id: task1.id },
                 explanation: Some("Mark task as done".to_string()),
-            },
-            output: task_list,
-        };
-
-        let env = fixture_environment();
-
-        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
-
-        insta::assert_snapshot!(to_value(actual));
-    }
-
-    #[test]
-    fn test_task_list_stats_only() {
-        let mut task_list = TaskList::new();
-        let (task1, _) = task_list.append("Task 1");
-        let (_task2, _) = task_list.append("Task 2");
-        let (_task3, _) = task_list.append("Task 3");
-        task_list.mark_done(task1.id);
-        task_list.pop_front(); // Mark task 2 as in progress
-
-        let fixture = Operation::TaskList {
-            _input: forge_domain::TaskListTool {
-                operation: forge_domain::TaskListOperation::Stats,
-                explanation: Some("Show task statistics".to_string()),
             },
             output: task_list,
         };
@@ -1103,8 +1056,9 @@ mod tests {
         task_list.mark_done(1);
         task_list.mark_done(5);
         task_list.mark_done(10);
-        task_list.pop_front(); // Mark task 2 as in progress
-        task_list.pop_front(); // Mark task 3 as in progress
+        // Mark some tasks as in progress manually
+        task_list.tasks[1].mark_in_progress(); // Mark task 2 as in progress
+        task_list.tasks[2].mark_in_progress(); // Mark task 3 as in progress
 
         let fixture = Operation::TaskList {
             _input: forge_domain::TaskListTool {

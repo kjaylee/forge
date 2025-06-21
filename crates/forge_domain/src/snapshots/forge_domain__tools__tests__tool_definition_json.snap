@@ -386,41 +386,6 @@ expression: tools
             "additionalProperties": false
           },
           {
-            "description": "Add a new task to the beginning of the list",
-            "type": "object",
-            "required": [
-              "prepend"
-            ],
-            "properties": {
-              "prepend": {
-                "type": "object",
-                "required": [
-                  "task"
-                ],
-                "properties": {
-                  "task": {
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "description": "Remove and mark the first task as IN_PROGRESS",
-            "type": "string",
-            "enum": [
-              "pop_front"
-            ]
-          },
-          {
-            "description": "Remove and mark the last task as IN_PROGRESS",
-            "type": "string",
-            "enum": [
-              "pop_back"
-            ]
-          },
-          {
             "description": "Mark a specific task as DONE by its ID",
             "type": "object",
             "required": [
@@ -455,13 +420,6 @@ expression: tools
             "type": "string",
             "enum": [
               "clear"
-            ]
-          },
-          {
-            "description": "Show only the task statistics",
-            "type": "string",
-            "enum": [
-              "stats"
             ]
           }
         ]

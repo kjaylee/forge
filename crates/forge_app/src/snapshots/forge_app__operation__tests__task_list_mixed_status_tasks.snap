@@ -3,11 +3,16 @@ source: crates/forge_app/src/operation.rs
 expression: to_value(actual)
 ---
 <task_list
-  total_tasks="2"
+  total_tasks="3"
   pending_tasks="1"
-  in_progress_tasks="0"
+  in_progress_tasks="1"
   done_tasks="1"
 >
+<task
+  id="1"
+  status="IN_PROGRESS"
+><![CDATA[First task]]>
+</task>
 <task
   id="2"
   status="DONE"
