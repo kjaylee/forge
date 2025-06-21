@@ -47,11 +47,6 @@ agents:
       - forge_tool_net_fetch
       - forge_tool_fs_search
       - forge_tool_fs_undo
-      - forge_tool_task_list_append
-      - forge_tool_task_list_append_multiple
-      - forge_tool_task_list_mark_done
-      - forge_tool_task_list_list
-      - forge_tool_task_list_clear
 
   - id: muse
     title: "Analysis and planning focussed"
