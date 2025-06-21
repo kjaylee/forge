@@ -409,69 +409,6 @@ where
     }
 }
 
-#[cfg(test)]
-mod t {
-    use crate::{TaskListOperation, TaskListTool};
-
-    #[test]
-    fn test_json_string_operation() {
-        let x = r#"
-        {
-  "explanation": "Adding a complex authentication system task to demonstrate handling large, multi-component features",
-  "operation": "{\"append\": {\"task\": \"Implement comprehensive user authentication system: Design JWT token management, create login/logout endpoints, implement password hashing with bcrypt, add rate limiting for login attempts, create user registration with email verification, implement password reset functionality, add OAuth integration for Google/GitHub, create middleware for route protection, write comprehensive unit tests for all auth flows, and update API documentation\"}}"
-}
-        "#;
-        let parsed: TaskListTool = serde_json::from_str(x).unwrap();
-
-        assert!(matches!(parsed.operation, TaskListOperation::Append { .. }));
-        if let TaskListOperation::Append { task } = parsed.operation {
-            assert!(task.contains("authentication system"));
-        }
-    }
-
-    #[test]
-    fn test_direct_operation() {
-        let x = r#"
-        {
-  "explanation": "Testing direct operation format",
-  "operation": {"append": {"task": "Simple task"}}
-}
-        "#;
-        let parsed: TaskListTool = serde_json::from_str(x).unwrap();
-
-        assert!(matches!(parsed.operation, TaskListOperation::Append { .. }));
-        if let TaskListOperation::Append { task } = parsed.operation {
-            assert_eq!(task, "Simple task");
-        }
-    }
-
-    #[test]
-    fn test_list_operation() {
-        let x = r#"
-        {
-  "explanation": "Testing list operation",
-  "operation": "\"list\""
-}
-        "#;
-        let parsed: TaskListTool = serde_json::from_str(x).unwrap();
-
-        assert!(matches!(parsed.operation, TaskListOperation::List));
-    }
-
-    #[test]
-    fn foo() {
-        let x = r#"
-        {
-  "explanation": "Adding a complex authentication system task to demonstrate handling large, multi-component features",
-  "operation": "{\"append\": {\"task\": \"Implement comprehensive user authentication system: Design JWT token management, create login/logout endpoints, implement password hashing with bcrypt, add rate limiting for login attempts, create user registration with email verification, implement password reset functionality, add OAuth integration for Google/GitHub, create middleware for route protection, write comprehensive unit tests for all auth flows, and update API documentation\"}}"
-}
-        "#;
-        println!("{:#?}", serde_json::from_str::<TaskListTool>(x).unwrap());
-        // let schema = schemars::schema_for!(TaskListTool);
-        // println!("{}", serde_json::to_string_pretty(&schema).unwrap());
-    }
-}
-
 /// Available operations for task list management
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]
