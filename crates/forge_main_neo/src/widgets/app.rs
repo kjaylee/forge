@@ -1,13 +1,14 @@
 use edtui::{EditorEventHandler, EditorMode, EditorTheme, EditorView};
 use ratatui::crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::layout::{Alignment, Constraint, Direction, Layout};
-use ratatui::style::{Style, Stylize};
+use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::style::{Color, Style, Stylize};
 use ratatui::symbols::{border, line};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, StatefulWidget, Widget, Wrap};
 
 use crate::model::{Action, Command, State};
 use crate::widgets::status::StatusBar;
+use crate::widgets::welcome::Welcome;
 
 #[derive(Default)]
 pub struct App {
@@ -75,8 +76,6 @@ impl StatefulWidget for &App {
         let [ass, user] = main_layout.areas(area);
 
         let content_block = Block::bordered()
-            .title(" Welcome to Forge ")
-            .title_alignment(Alignment::Center)
             .border_set(border::Set {
                 bottom_right: line::VERTICAL_LEFT,
                 bottom_left: line::VERTICAL_RIGHT,
@@ -85,21 +84,14 @@ impl StatefulWidget for &App {
             .border_style(Style::default().dark_gray())
             .title_style(Style::default().dark_gray());
 
-        let content_paragraph = if state.messages.is_empty() {
-            let content_block_with_padding = content_block.padding(Padding::new(0, 0, 4, 0));
-
-            Paragraph::new(vec![
-                "Use <CTRL+D> to exit".into(),
-                "Use <CTRL+T> to toggle between PLAN & ACT mode".into(),
-            ])
-            .style(Style::default().dark_gray())
-            .centered()
-            .block(content_block_with_padding)
+        if state.messages.is_empty() {
+            Welcome::default().render(content_block.inner(ass), buf);
         } else {
             // Need to create a paragraph from each line.
-            Paragraph::new(state.messages.iter().map(Line::raw).collect::<Vec<_>>())
-                .wrap(Wrap { trim: false })
-                .block(content_block)
+            let para = Paragraph::new(state.messages.iter().map(Line::raw).collect::<Vec<_>>())
+                .wrap(Wrap { trim: false });
+
+            para.render(content_block.inner(ass), buf);
         };
 
         let user_block = Block::bordered()
@@ -123,12 +115,13 @@ impl StatefulWidget for &App {
             .theme(
                 EditorTheme::default()
                     .base(Style::reset())
+                    .cursor_style(Style::default().fg(Color::Black).bg(Color::White))
                     .hide_status_line(),
             )
             .wrap(true) // line wrapping
             .render(user_block.inner(user), buf);
 
-        content_paragraph.render(ass, buf);
+        content_block.render(ass, buf);
         user_block.render(user, buf);
     }
 }
