@@ -1,4 +1,5 @@
 mod app;
+mod messages;
 mod status;
 mod welcome;
 

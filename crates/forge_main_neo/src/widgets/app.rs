@@ -3,12 +3,11 @@ use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::symbols::{border, line};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Padding, Paragraph, StatefulWidget, Widget, Wrap};
+use ratatui::widgets::{Block, Borders, Padding, StatefulWidget, Widget};
 
 use crate::model::{Action, Command, State};
+use crate::widgets::messages::MessageList;
 use crate::widgets::status::StatusBar;
-use crate::widgets::welcome::Welcome;
 
 #[derive(Default)]
 pub struct App {
@@ -84,15 +83,9 @@ impl StatefulWidget for &App {
             .border_style(Style::default().dark_gray())
             .title_style(Style::default().dark_gray());
 
-        if state.messages.is_empty() {
-            Welcome::default().render(content_block.inner(ass), buf);
-        } else {
-            // Need to create a paragraph from each line.
-            let para = Paragraph::new(state.messages.iter().map(Line::raw).collect::<Vec<_>>())
-                .wrap(Wrap { trim: false });
-
-            para.render(content_block.inner(ass), buf);
-        };
+        MessageList::default()
+            .messages(state.messages.clone())
+            .render(content_block.inner(ass), buf);
 
         let user_block = Block::bordered()
             .padding(Padding::new(0, 0, 0, 1))
@@ -118,7 +111,7 @@ impl StatefulWidget for &App {
                     .cursor_style(Style::default().fg(Color::Black).bg(Color::White))
                     .hide_status_line(),
             )
-            .wrap(true) // line wrapping
+            .wrap(true)
             .render(user_block.inner(user), buf);
 
         content_block.render(ass, buf);

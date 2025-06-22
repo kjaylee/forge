@@ -11,3 +11,4 @@ edtui = {version = "0.9.6", features = ["mouse-support"]}
 derive_more.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
+derive_setters.workspace = true
