@@ -1,5 +1,5 @@
 use derive_more::From;
-use edtui::EditorState;
+use edtui::{EditorState, Index2};
 use ratatui::crossterm::event::{KeyEvent, MouseEvent};
 
 #[derive(Default)]
@@ -9,8 +9,31 @@ pub struct State {
     pub exit: bool,
 }
 
+impl State {
+    pub fn editor_lines(&self) -> Vec<String> {
+        self.editor
+            .lines
+            .iter_row()
+            .map(|row| row.iter().collect::<String>())
+            .collect::<Vec<_>>()
+    }
+
+    pub fn take_lines(&mut self) -> Vec<String> {
+        let text = self.editor_lines();
+        self.editor.lines.clear();
+        self.editor.cursor = Index2::default();
+        text
+    }
+}
+
 #[derive(From)]
 pub enum Action {
     KeyEvent(KeyEvent),
     MouseEvent(MouseEvent),
+}
+
+#[derive(From)]
+pub enum Command {
+    Chat(String),
+    Empty,
 }

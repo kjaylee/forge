@@ -1,4 +1,4 @@
-use edtui::{EditorEventHandler, EditorTheme, EditorView};
+use edtui::{EditorEventHandler, EditorMode, EditorTheme, EditorView};
 use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::style::{Style, Stylize};
@@ -6,7 +6,7 @@ use ratatui::symbols::{border, line};
 use ratatui::widgets::{Block, Borders, Padding, Paragraph, StatefulWidget, Widget};
 
 use crate::widgets::status::StatusBar;
-use crate::{Action, State};
+use crate::{Action, Command, State};
 
 #[derive(Default)]
 pub struct App {
@@ -14,19 +14,24 @@ pub struct App {
 }
 
 impl App {
-    pub fn update(&mut self, action: impl Into<Action>, state: &mut State) {
+    pub fn update(&mut self, action: impl Into<Action>, state: &mut State) -> Command {
         match action.into() {
             Action::KeyEvent(event) => {
-                if event.code == KeyCode::Char('d')
-                    && event.modifiers.contains(KeyModifiers::CONTROL)
-                {
+                let ctrl = event.modifiers.contains(KeyModifiers::CONTROL);
+                if event.code == KeyCode::Char('d') && ctrl {
                     state.exit = true;
-                } else {
-                    self.editor.on_key_event(event, &mut state.editor);
                 }
+
+                if event.code == KeyCode::Enter && state.editor.mode == EditorMode::Normal {
+                    return Command::Chat(state.take_lines().join("\n"));
+                }
+
+                self.editor.on_key_event(event, &mut state.editor);
+                Command::Empty
             }
             Action::MouseEvent(event) => {
                 self.editor.on_mouse_event(event, &mut state.editor);
+                Command::Empty
             }
         }
     }
