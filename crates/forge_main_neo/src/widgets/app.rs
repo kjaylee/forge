@@ -18,7 +18,12 @@ impl App {
     #[must_use]
     pub fn update(&mut self, action: impl Into<Action>, state: &mut State) -> Command {
         match action.into() {
-            Action::Initialize => Command::Empty,
+            Action::Initialize => Command::ReadWorkspace,
+            Action::Workspace { current_dir, current_branch } => {
+                state.current_dir = current_dir;
+                state.current_branch = current_branch;
+                Command::Empty
+            }
             Action::CrossTerm(event) => match event {
                 ratatui::crossterm::event::Event::FocusGained => Command::Empty,
                 ratatui::crossterm::event::Event::FocusLost => Command::Empty,
@@ -107,7 +112,12 @@ impl StatefulWidget for &App {
             .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
             .title_style(Style::default().dark_gray())
             .border_style(Style::default().dark_gray())
-            .title_bottom(StatusBar::new("FORGE", state.editor.mode.name()));
+            .title_bottom(StatusBar::new(
+                "FORGE",
+                state.editor.mode.name(),
+                state.current_branch.clone(),
+                state.current_dir.clone(),
+            ));
 
         EditorView::new(&mut state.editor)
             .theme(

@@ -7,6 +7,8 @@ pub struct State {
     pub messages: Vec<String>,
     pub editor: EditorState,
     pub exit: bool,
+    pub current_branch: Option<String>,
+    pub current_dir: Option<String>,
 }
 
 impl State {
@@ -30,12 +32,19 @@ impl State {
 pub enum Action {
     CrossTerm(Event),
     Initialize,
-    ChatResponse { message: String },
+    Workspace {
+        current_dir: Option<String>,
+        current_branch: Option<String>,
+    },
+    ChatResponse {
+        message: String,
+    },
 }
 
 #[derive(From, PartialEq, Eq)]
 pub enum Command {
     Chat(String),
+    ReadWorkspace,
     Empty,
     Exit,
 }

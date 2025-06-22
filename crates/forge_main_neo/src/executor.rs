@@ -29,6 +29,34 @@ impl<T: API + 'static> Executor<T> {
                     message: message.chars().rev().collect::<String>(),
                 }))
             }
+            Command::ReadWorkspace => {
+                // Get current directory
+                let current_dir = self
+                    .api
+                    .environment()
+                    .cwd
+                    .file_name()
+                    .map(|name| name.to_string_lossy().to_string());
+
+                // Get current git branch
+                let current_branch = match tokio::process::Command::new("git")
+                    .args(["branch", "--show-current"])
+                    .output()
+                    .await
+                {
+                    Ok(output) if output.status.success() => {
+                        let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                        if branch.is_empty() {
+                            None
+                        } else {
+                            Some(branch)
+                        }
+                    }
+                    _ => None,
+                };
+
+                Ok(Some(Action::Workspace { current_dir, current_branch }))
+            }
             Command::Empty => Ok(None),
             Command::Exit => Ok(None),
         }

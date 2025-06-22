@@ -25,6 +25,9 @@ pub async fn run(mut terminal: DefaultTerminal) -> anyhow::Result<()> {
     // Initial STDIN
     let event_reader = EventReader::new(Duration::from_millis(100));
     event_reader.init(action_tx.clone()).await;
+
+    // Send initial Initialize action - workspace info will be read by executor
+    action_tx.send(Ok(Action::Initialize)).await?;
     loop {
         terminal.draw(|frame| {
             frame.render_stateful_widget(&app, frame.area(), &mut state);
