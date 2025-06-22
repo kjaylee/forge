@@ -6,8 +6,8 @@ use ratatui::symbols::{border, line};
 use ratatui::widgets::{Block, Borders, Padding, StatefulWidget, Widget};
 
 use crate::model::{Action, Command, State};
-use crate::widgets::messages::MessageList;
-use crate::widgets::status::StatusBar;
+use crate::widgets::message_list::MessageList;
+use crate::widgets::status_bar::StatusBar;
 
 #[derive(Default)]
 pub struct App {
