@@ -1,7 +1,5 @@
-use ratatui::{
-    style::{Style, Stylize},
-    widgets::{Block, Padding, Paragraph, Widget},
-};
+use ratatui::style::{Style, Stylize};
+use ratatui::widgets::{Block, Padding, Paragraph, Widget};
 
 #[derive(Default)]
 pub struct Welcome {}
