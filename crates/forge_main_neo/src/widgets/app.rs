@@ -70,7 +70,7 @@ impl StatefulWidget for &App {
     {
         let main_layout = Layout::new(
             Direction::Vertical,
-            [Constraint::Fill(0), Constraint::Max(6)],
+            [Constraint::Fill(0), Constraint::Max(3)],
         );
         let [ass, user] = main_layout.areas(area);
 
