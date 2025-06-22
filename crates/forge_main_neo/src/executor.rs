@@ -1,8 +1,10 @@
 use std::sync::Arc;
-use std::time::Duration;
 
-use forge_api::API;
+use forge_api::{API, AgentId, ChatRequest, ChatResponse, Event, Workflow};
+use merge::Merge;
+use serde_json::Value;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio_stream::StreamExt;
 
 use crate::model::{Action, Command};
 
@@ -21,14 +23,68 @@ impl<T: API + 'static> Executor<T> {
         Executor { api }
     }
 
+    async fn handle_chat(&self, message: String) -> anyhow::Result<Option<Action>> {
+        // Initialize a default workflow for conversation creation
+        let workflow = match self.api.read_workflow(None).await {
+            Ok(workflow) => {
+                // Ensure we have a default workflow
+                let mut base_workflow = Workflow::default();
+                base_workflow.merge(workflow);
+                base_workflow
+            }
+            Err(_) => Workflow::default(),
+        };
+
+        // Initialize conversation if needed
+        let conversation = self.api.init_conversation(workflow).await?;
+
+        // Create event for the chat message
+        // Todo:// use actual agent ID from the API
+        let event = Event::new(
+            format!("{}/user_task_init", AgentId::FORGE.as_str()),
+            Value::String(message.clone()),
+        );
+
+        // Create chat request
+        let chat_request = ChatRequest::new(event, conversation.id);
+
+        // Execute chat request and collect responses
+        let mut responses = Vec::new();
+        match self.api.chat(chat_request).await {
+            Ok(mut stream) => {
+                while let Some(response) = stream.next().await {
+                    match response {
+                        Ok(ChatResponse::Text { text, is_complete, .. }) => {
+                            if is_complete && !text.trim().is_empty() {
+                                responses.push(text);
+                            }
+                        }
+                        Ok(_) => {
+                            // Todo:// Handle other response types (tool calls,
+                            // usage, etc.)
+                            // For basic functionality, we'll ignore
+                            // these for now
+                        }
+                        Err(err) => return Err(err),
+                    }
+                }
+            }
+            Err(err) => return Err(err),
+        }
+
+        // Return aggregated response as action
+        let response_text = if responses.is_empty() {
+            "".to_string()
+        } else {
+            responses.join("\n")
+        };
+
+        Ok(Some(Action::ChatResponse { message: response_text }))
+    }
+
     pub async fn execute(&self, cmd: Command) -> anyhow::Result<Option<Action>> {
         match cmd {
-            Command::Chat(message) => {
-                tokio::time::sleep(Duration::from_millis(5000)).await;
-                Ok(Some(Action::ChatResponse {
-                    message: message.chars().rev().collect::<String>(),
-                }))
-            }
+            Command::Chat(message) => self.handle_chat(message).await,
             Command::ReadWorkspace => {
                 // Get current directory
                 let current_dir = self

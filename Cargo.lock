@@ -1368,8 +1368,11 @@ dependencies = [
  "derive_setters",
  "edtui",
  "forge_api",
+ "merge",
  "ratatui",
+ "serde_json",
  "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
