@@ -4,7 +4,7 @@ use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::style::{Style, Stylize};
 use ratatui::symbols::{border, line};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Padding, Paragraph, StatefulWidget, Widget};
+use ratatui::widgets::{Block, Borders, Padding, Paragraph, StatefulWidget, Widget, Wrap};
 
 use crate::model::{Action, Command, State};
 use crate::widgets::status::StatusBar;
@@ -93,6 +93,7 @@ impl StatefulWidget for &App {
         } else {
             // Need to create a paragraph from each line.
             Paragraph::new(state.messages.iter().map(Line::raw).collect::<Vec<_>>())
+                .wrap(Wrap { trim: false })
                 .block(content_block)
         };
 
