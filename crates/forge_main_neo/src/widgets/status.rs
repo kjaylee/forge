@@ -47,7 +47,7 @@ impl<'a> From<StatusBar> for Line<'a> {
 
         // Add branch information if available
         if let Some(branch) = value.current_branch {
-            spans.push(Span::from(format!("{branch}")).fg(Color::LightGreen));
+            spans.push(Span::from(branch.to_string()).fg(Color::LightGreen));
         }
 
         // Add directory information if available (show only the directory name, not
