@@ -1362,11 +1362,13 @@ dependencies = [
 name = "forge_main_neo"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "color-eyre",
  "derive_more",
  "edtui",
  "forge_api",
  "ratatui",
+ "tokio",
 ]
 
 [[package]]

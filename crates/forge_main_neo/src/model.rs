@@ -1,6 +1,6 @@
 use derive_more::From;
 use edtui::{EditorState, Index2};
-use ratatui::crossterm::event::{KeyEvent, MouseEvent};
+use ratatui::crossterm::event::Event;
 
 #[derive(Default)]
 pub struct State {
@@ -28,12 +28,14 @@ impl State {
 
 #[derive(From)]
 pub enum Action {
-    KeyEvent(KeyEvent),
-    MouseEvent(MouseEvent),
+    CrossTerm(Event),
+    Initialize,
+    ChatResponse { message: String },
 }
 
-#[derive(From)]
+#[derive(From, PartialEq, Eq)]
 pub enum Command {
     Chat(String),
     Empty,
+    Exit,
 }
