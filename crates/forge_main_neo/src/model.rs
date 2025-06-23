@@ -2,6 +2,8 @@ use derive_more::From;
 use edtui::{EditorState, Index2};
 use ratatui::crossterm::event::Event;
 
+use crate::widgets::Route;
+
 #[derive(Default)]
 pub struct State {
     pub messages: Vec<String>,
@@ -9,6 +11,7 @@ pub struct State {
     pub exit: bool,
     pub current_branch: Option<String>,
     pub current_dir: Option<String>,
+    pub current_route: Route,
 }
 
 impl State {
@@ -39,6 +42,9 @@ pub enum Action {
     ChatResponse {
         message: String,
     },
+    NavigateToRoute(Route),
+    NavigateNext,
+    NavigatePrevious,
 }
 
 #[derive(From, PartialEq, Eq)]

@@ -1,6 +1,7 @@
 mod app;
 mod message_list;
+mod router;
 mod status_bar;
-mod welcome;
 
 pub use app::App;
+pub use router::{Route, Router};
