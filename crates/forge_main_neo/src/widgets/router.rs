@@ -3,7 +3,8 @@ use ratatui::prelude::Rect;
 use ratatui::widgets::{StatefulWidget, Widget};
 
 use crate::model::State;
-use crate::widgets::message_list::MessageList;
+use crate::widgets::chat::Chat;
+use crate::widgets::container::Container;
 
 /// Represents the different routes/views available in the application
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -52,17 +53,18 @@ impl Route {
 #[derive(Default)]
 pub struct Router {
     current_route: Route,
+    chat: Chat,
 }
 
 impl Router {
     /// Create a new router with the default route
     pub fn new() -> Self {
-        Self { current_route: Route::default() }
+        Self { current_route: Route::default(), chat: Chat::new() }
     }
 
     /// Create a router with a specific initial route
     pub fn with_route(route: Route) -> Self {
-        Self { current_route: route }
+        Self { current_route: route, chat: Chat::new() }
     }
 
     /// Get the current route
@@ -84,6 +86,18 @@ impl Router {
     pub fn navigate_previous(&mut self) {
         self.current_route = self.current_route.previous();
     }
+
+    /// Handle events for the current route
+    pub fn handle_event(
+        &mut self,
+        event: ratatui::crossterm::event::Event,
+        state: &mut State,
+    ) -> crate::model::Command {
+        match self.current_route {
+            Route::Chat => self.chat.handle_event(event, state),
+            _ => crate::model::Command::Empty,
+        }
+    }
 }
 
 impl StatefulWidget for &Router {
@@ -95,27 +109,26 @@ impl StatefulWidget for &Router {
     {
         match self.current_route {
             Route::Chat => {
-                // For now, render the message list - this can be expanded later
-                MessageList::default()
-                    .messages(state.messages.clone())
-                    .render(area, buf);
+                // Render the chat widget
+                self.chat.render(area, buf, state);
             }
             Route::Settings => {
-                // Placeholder for settings view
+                // Settings view with container and status bar
                 use ratatui::style::{Style, Stylize};
                 use ratatui::widgets::Paragraph;
 
-                Paragraph::new("Settings View - Coming Soon!")
+                let content = Paragraph::new("Settings View - Coming Soon!")
                     .style(Style::default().yellow())
-                    .centered()
-                    .render(area, buf);
+                    .centered();
+
+                Container::new(content).render(area, buf);
             }
             Route::Help => {
-                // Combined Welcome and Help view
+                // Help view with container and status bar
                 use ratatui::style::{Style, Stylize};
                 use ratatui::widgets::Paragraph;
 
-                Paragraph::new(vec![
+                let content = Paragraph::new(vec![
                     "Welcome to Forge!".into(),
                     "".into(),
                     "Forge is an AI-powered development assistant that helps you".into(),
@@ -129,8 +142,9 @@ impl StatefulWidget for &Router {
                     "<ENTER> - Submit message (in Chat mode)".into(),
                 ])
                 .style(Style::default().cyan())
-                .centered()
-                .render(area, buf);
+                .centered();
+
+                Container::new(content).render(area, buf);
             }
         }
     }
@@ -162,7 +176,7 @@ mod tests {
     fn test_route_display_names() {
         let fixture = Route::Chat;
         let actual = fixture.display_name();
-        let expected = "  Chat  ";
+        let expected = "CHAT";
         assert_eq!(actual, expected);
     }
 

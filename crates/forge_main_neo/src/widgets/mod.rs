@@ -1,4 +1,6 @@
 mod app;
+mod chat;
+mod container;
 mod message_list;
 mod router;
 mod status_bar;

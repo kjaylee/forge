@@ -47,7 +47,7 @@ pub enum Action {
     NavigatePrevious,
 }
 
-#[derive(From, PartialEq, Eq)]
+#[derive(From, PartialEq, Eq, Debug)]
 pub enum Command {
     Chat(String),
     ReadWorkspace,
