@@ -159,28 +159,27 @@ impl Anthropic {
                     .with_context(|| ctx_msg)
                     .with_context(|| "Failed to fetch models")
             }
-            Ok(response) => match response.error_for_status() {
-                Ok(response) => {
-                    let ctx_msg = format_http_context(Some(response.status()), "GET", &url);
-                    match response.text().await {
-                        Ok(text) => {
-                            let response: ListModelResponse = serde_json::from_str(&text)
-                                .with_context(|| ctx_msg)
-                                .with_context(|| "Failed to deserialize models response")?;
-                            Ok(response.data.into_iter().map(Into::into).collect())
-                        }
-                        Err(err) => Err(err)
-                            .with_context(|| ctx_msg)
-                            .with_context(|| "Failed to decode response into text"),
-                    }
-                }
-                Err(err) => {
-                    let ctx_msg = format_http_context(err.status(), "GET", &url);
-                    Err(err)
+            Ok(response) => {
+                let status = response.status();
+                let ctx_msg = format_http_context(Some(response.status()), "GET", &url);
+                let text = response
+                    .text()
+                    .await
+                    .with_context(|| ctx_msg.clone())
+                    .with_context(|| "Failed to decode response into text")?;
+
+                if status.is_success() {
+                    let response: ListModelResponse = serde_json::from_str(&text)
                         .with_context(|| ctx_msg)
-                        .with_context(|| "Failed because of a non 200 status code".to_string())
+                        .with_context(|| "Failed to deserialize models response")?;
+                    Ok(response.data.into_iter().map(Into::into).collect())
+                } else {
+                    // treat non 200 response as error.
+                    Err(anyhow::anyhow!(text))
+                        .with_context(|| ctx_msg)
+                        .with_context(|| "Failed to fetch the models")
                 }
-            },
+            }
         }
     }
 }

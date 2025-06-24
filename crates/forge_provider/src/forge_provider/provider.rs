@@ -192,16 +192,20 @@ impl ForgeProvider {
         info!(method = "GET", url = %url, headers = ?headers, "Fetching Models");
         match self.client.get(url.clone()).headers(headers).send().await {
             Ok(response) => {
-                let ctx_message = format_http_context(Some(response.status()), "GET", &url);
-                match response.error_for_status() {
-                    Ok(response) => Ok(response
-                        .text()
-                        .await
+                let status = response.status();
+                let ctx_message = format_http_context(Some(status), "GET", &url);
+                let response = response
+                    .text()
+                    .await
+                    .with_context(|| ctx_message.clone())
+                    .with_context(|| "Failed to decode response into text")?;
+                if status.is_success() {
+                    Ok(response)
+                } else {
+                    // treat non 200 response as error.
+                    Err(anyhow::anyhow!(response))
                         .with_context(|| ctx_message)
-                        .with_context(|| "Failed to decode response into text")?),
-                    Err(err) => Err(err)
-                        .with_context(|| ctx_message)
-                        .with_context(|| "Failed because of a non 200 status code"),
+                        .with_context(|| "Failed to fetch the models")
                 }
             }
             Err(err) => {
