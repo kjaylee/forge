@@ -2,9 +2,9 @@ mod anthropic;
 mod client;
 mod error;
 mod forge_provider;
-mod retry;
 #[cfg(test)]
 mod mock_server;
+mod retry;
 
 mod utils;
 
