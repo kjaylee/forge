@@ -177,14 +177,14 @@ Here's a quick reference of Forge's command-line options:
 Forge supports multiple AI providers. Below are setup instructions for each supported provider:
 
 <details>
-<summary><strong>Antinomy.ai (Recommended)</strong></summary>
+<summary><strong>forgecode.dev (Recommended)</strong></summary>
 
 ```bash
 # .env
 FORGE_KEY=ForgeKey
 ```
 
-To use Antinomy's provider with Forge:
+To use Forgecode's provider with Forge:
 1. Visit [https://app.forgecode.dev/](https://app.forgecode.dev/)
 2. Login with your existing credentials or create a new account
 3. Once logged in, your account will automatically enable the Forge Provider
