@@ -12,7 +12,7 @@ const FORGE_NPM_PACKAGE: &str = "forgecode";
 async fn execute_update_command(api: Arc<impl API>) {
     // Spawn a new task that won't block the main application
     let output = api
-        .execute_shell_command_raw(&format!("npm update -g {} --force", FORGE_NPM_PACKAGE))
+        .execute_shell_command_raw(&format!("npm update -g {FORGE_NPM_PACKAGE} --force"))
         .await;
 
     match output {
