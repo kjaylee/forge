@@ -226,10 +226,10 @@ mod tests {
         })
     }
 
-    fn create_error_response(message: &str, _code: u16) -> serde_json::Value {
+    fn create_error_response(message: &str, code: u16) -> serde_json::Value {
         serde_json::json!({
             "error": {
-                "type": "authentication_error",
+                "code": code,
                 "message": message
             }
         })
