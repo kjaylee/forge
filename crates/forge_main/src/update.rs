@@ -5,7 +5,7 @@ use forge_api::{Update, API};
 use forge_tracker::VERSION;
 use update_informer::{registry, Check, Version};
 
-const UPDATE_COMMAND: &str = "npm update -g @antinomyhq/forge --force";
+const UPDATE_COMMAND: &str = "npm update -g forgecode --force";
 
 /// Runs npm update in the background, failing silently
 async fn execute_update_command(api: Arc<impl API>) {
