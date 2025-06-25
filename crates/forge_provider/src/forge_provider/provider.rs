@@ -259,8 +259,154 @@ impl From<Model> for forge_domain::Model {
 #[cfg(test)]
 mod tests {
     use anyhow::Context;
+    use mockito::{Mock, Server};
+    use reqwest::Client;
 
     use super::*;
+
+    struct TestFixture {
+        server: mockito::ServerGuard,
+    }
+
+    impl TestFixture {
+        async fn new() -> Self {
+            let server = Server::new_async().await;
+            Self { server }
+        }
+
+        async fn mock_models(&mut self, body: serde_json::Value, status: usize) -> Mock {
+            self.server
+                .mock("GET", "/models")
+                .with_status(status)
+                .with_header("content-type", "application/json")
+                .with_body(body.to_string())
+                .create_async()
+                .await
+        }
+    }
+
+    fn create_provider(base_url: &str) -> anyhow::Result<ForgeProvider> {
+        let provider = Provider::OpenAI {
+            url: reqwest::Url::parse(base_url)?,
+            key: Some("test-api-key".to_string()),
+        };
+
+        Ok(ForgeProvider::builder()
+            .client(Client::new())
+            .provider(provider)
+            .version("1.0.0".to_string())
+            .build()
+            .unwrap())
+    }
+
+    fn create_mock_models_response() -> serde_json::Value {
+        serde_json::json!({
+            "data": [
+                {
+                    "id": "model-1",
+                    "name": "Test Model 1",
+                    "description": "A test model",
+                    "context_length": 4096,
+                    "supported_parameters": ["tools", "supports_parallel_tool_calls"]
+                },
+                {
+                    "id": "model-2",
+                    "name": "Test Model 2",
+                    "description": "Another test model",
+                    "context_length": 8192,
+                    "supported_parameters": ["tools"]
+                }
+            ]
+        })
+    }
+
+    fn create_error_response(message: &str, code: u16) -> serde_json::Value {
+        serde_json::json!({
+            "error": {
+                "message": message,
+                "code": code
+            }
+        })
+    }
+
+    fn create_empty_response() -> serde_json::Value {
+        serde_json::json!({ "data": [] })
+    }
+
+    #[tokio::test]
+    async fn test_fetch_models_success() -> anyhow::Result<()> {
+        let mut fixture = TestFixture::new().await;
+        let mock = fixture.mock_models(create_mock_models_response(), 200).await;
+        let provider = create_provider(&fixture.server.url())?;
+        let actual = provider.models().await?;
+
+        mock.assert_async().await;
+        insta::assert_json_snapshot!(actual);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_fetch_models_http_error_status() -> anyhow::Result<()> {
+        let mut fixture = TestFixture::new().await;
+        let mock = fixture
+            .mock_models(create_error_response("Invalid API key", 401), 401)
+            .await;
+
+        let provider = create_provider(&fixture.server.url())?;
+        let actual = provider.models().await;
+
+        mock.assert_async().await;
+        
+        // Verify that we got an error
+        assert!(actual.is_err());
+        let error = actual.unwrap_err();
+        let error_string = format!("{:?}", error);
+        
+        // Check that error contains expected status code and message
+        assert!(error_string.contains("401"));
+        assert!(error_string.contains("Invalid API key"));
+        assert!(error_string.contains("Failed to fetch the models"));
+        
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_fetch_models_server_error() -> anyhow::Result<()> {
+        let mut fixture = TestFixture::new().await;
+        let mock = fixture
+            .mock_models(create_error_response("Internal Server Error", 500), 500)
+            .await;
+
+        let provider = create_provider(&fixture.server.url())?;
+        let actual = provider.models().await;
+
+        mock.assert_async().await;
+        
+        // Verify that we got an error
+        assert!(actual.is_err());
+        let error = actual.unwrap_err();
+        let error_string = format!("{:?}", error);
+        
+        // Check that error contains expected status code and message
+        assert!(error_string.contains("500"));
+        assert!(error_string.contains("Internal Server Error"));
+        assert!(error_string.contains("Failed to fetch the models"));
+        
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_fetch_models_empty_response() -> anyhow::Result<()> {
+        let mut fixture = TestFixture::new().await;
+        let mock = fixture.mock_models(create_empty_response(), 200).await;
+
+        let provider = create_provider(&fixture.server.url())?;
+        let actual = provider.models().await?;
+
+        mock.assert_async().await;
+        assert!(actual.is_empty());
+        Ok(())
+    }
 
     #[test]
     fn test_error_deserialization() -> Result<()> {
