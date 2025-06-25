@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_app::{
     ConversationService, EnvironmentService, FileDiscoveryService, ForgeApp, McpConfigManager,
-    ProviderService, Services, Walker, WorkflowService,
+    ProviderService, RepoAggregateOutput, RepoAggregateService, Services, Walker, WorkflowService,
 };
 use forge_domain::*;
 use forge_infra::ForgeInfra;
@@ -101,6 +101,19 @@ impl<A: Services, F: CommandInfra> API for ForgeAPI<A, F> {
         conversation_id: &ConversationId,
     ) -> anyhow::Result<Option<Conversation>> {
         self.app.find(conversation_id).await
+    }
+
+    async fn index(
+        &self,
+        max_tokens: Option<u64>,
+        output_template: Option<String>,
+        output_file: Option<String>,
+    ) -> anyhow::Result<RepoAggregateOutput> {
+        let environment = self.app.get_environment();
+        let current_dir = environment.cwd.to_string_lossy().to_string();
+        self.app
+            .aggregate(current_dir, max_tokens, output_template, output_file)
+            .await
     }
 
     async fn execute_shell_command(

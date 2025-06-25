@@ -369,6 +369,20 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
             Command::Shell(ref command) => {
                 self.api.execute_shell_command_raw(command).await?;
             }
+            Command::Index => {
+                self.spinner.start(Some("Generating codebase index"))?;
+                let forge_path = self.api.environment().cwd.join(".forge");
+                if !forge_path.exists() {
+                    tokio::fs::create_dir_all(&forge_path).await?;
+                }
+                let index_path = forge_path.join("index.md");
+                self.on_index(
+                    None,
+                    Some("<file path='FILE_PATH'>\nnFILE_CONTENT\n</file>".to_owned()),
+                    Some(index_path.display().to_string()),
+                )
+                .await?;
+            }
             Command::Agent => {
                 // Read the current workflow to validate the agent
                 let workflow = self.active_workflow().await?;
@@ -713,6 +727,23 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
         let mut config = self.api.read_mcp_config().await?;
         f(&mut config);
         self.api.write_mcp_config(scope, &config).await?;
+
+        Ok(())
+    }
+
+    async fn on_index(
+        &mut self,
+        max_tokens: Option<u32>,
+        template: Option<String>,
+        output_file: Option<String>,
+    ) -> Result<()> {
+        let max_tokens_u64 = max_tokens.map(|t| t as u64);
+        let _output = self
+            .api
+            .index(max_tokens_u64, template, output_file)
+            .await?;
+        self.spinner
+            .stop(Some("Index generated successfully".to_string()))?;
 
         Ok(())
     }

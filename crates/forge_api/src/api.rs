@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
+use forge_app::RepoAggregateOutput;
 use forge_stream::MpscStream;
 
 use crate::*;
@@ -71,6 +72,16 @@ pub trait API: Sync + Send {
 
     /// Executes the shell command on present stdio.
     async fn execute_shell_command_raw(&self, command: &str) -> Result<std::process::ExitStatus>;
+
+    /// Generates a codebase index/outline for the current working directory
+    /// using the yek tool for LLM consumption. Optionally stores the result to
+    /// a file.
+    async fn index(
+        &self,
+        max_tokens: Option<u64>,
+        output_template: Option<String>,
+        output_file: Option<String>,
+    ) -> Result<RepoAggregateOutput>;
 
     /// Reads and merges MCP configurations from all available configuration
     /// files This combines both user-level and local configurations with

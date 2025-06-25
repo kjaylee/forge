@@ -183,6 +183,7 @@ impl ForgeCommandManager {
             "/model" => Ok(Command::Model),
             "/tools" => Ok(Command::Tools),
             "/agent" => Ok(Command::Agent),
+            "/index" => Ok(Command::Index),
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
@@ -270,6 +271,12 @@ pub enum Command {
         usage = "Switch between different AI agents. Use this command to change which agent handles your requests and see available options."
     ))]
     Agent,
+    /// Generate a codebase index/outline using yek tool
+    /// This can be triggered with the '/index' command.
+    #[strum(props(
+        usage = "Generate a codebase index/outline with optional token limit, template, and output file"
+    ))]
+    Index,
 }
 
 impl Command {
@@ -290,6 +297,7 @@ impl Command {
             Command::Custom(event) => &event.name,
             Command::Shell(_) => "!shell",
             Command::Agent => "/agent",
+            Command::Index => "/index",
         }
     }
 

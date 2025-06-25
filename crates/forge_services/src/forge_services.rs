@@ -11,7 +11,7 @@ use crate::provider::ForgeProviderService;
 use crate::template::ForgeTemplateService;
 use crate::tool_services::{
     ForgeFetch, ForgeFollowup, ForgeFsCreate, ForgeFsPatch, ForgeFsRead, ForgeFsRemove,
-    ForgeFsSearch, ForgeFsUndo, ForgeShell,
+    ForgeFsSearch, ForgeFsUndo, ForgeRepoAggregate, ForgeShell,
 };
 use crate::workflow::ForgeWorkflowService;
 use crate::{
@@ -47,6 +47,7 @@ pub struct ForgeServices<F: McpServerInfra + WalkerInfra> {
     followup_service: Arc<ForgeFollowup<F>>,
     mcp_service: Arc<McpService<F>>,
     env_service: Arc<ForgeEnvironmentService<F>>,
+    repo_aggregate_service: Arc<ForgeRepoAggregate>,
 }
 
 impl<
@@ -78,7 +79,8 @@ impl<
         let shell_service = Arc::new(ForgeShell::new(infra.clone()));
         let fetch_service = Arc::new(ForgeFetch::new());
         let followup_service = Arc::new(ForgeFollowup::new(infra.clone()));
-        let env_service = Arc::new(ForgeEnvironmentService::new(infra));
+        let env_service = Arc::new(ForgeEnvironmentService::new(infra.clone()));
+        let repo_aggregate_service = Arc::new(ForgeRepoAggregate::new());
         Self {
             conversation_service,
             attachment_service,
@@ -98,6 +100,7 @@ impl<
             followup_service,
             mcp_service,
             env_service,
+            repo_aggregate_service,
         }
     }
 }
@@ -135,6 +138,7 @@ impl<
     type NetFetchService = ForgeFetch;
     type ShellService = ForgeShell<F>;
     type McpService = McpService<F>;
+    type RepoAggregateService = ForgeRepoAggregate;
 
     fn provider_service(&self) -> &Self::ProviderService {
         &self.provider_service
@@ -206,5 +210,9 @@ impl<
 
     fn mcp_service(&self) -> &Self::McpService {
         &self.mcp_service
+    }
+
+    fn repo_aggregate_service(&self) -> &Self::RepoAggregateService {
+        &self.repo_aggregate_service
     }
 }

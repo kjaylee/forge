@@ -83,6 +83,13 @@ pub struct FsUndoOutput {
     pub after_undo: Option<String>,
 }
 
+#[derive(Debug)]
+pub struct RepoAggregateOutput {
+    pub content: Content,
+    pub total_files: usize,
+    pub total_size: usize,
+}
+
 #[async_trait::async_trait]
 pub trait ProviderService: Send + Sync + 'static {
     async fn chat(
@@ -274,6 +281,20 @@ pub trait ShellService: Send + Sync {
     ) -> anyhow::Result<ShellOutput>;
 }
 
+#[async_trait::async_trait]
+pub trait RepoAggregateService: Send + Sync {
+    /// Aggregates repository content into a single text output for LLM
+    /// consumption. Optionally stores the result to a file if output_file is
+    /// provided.
+    async fn aggregate(
+        &self,
+        path: String,
+        max_tokens: Option<u64>,
+        output_template: Option<String>,
+        output_file: Option<String>,
+    ) -> anyhow::Result<RepoAggregateOutput>;
+}
+
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
@@ -296,6 +317,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     type NetFetchService: NetFetchService;
     type ShellService: ShellService;
     type McpService: McpService;
+    type RepoAggregateService: RepoAggregateService;
 
     fn provider_service(&self) -> &Self::ProviderService;
     fn conversation_service(&self) -> &Self::ConversationService;
@@ -315,6 +337,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn shell_service(&self) -> &Self::ShellService;
     fn mcp_service(&self) -> &Self::McpService;
     fn environment_service(&self) -> &Self::EnvironmentService;
+    fn repo_aggregate_service(&self) -> &Self::RepoAggregateService;
 }
 
 #[async_trait::async_trait]
@@ -540,5 +563,20 @@ impl<I: Services> ShellService for I {
 impl<I: Services> EnvironmentService for I {
     fn get_environment(&self) -> Environment {
         self.environment_service().get_environment()
+    }
+}
+
+#[async_trait::async_trait]
+impl<I: Services> RepoAggregateService for I {
+    async fn aggregate(
+        &self,
+        path: String,
+        max_tokens: Option<u64>,
+        output_template: Option<String>,
+        output_file: Option<String>,
+    ) -> anyhow::Result<RepoAggregateOutput> {
+        self.repo_aggregate_service()
+            .aggregate(path, max_tokens, output_template, output_file)
+            .await
     }
 }
