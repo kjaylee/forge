@@ -259,31 +259,10 @@ impl From<Model> for forge_domain::Model {
 #[cfg(test)]
 mod tests {
     use anyhow::Context;
-    use mockito::{Mock, Server};
     use reqwest::Client;
 
     use super::*;
-
-    struct TestFixture {
-        server: mockito::ServerGuard,
-    }
-
-    impl TestFixture {
-        async fn new() -> Self {
-            let server = Server::new_async().await;
-            Self { server }
-        }
-
-        async fn mock_models(&mut self, body: serde_json::Value, status: usize) -> Mock {
-            self.server
-                .mock("GET", "/models")
-                .with_status(status)
-                .with_header("content-type", "application/json")
-                .with_body(body.to_string())
-                .create_async()
-                .await
-        }
-    }
+    use crate::mock_server::MockServer;
 
     fn create_provider(base_url: &str) -> anyhow::Result<ForgeProvider> {
         let provider = Provider::OpenAI {
@@ -335,11 +314,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_models_success() -> anyhow::Result<()> {
-        let mut fixture = TestFixture::new().await;
+        let mut fixture = MockServer::new().await;
         let mock = fixture
             .mock_models(create_mock_models_response(), 200)
             .await;
-        let provider = create_provider(&fixture.server.url())?;
+        let provider = create_provider(&fixture.url())?;
         let actual = provider.models().await?;
 
         mock.assert_async().await;
@@ -349,12 +328,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_models_http_error_status() -> anyhow::Result<()> {
-        let mut fixture = TestFixture::new().await;
+        let mut fixture = MockServer::new().await;
         let mock = fixture
             .mock_models(create_error_response("Invalid API key", 401), 401)
             .await;
 
-        let provider = create_provider(&fixture.server.url())?;
+        let provider = create_provider(&fixture.url())?;
         let actual = provider.models().await;
 
         mock.assert_async().await;
@@ -374,12 +353,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_models_server_error() -> anyhow::Result<()> {
-        let mut fixture = TestFixture::new().await;
+        let mut fixture = MockServer::new().await;
         let mock = fixture
             .mock_models(create_error_response("Internal Server Error", 500), 500)
             .await;
 
-        let provider = create_provider(&fixture.server.url())?;
+        let provider = create_provider(&fixture.url())?;
         let actual = provider.models().await;
 
         mock.assert_async().await;
@@ -399,10 +378,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_models_empty_response() -> anyhow::Result<()> {
-        let mut fixture = TestFixture::new().await;
+        let mut fixture = MockServer::new().await;
         let mock = fixture.mock_models(create_empty_response(), 200).await;
 
-        let provider = create_provider(&fixture.server.url())?;
+        let provider = create_provider(&fixture.url())?;
         let actual = provider.models().await?;
 
         mock.assert_async().await;

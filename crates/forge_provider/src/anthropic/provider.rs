@@ -192,6 +192,54 @@ mod tests {
     };
 
     use super::*;
+    use crate::mock_server::MockServer;
+
+    fn create_anthropic(base_url: &str) -> anyhow::Result<Anthropic> {
+        Ok(Anthropic::builder()
+            .client(Client::new())
+            .base_url(Url::parse(base_url)?)
+            .anthropic_version("2023-06-01".to_string())
+            .api_key("sk-test-key".to_string())
+            .build()
+            .unwrap())
+    }
+
+    fn create_mock_models_response() -> serde_json::Value {
+        serde_json::json!({
+            "data": [
+                {
+                    "type": "model",
+                    "id": "claude-3-5-sonnet-20241022",
+                    "display_name": "Claude 3.5 Sonnet (New)",
+                    "created_at": "2024-10-22T00:00:00Z"
+                },
+                {
+                    "type": "model",
+                    "id": "claude-3-5-haiku-20241022",
+                    "display_name": "Claude 3.5 Haiku",
+                    "created_at": "2024-10-22T00:00:00Z"
+                }
+            ],
+            "has_more": false,
+            "first_id": "claude-3-5-sonnet-20241022",
+            "last_id": "claude-3-opus-20240229"
+        })
+    }
+
+    fn create_error_response(message: &str, _code: u16) -> serde_json::Value {
+        serde_json::json!({
+            "error": {
+                "type": "authentication_error",
+                "message": message
+            }
+        })
+    }
+
+    fn create_empty_response() -> serde_json::Value {
+        serde_json::json!({
+            "data": [],
+        })
+    }
 
     #[tokio::test]
     async fn test_url_for_models() {
@@ -239,5 +287,83 @@ mod tests {
             .stream(true)
             .max_tokens(4000u64);
         insta::assert_snapshot!(serde_json::to_string_pretty(&request).unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_fetch_models_success() -> anyhow::Result<()> {
+        let mut fixture = MockServer::new().await;
+        let mock = fixture
+            .mock_models(create_mock_models_response(), 200)
+            .await;
+        let anthropic = create_anthropic(&fixture.url())?;
+        let actual = anthropic.models().await?;
+
+        mock.assert_async().await;
+
+        // Verify we got the expected models
+        assert_eq!(actual.len(), 2);
+        insta::assert_json_snapshot!(actual);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_fetch_models_http_error_status() -> anyhow::Result<()> {
+        let mut fixture = MockServer::new().await;
+        let mock = fixture
+            .mock_models(create_error_response("Invalid API key", 401), 401)
+            .await;
+
+        let anthropic = create_anthropic(&fixture.url())?;
+        let actual = anthropic.models().await;
+
+        mock.assert_async().await;
+
+        // Verify that we got an error
+        assert!(actual.is_err());
+        let error = actual.unwrap_err();
+        let error_string = format!("{:?}", error);
+
+        // Check that error contains expected status code and context
+        assert!(error_string.contains("Invalid API key"));
+        assert!(error_string.contains("Failed to fetch the models"));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_fetch_models_server_error() -> anyhow::Result<()> {
+        let mut fixture = MockServer::new().await;
+        let mock = fixture
+            .mock_models(create_error_response("Internal Server Error", 500), 500)
+            .await;
+
+        let anthropic = create_anthropic(&fixture.url())?;
+        let actual = anthropic.models().await;
+
+        mock.assert_async().await;
+
+        // Verify that we got an error
+        assert!(actual.is_err());
+        let error = actual.unwrap_err();
+        let error_string = format!("{:?}", error);
+
+        // Check that error contains expected context
+        assert!(error_string.contains("Internal Server Error"));
+        assert!(error_string.contains("Failed to fetch the models"));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_fetch_models_empty_response() -> anyhow::Result<()> {
+        let mut fixture = MockServer::new().await;
+        let mock = fixture.mock_models(create_empty_response(), 200).await;
+
+        let anthropic = create_anthropic(&fixture.url())?;
+        let actual = anthropic.models().await?;
+
+        mock.assert_async().await;
+        assert!(actual.is_empty());
+        Ok(())
     }
 }
