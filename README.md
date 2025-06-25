@@ -34,13 +34,6 @@
 ---
 
 ## Quickstart
-
-Install globally:
-
-```bash
-npm install -g @antinomyhq/forge
-```
-
 Sign up at [Forgecode.dev](https://app.forgecode.dev/app/) to enable the Forge provider.
 
 Then set up your Forge provider key:
@@ -50,10 +43,10 @@ Then set up your Forge provider key:
 FORGE_KEY=ForgeKey
 ```
 
-Run Forge in interactive mode:
+Run Forge in interactive mode via npx
 
 ```bash
-forge
+npx forgecode@latest
 ```
 
 That's it! Forge is now ready to assist you with your development tasks.
