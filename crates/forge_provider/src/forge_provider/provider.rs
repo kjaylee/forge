@@ -336,7 +336,9 @@ mod tests {
     #[tokio::test]
     async fn test_fetch_models_success() -> anyhow::Result<()> {
         let mut fixture = TestFixture::new().await;
-        let mock = fixture.mock_models(create_mock_models_response(), 200).await;
+        let mock = fixture
+            .mock_models(create_mock_models_response(), 200)
+            .await;
         let provider = create_provider(&fixture.server.url())?;
         let actual = provider.models().await?;
 
@@ -356,17 +358,17 @@ mod tests {
         let actual = provider.models().await;
 
         mock.assert_async().await;
-        
+
         // Verify that we got an error
         assert!(actual.is_err());
         let error = actual.unwrap_err();
         let error_string = format!("{:?}", error);
-        
+
         // Check that error contains expected status code and message
         assert!(error_string.contains("401"));
         assert!(error_string.contains("Invalid API key"));
         assert!(error_string.contains("Failed to fetch the models"));
-        
+
         Ok(())
     }
 
@@ -381,17 +383,17 @@ mod tests {
         let actual = provider.models().await;
 
         mock.assert_async().await;
-        
+
         // Verify that we got an error
         assert!(actual.is_err());
         let error = actual.unwrap_err();
         let error_string = format!("{:?}", error);
-        
+
         // Check that error contains expected status code and message
         assert!(error_string.contains("500"));
         assert!(error_string.contains("Internal Server Error"));
         assert!(error_string.contains("Failed to fetch the models"));
-        
+
         Ok(())
     }
 
