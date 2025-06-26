@@ -190,10 +190,9 @@ mod tests {
         Context, ContextMessage, ToolCallFull, ToolCallId, ToolChoice, ToolName, ToolOutput,
         ToolResult,
     };
-    use crate::mock_server::normalize_ports;
 
     use super::*;
-    use crate::mock_server::MockServer;
+    use crate::mock_server::{normalize_ports, MockServer};
 
     fn create_anthropic(base_url: &str) -> anyhow::Result<Anthropic> {
         Ok(Anthropic::builder()
@@ -321,7 +320,7 @@ mod tests {
 
         // Verify that we got an error
         assert!(actual.is_err());
-        insta::assert_snapshot!(normalize_ports(format!("{:#?}",actual.unwrap_err())));
+        insta::assert_snapshot!(normalize_ports(format!("{:#?}", actual.unwrap_err())));
         Ok(())
     }
 
@@ -339,7 +338,7 @@ mod tests {
 
         // Verify that we got an error
         assert!(actual.is_err());
-        insta::assert_snapshot!(normalize_ports(format!("{:#?}",actual.unwrap_err())));
+        insta::assert_snapshot!(normalize_ports(format!("{:#?}", actual.unwrap_err())));
 
         Ok(())
     }

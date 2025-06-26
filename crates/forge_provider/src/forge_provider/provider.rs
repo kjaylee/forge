@@ -340,7 +340,7 @@ mod tests {
 
         // Verify that we got an error
         assert!(actual.is_err());
-        insta::assert_snapshot!(normalize_ports(format!("{:#?}",actual.unwrap_err())));
+        insta::assert_snapshot!(normalize_ports(format!("{:#?}", actual.unwrap_err())));
         Ok(())
     }
 
@@ -358,7 +358,7 @@ mod tests {
 
         // Verify that we got an error
         assert!(actual.is_err());
-        insta::assert_snapshot!(normalize_ports(format!("{:#?}",actual.unwrap_err())));
+        insta::assert_snapshot!(normalize_ports(format!("{:#?}", actual.unwrap_err())));
         Ok(())
     }
 
