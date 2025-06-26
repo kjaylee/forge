@@ -35,7 +35,7 @@ impl StatefulWidget for &Settings {
             .style(Style::default().yellow())
             .centered();
 
-        let panel = BorderedPanel::new(content).title("Settings");
+        let panel = BorderedPanel::new(content);
         Widget::render(panel, area, buf);
     }
 }

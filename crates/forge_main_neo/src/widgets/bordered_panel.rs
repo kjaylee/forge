@@ -11,19 +11,12 @@ use crate::model::State;
 #[derive(Default)]
 pub struct BorderedPanel<W> {
     content: W,
-    title: Option<String>,
 }
 
 impl<W> BorderedPanel<W> {
     /// Create a new bordered panel with the given content widget
     pub fn new(content: W) -> Self {
-        Self { content, title: None }
-    }
-
-    /// Set the title for the bordered panel
-    pub fn title<T: Into<String>>(mut self, title: T) -> Self {
-        self.title = Some(title.into());
-        self
+        Self { content }
     }
 }
 
@@ -38,14 +31,9 @@ where
         Self: Sized,
     {
         // Create a bordered block
-        let mut block = Block::bordered()
+        let block = Block::bordered()
             .borders(Borders::ALL)
             .border_style(Style::default().dark_gray());
-
-        // Add title if provided
-        if let Some(title) = self.title {
-            block = block.title(title).title_style(Style::default().cyan());
-        }
 
         // Render the content inside the bordered area
         self.content.render(block.inner(area), buf, state);
@@ -64,14 +52,9 @@ where
         Self: Sized,
     {
         // Create a bordered block
-        let mut block = Block::bordered()
+        let block = Block::bordered()
             .borders(Borders::ALL)
             .border_style(Style::default().dark_gray());
-
-        // Add title if provided
-        if let Some(title) = self.title {
-            block = block.title(title).title_style(Style::default().cyan());
-        }
 
         // Render the content inside the bordered area
         self.content.render(block.inner(area), buf);
@@ -83,7 +66,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
     use ratatui::widgets::Paragraph;
 
     use super::*;
@@ -93,14 +75,5 @@ mod tests {
         let content = Paragraph::new("Test content");
         let _fixture = BorderedPanel::new(content);
         assert!(true); // BorderedPanel creation successful if we reach this point
-    }
-
-    #[test]
-    fn test_bordered_panel_with_title() {
-        let content = Paragraph::new("Test content");
-        let panel = BorderedPanel::new(content).title("Test Title");
-        let actual = panel.title.as_ref().unwrap();
-        let expected = "Test Title";
-        assert_eq!(actual, expected);
     }
 }
