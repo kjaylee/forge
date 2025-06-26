@@ -22,12 +22,16 @@ impl Chat {
         if event.code == KeyCode::Enter && state.editor.mode == EditorMode::Normal {
             let message = state.take_lines().join("\n");
             state.messages.push(message.clone());
-            return Command::Chat(message);
+            if message.trim().is_empty() {
+                Command::Empty
+            } else {
+                Command::Chat(message)
+            }
+        } else {
+            // Handle editor events
+            self.editor.on_key_event(event, &mut state.editor);
+            Command::Empty
         }
-
-        // Handle editor events
-        self.editor.on_key_event(event, &mut state.editor);
-        Command::Empty
     }
 
     /// Handle mouse events for the chat interface
@@ -60,7 +64,7 @@ impl StatefulWidget for &Chat {
         // Create chat layout with messages area and user input area
         let chat_layout = Layout::new(
             Direction::Vertical,
-            [Constraint::Fill(0), Constraint::Max(3)],
+            [Constraint::Fill(0), Constraint::Max(5)],
         );
         let [messages_area, user_area] = chat_layout.areas(area);
 
