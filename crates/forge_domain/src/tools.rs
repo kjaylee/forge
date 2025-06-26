@@ -443,12 +443,14 @@ pub struct TaskListClear {
     pub explanation: Option<String>,
 }
 
+/// Use this tool for any question that can be answered by examining code.
 /// Find snippets of code from the codebase most relevant to the search query.
-/// This is a semantic search tool, so the query should ask for something
-/// semantically matching what is needed. Unless there is a clear reason to
-/// use your own search query, please just reuse the user's exact query with
-/// their wording. Their exact wording/phrasing can often be helpful for
-/// searching. Keeping the same exact question format can also be helpful.
+/// If it makes sense to only search in particular directories, please specify
+/// them in the paths field.
+/// Unless there is a clear reason to use your own search query, please just
+/// reuse the user's exact query with their wording.
+/// Their exact wording/phrasing can often be helpful for searching. Keeping
+/// the same exact question format can also be helpful.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
 pub struct CodebaseSearch {
     /// The search query to find relevant code.
