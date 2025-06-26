@@ -1,10 +1,11 @@
 use ratatui::buffer::Buffer;
 use ratatui::prelude::Rect;
-use ratatui::widgets::{StatefulWidget, Widget};
+use ratatui::widgets::StatefulWidget;
 
 use crate::model::State;
 use crate::widgets::chat::Chat;
-use crate::widgets::chat_container::ChatContainer;
+use crate::widgets::help::Help;
+use crate::widgets::settings::Settings;
 
 /// Represents the different routes/views available in the application
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -54,17 +55,29 @@ impl Route {
 pub struct Router {
     current_route: Route,
     chat: Chat,
+    settings: Settings,
+    help: Help,
 }
 
 impl Router {
     /// Create a new router with the default route
     pub fn new() -> Self {
-        Self { current_route: Route::default(), chat: Chat::new() }
+        Self {
+            current_route: Route::default(),
+            chat: Chat::new(),
+            settings: Settings::new(),
+            help: Help::new(),
+        }
     }
 
     /// Create a router with a specific initial route
     pub fn with_route(route: Route) -> Self {
-        Self { current_route: route, chat: Chat::new() }
+        Self {
+            current_route: route,
+            chat: Chat::new(),
+            settings: Settings::new(),
+            help: Help::new(),
+        }
     }
 
     /// Get the current route
@@ -95,7 +108,8 @@ impl Router {
     ) -> crate::model::Command {
         match self.current_route {
             Route::Chat => self.chat.handle_event(event, state),
-            _ => crate::model::Command::Empty,
+            Route::Settings => self.settings.handle_event(event, state),
+            Route::Help => self.help.handle_event(event, state),
         }
     }
 }
@@ -113,38 +127,12 @@ impl StatefulWidget for &Router {
                 self.chat.render(area, buf, state);
             }
             Route::Settings => {
-                // Settings view with container and status bar
-                use ratatui::style::{Style, Stylize};
-                use ratatui::widgets::Paragraph;
-
-                let content = Paragraph::new("Settings View - Coming Soon!")
-                    .style(Style::default().yellow())
-                    .centered();
-
-                content.render(area, buf);
+                // Render the settings widget
+                self.settings.render(area, buf, state);
             }
             Route::Help => {
-                // Help view with container and status bar
-                use ratatui::style::{Style, Stylize};
-                use ratatui::widgets::Paragraph;
-
-                let content = Paragraph::new(vec![
-                    "Welcome to Forge!".into(),
-                    "".into(),
-                    "Forge is an AI-powered development assistant that helps you".into(),
-                    "build, debug, and enhance your code projects.".into(),
-                    "".into(),
-                    "Keyboard Shortcuts:".into(),
-                    "".into(),
-                    "<CTRL+D> - Exit application".into(),
-                    "<TAB> - Navigate to next view".into(),
-                    "<SHIFT+TAB> - Navigate to previous view".into(),
-                    "<ENTER> - Submit message (in Chat mode)".into(),
-                ])
-                .style(Style::default().cyan())
-                .centered();
-
-                content.render(area, buf);
+                // Render the help widget
+                self.help.render(area, buf, state);
             }
         }
     }
