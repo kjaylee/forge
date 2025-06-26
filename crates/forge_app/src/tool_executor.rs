@@ -9,7 +9,8 @@ use crate::operation::Operation;
 use crate::services::ShellService;
 use crate::{
     ConversationService, EnvironmentService, FollowUpService, FsCreateService, FsPatchService,
-    FsReadService, FsRemoveService, FsSearchService, FsUndoService, NetFetchService,
+    FsReadService, FsRemoveService, FsSearchService, FsUndoService, IndexCodebaseService,
+    NetFetchService,
 };
 
 pub struct ToolExecutor<S> {
@@ -27,7 +28,8 @@ impl<
         + ShellService
         + FollowUpService
         + ConversationService
-        + EnvironmentService,
+        + EnvironmentService
+        + IndexCodebaseService,
 > ToolExecutor<S>
 {
     pub fn new(services: Arc<S>) -> Self {
@@ -149,6 +151,10 @@ impl<
                 let before = tasks.clone();
                 tasks.clear();
                 Operation::TaskListClear { _input: input, before, after: tasks.clone() }
+            }
+            Tools::ForgeToolCodebaseSearch(input) => {
+                let _output = self.services.index().await?;
+                Operation::CodebaseSearch { input, output: "Codebase Indexed".to_string() }
             }
         })
     }

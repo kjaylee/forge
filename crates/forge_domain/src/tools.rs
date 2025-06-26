@@ -49,6 +49,7 @@ pub enum Tools {
     ForgeToolTaskListUpdate(TaskListUpdate),
     ForgeToolTaskListList(TaskListList),
     ForgeToolTaskListClear(TaskListClear),
+    ForgeToolCodebaseSearch(CodebaseSearch),
 }
 
 /// Input structure for agent tool calls. This serves as the generic schema
@@ -442,6 +443,21 @@ pub struct TaskListClear {
     pub explanation: Option<String>,
 }
 
+/// Helps answer queries related to the codebase by searching and analyzing
+/// project files, structure, and content. Use this tool whenever you need to
+/// understand anything about the codebase - from finding specific functions
+/// and types to understanding project architecture and code patterns.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+pub struct CodebaseSearch {
+    /// Query regarding the codebase to focus the search
+    pub query: String,
+
+    /// One sentence explanation as to why this specific tool is being used, and
+    /// how it contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
 fn default_raw() -> Option<bool> {
     Some(false)
 }
@@ -568,6 +584,7 @@ impl ToolDescription for Tools {
             Tools::ForgeToolTaskListUpdate(v) => v.description(),
             Tools::ForgeToolTaskListList(v) => v.description(),
             Tools::ForgeToolTaskListClear(v) => v.description(),
+            Tools::ForgeToolCodebaseSearch(v) => v.description(),
         }
     }
 }
@@ -609,6 +626,7 @@ impl Tools {
             Tools::ForgeToolTaskListUpdate(_) => gen.into_root_schema_for::<TaskListUpdate>(),
             Tools::ForgeToolTaskListList(_) => gen.into_root_schema_for::<TaskListList>(),
             Tools::ForgeToolTaskListClear(_) => gen.into_root_schema_for::<TaskListClear>(),
+            Tools::ForgeToolCodebaseSearch(_) => gen.into_root_schema_for::<CodebaseSearch>(),
         }
     }
 

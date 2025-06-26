@@ -84,10 +84,11 @@ pub struct FsUndoOutput {
 }
 
 #[derive(Debug)]
-pub struct RepoAggregateOutput {
-    pub content: Content,
-    pub total_files: usize,
-    pub total_size: usize,
+pub struct Shard(pub String);
+
+#[derive(Debug)]
+pub struct CodebaseIndexOutput {
+    pub shards: Vec<Shard>,
 }
 
 #[async_trait::async_trait]
@@ -282,17 +283,8 @@ pub trait ShellService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait RepoAggregateService: Send + Sync {
-    /// Aggregates repository content into a single text output for LLM
-    /// consumption. Optionally stores the result to a file if output_file is
-    /// provided.
-    async fn aggregate(
-        &self,
-        path: String,
-        max_tokens: Option<u64>,
-        output_template: Option<String>,
-        output_file: Option<String>,
-    ) -> anyhow::Result<RepoAggregateOutput>;
+pub trait IndexCodebaseService: Send + Sync {
+    async fn index(&self) -> anyhow::Result<CodebaseIndexOutput>;
 }
 
 /// Core app trait providing access to services and repositories.
@@ -317,7 +309,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     type NetFetchService: NetFetchService;
     type ShellService: ShellService;
     type McpService: McpService;
-    type RepoAggregateService: RepoAggregateService;
+    type IndexCodebaseService: IndexCodebaseService;
 
     fn provider_service(&self) -> &Self::ProviderService;
     fn conversation_service(&self) -> &Self::ConversationService;
@@ -337,7 +329,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn shell_service(&self) -> &Self::ShellService;
     fn mcp_service(&self) -> &Self::McpService;
     fn environment_service(&self) -> &Self::EnvironmentService;
-    fn repo_aggregate_service(&self) -> &Self::RepoAggregateService;
+    fn index_codebase(&self) -> &Self::IndexCodebaseService;
 }
 
 #[async_trait::async_trait]
@@ -507,6 +499,13 @@ impl<I: Services> FsRemoveService for I {
 }
 
 #[async_trait::async_trait]
+impl<I: Services> IndexCodebaseService for I {
+    async fn index(&self) -> anyhow::Result<CodebaseIndexOutput> {
+        self.index_codebase().index().await
+    }
+}
+
+#[async_trait::async_trait]
 impl<I: Services> FsSearchService for I {
     async fn search(
         &self,
@@ -563,20 +562,5 @@ impl<I: Services> ShellService for I {
 impl<I: Services> EnvironmentService for I {
     fn get_environment(&self) -> Environment {
         self.environment_service().get_environment()
-    }
-}
-
-#[async_trait::async_trait]
-impl<I: Services> RepoAggregateService for I {
-    async fn aggregate(
-        &self,
-        path: String,
-        max_tokens: Option<u64>,
-        output_template: Option<String>,
-        output_file: Option<String>,
-    ) -> anyhow::Result<RepoAggregateOutput> {
-        self.repo_aggregate_service()
-            .aggregate(path, max_tokens, output_template, output_file)
-            .await
     }
 }

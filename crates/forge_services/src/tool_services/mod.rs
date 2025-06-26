@@ -6,7 +6,7 @@ mod fs_read;
 mod fs_remove;
 mod fs_search;
 mod fs_undo;
-mod repo_aggregate;
+mod indexing;
 mod shell;
 mod syn;
 
@@ -18,5 +18,5 @@ pub use fs_read::*;
 pub use fs_remove::*;
 pub use fs_search::*;
 pub use fs_undo::*;
-pub use repo_aggregate::*;
+pub use indexing::*;
 pub use shell::*;

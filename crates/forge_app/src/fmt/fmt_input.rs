@@ -92,6 +92,9 @@ impl FormatContent for Tools {
             }
             Tools::ForgeToolTaskListList(_) => TitleFormat::debug("Task Read".to_string()).into(),
             Tools::ForgeToolTaskListClear(_) => TitleFormat::debug("Task Clear".to_string()).into(),
+            Tools::ForgeToolCodebaseSearch(input) => {
+                TitleFormat::debug(format!("Codebase Search: '{}'", input.query)).into()
+            }
         };
 
         Some(output)

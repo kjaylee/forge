@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_app::Services;
+use forge_app::{EnvironmentService, Services};
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
@@ -11,7 +11,7 @@ use crate::provider::ForgeProviderService;
 use crate::template::ForgeTemplateService;
 use crate::tool_services::{
     ForgeFetch, ForgeFollowup, ForgeFsCreate, ForgeFsPatch, ForgeFsRead, ForgeFsRemove,
-    ForgeFsSearch, ForgeFsUndo, ForgeRepoAggregate, ForgeShell,
+    ForgeFsSearch, ForgeFsUndo, ForgeIndex, ForgeShell,
 };
 use crate::workflow::ForgeWorkflowService;
 use crate::{
@@ -47,7 +47,7 @@ pub struct ForgeServices<F: McpServerInfra + WalkerInfra> {
     followup_service: Arc<ForgeFollowup<F>>,
     mcp_service: Arc<McpService<F>>,
     env_service: Arc<ForgeEnvironmentService<F>>,
-    repo_aggregate_service: Arc<ForgeRepoAggregate>,
+    repo_aggregate_service: Arc<ForgeIndex>,
 }
 
 impl<
@@ -80,7 +80,9 @@ impl<
         let fetch_service = Arc::new(ForgeFetch::new());
         let followup_service = Arc::new(ForgeFollowup::new(infra.clone()));
         let env_service = Arc::new(ForgeEnvironmentService::new(infra.clone()));
-        let repo_aggregate_service = Arc::new(ForgeRepoAggregate::new());
+        let repo_aggregate_service =
+            Arc::new(ForgeIndex::from_path(env_service.get_environment().cwd));
+
         Self {
             conversation_service,
             attachment_service,
@@ -138,7 +140,7 @@ impl<
     type NetFetchService = ForgeFetch;
     type ShellService = ForgeShell<F>;
     type McpService = McpService<F>;
-    type RepoAggregateService = ForgeRepoAggregate;
+    type IndexCodebaseService = ForgeIndex;
 
     fn provider_service(&self) -> &Self::ProviderService {
         &self.provider_service
@@ -212,7 +214,7 @@ impl<
         &self.mcp_service
     }
 
-    fn repo_aggregate_service(&self) -> &Self::RepoAggregateService {
+    fn index_codebase(&self) -> &Self::IndexCodebaseService {
         &self.repo_aggregate_service
     }
 }
