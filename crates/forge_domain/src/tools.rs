@@ -453,10 +453,13 @@ pub struct TaskListClear {
 /// the same exact question format can also be helpful.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
 pub struct CodebaseSearch {
-    /// The search query to find relevant code.
-    /// You should reuse the user's exact query/most recent message with their
-    /// wording unless there is a clear reason not to.
+    /// The search query to find relevant code. You should reuse the user's exact query/most recent
+    /// message with their wording unless there is a clear reason not to.
     pub query: String,
+
+    /// Absolute file or directory paths to search (recursive if dir).
+    /// Use only when certain the answer is in these exact paths.
+    pub paths: Option<Vec<String>>,
 
     /// One sentence explanation as to why this specific tool is being used, and
     /// how it contributes to the goal.

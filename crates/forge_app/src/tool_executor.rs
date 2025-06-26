@@ -158,7 +158,10 @@ impl<
                 Operation::TaskListClear { _input: input, before, after: tasks.clone() }
             }
             Tools::ForgeToolCodebaseSearch(input) => {
-                let index_output = self.services.index().await?;
+                let index_output = self
+                    .services
+                    .index(input.paths.clone())
+                    .await?;
 
                 // Process shards in parallel
                 let shard_futures: Vec<_> = index_output

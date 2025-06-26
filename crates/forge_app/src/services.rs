@@ -284,7 +284,10 @@ pub trait ShellService: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait IndexCodebaseService: Send + Sync {
-    async fn index(&self) -> anyhow::Result<CodebaseIndexOutput>;
+    async fn index(
+        &self,
+        target_directories: Option<Vec<String>>,
+    ) -> anyhow::Result<CodebaseIndexOutput>;
 }
 
 /// Core app trait providing access to services and repositories.
@@ -500,8 +503,11 @@ impl<I: Services> FsRemoveService for I {
 
 #[async_trait::async_trait]
 impl<I: Services> IndexCodebaseService for I {
-    async fn index(&self) -> anyhow::Result<CodebaseIndexOutput> {
-        self.index_codebase().index().await
+    async fn index(
+        &self,
+        target_directories: Option<Vec<String>>,
+    ) -> anyhow::Result<CodebaseIndexOutput> {
+        self.index_codebase().index(target_directories).await
     }
 }
 

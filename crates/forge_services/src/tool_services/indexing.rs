@@ -49,7 +49,7 @@ impl Sharding {
 
 pub struct ForgeIndex {
     config: Config,
-    path: PathBuf,
+    cwd: PathBuf,
 }
 
 impl ForgeIndex {
@@ -59,20 +59,23 @@ impl ForgeIndex {
     }
 
     pub fn from_path(path: PathBuf) -> Self {
-        Self { path, config: Default::default() }
+        Self { cwd: path, config: Default::default() }
     }
 }
 
 #[async_trait::async_trait]
 impl IndexCodebaseService for ForgeIndex {
-    async fn index(&self) -> anyhow::Result<CodebaseIndexOutput> {
+    async fn index(
+        &self,
+        target_directories: Option<Vec<String>>,
+    ) -> anyhow::Result<CodebaseIndexOutput> {
         // Configure yek with the provided options
         let mut config = yek::config::YekConfig::default();
-        config.input_paths = vec![self.path.display().to_string()];
+        config.input_paths = target_directories.unwrap_or(vec![self.cwd.display().to_string()]);
 
         // Use yek to process the repository
         let (content, processed_files) = yek::serialize_repo(&config)
-            .with_context(|| format!("Failed to index path: {}", self.path.display()))?;
+            .with_context(|| format!("Failed to index paths: {:?}", config.input_paths))?;
 
         // perform sharding
         let shards = if let Some(sharding) = &self.config.sharding {
@@ -161,7 +164,7 @@ mod tests {
         fs::write(&fixture_file_path, "test content").await?;
 
         let fixture_index = ForgeIndex::from_path(fixture_dir.path().to_path_buf());
-        let actual = fixture_index.index().await?;
+        let actual = fixture_index.index(None).await?;
 
         assert!(!actual.shards.is_empty());
         let combined_content = actual
@@ -186,7 +189,7 @@ mod tests {
         let fixture_config = Config { sharding: Some(Sharding::Token(100)) };
         let fixture_index =
             ForgeIndex::from_path(fixture_dir.path().to_path_buf()).with_config(fixture_config);
-        let actual = fixture_index.index().await?;
+        let actual = fixture_index.index(None).await?;
         assert_eq!(actual.shards.len(), 1);
         Ok(())
     }
