@@ -1,11 +1,16 @@
-use derive_setters::Setters;
 use ratatui::style::{Color, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Widget, Wrap};
 
-#[derive(Default, Setters)]
+#[derive(Default)]
 pub struct MessageList {
     pub messages: Vec<String>,
+}
+
+impl MessageList {
+    pub fn new(messages: Vec<String>) -> Self {
+        Self { messages }
+    }
 }
 
 impl Widget for MessageList {

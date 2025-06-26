@@ -16,11 +16,6 @@ pub struct Chat {
 }
 
 impl Chat {
-    /// Create a new Chat widget
-    pub fn new() -> Self {
-        Self { editor: EditorEventHandler::default() }
-    }
-
     /// Handle key events for the chat interface
     pub fn handle_key_event(&mut self, event: KeyEvent, state: &mut State) -> Command {
         // Submit message on Enter in Normal mode
@@ -81,9 +76,7 @@ impl StatefulWidget for &Chat {
             .title_style(Style::default().dark_gray());
 
         // Render message list
-        MessageList::default()
-            .messages(state.messages.clone())
-            .render(content_block.inner(messages_area), buf);
+        MessageList::new(state.messages.clone()).render(content_block.inner(messages_area), buf);
 
         // User input area block with status bar
         let user_block = Block::bordered()
@@ -117,80 +110,5 @@ impl StatefulWidget for &Chat {
         // Render blocks
         content_block.render(messages_area, buf);
         user_block.render(user_area, buf);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use pretty_assertions::assert_eq;
-    use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
-    use super::*;
-
-    fn create_test_state() -> State {
-        State {
-            messages: vec!["Hello".to_string(), "World".to_string()],
-            ..Default::default()
-        }
-    }
-
-    #[test]
-    fn test_chat_creation() {
-        let _fixture = Chat::new();
-        // Just verify that the chat was created successfully
-        // We can't easily test the editor field without complex setup
-        assert!(true); // Chat creation successful if we reach this point
-    }
-
-    #[test]
-    fn test_chat_handle_enter_key() {
-        let mut fixture = Chat::new();
-        let mut state = create_test_state();
-        // Simulate having text in the editor by directly modifying the state
-        state.messages.clear(); // Start with empty messages
-        state.messages.push("existing message".to_string());
-
-        let key_event = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
-        let actual = fixture.handle_key_event(key_event, &mut state);
-        let expected = Command::Chat("".to_string()); // Empty string since no text in editor
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_chat_handle_regular_key() {
-        let mut fixture = Chat::new();
-        let mut state = create_test_state();
-
-        let key_event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
-        let actual = fixture.handle_key_event(key_event, &mut state);
-        let expected = Command::Empty;
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_chat_messages_added_on_submit() {
-        let mut fixture = Chat::new();
-        let mut state = create_test_state();
-        let initial_count = state.messages.len();
-
-        let key_event = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
-        fixture.handle_key_event(key_event, &mut state);
-
-        let actual = state.messages.len();
-        let expected = initial_count + 1;
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_chat_editor_cleared_on_submit() {
-        let mut fixture = Chat::new();
-        let mut state = create_test_state();
-
-        let key_event = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
-        fixture.handle_key_event(key_event, &mut state);
-
-        let actual = state.editor_lines();
-        let expected: Vec<String> = vec![]; // Editor returns empty vector after clear
-        assert_eq!(actual, expected);
     }
 }

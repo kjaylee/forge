@@ -1,3 +1,4 @@
+use derive_setters::Setters;
 use ratatui::buffer::Buffer;
 use ratatui::prelude::Rect;
 use ratatui::widgets::StatefulWidget;
@@ -51,40 +52,17 @@ impl Route {
 }
 
 /// Router widget that renders different content based on the current route
-#[derive(Default)]
+#[allow(clippy::needless_update)]
+#[derive(Default, Setters)]
+#[setters(strip_option, into)]
 pub struct Router {
-    current_route: Route,
-    chat: Chat,
-    settings: Settings,
-    help: Help,
+    pub current_route: Route,
+    pub chat: Chat,
+    pub settings: Settings,
+    pub help: Help,
 }
 
 impl Router {
-    /// Create a new router with the default route
-    pub fn new() -> Self {
-        Self {
-            current_route: Route::default(),
-            chat: Chat::new(),
-            settings: Settings::new(),
-            help: Help::new(),
-        }
-    }
-
-    /// Create a router with a specific initial route
-    pub fn with_route(route: Route) -> Self {
-        Self {
-            current_route: route,
-            chat: Chat::new(),
-            settings: Settings::new(),
-            help: Help::new(),
-        }
-    }
-
-    /// Get the current route
-    pub fn current_route(&self) -> &Route {
-        &self.current_route
-    }
-
     /// Navigate to a specific route
     pub fn navigate_to(&mut self, route: Route) {
         self.current_route = route;
@@ -170,36 +148,36 @@ mod tests {
 
     #[test]
     fn test_router_creation() {
-        let fixture = Router::new();
-        let actual = fixture.current_route();
-        let expected = &Route::Chat;
+        let fixture = Router::default();
+        let actual = fixture.current_route;
+        let expected = Route::Chat;
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_router_navigation() {
-        let mut fixture = Router::new();
+        let mut fixture = Router::default();
         fixture.navigate_to(Route::Settings);
-        let actual = fixture.current_route();
-        let expected = &Route::Settings;
+        let actual = fixture.current_route;
+        let expected = Route::Settings;
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_router_next_navigation() {
-        let mut fixture = Router::new();
+        let mut fixture = Router::default();
         fixture.navigate_next();
-        let actual = fixture.current_route();
-        let expected = &Route::Settings;
+        let actual = fixture.current_route;
+        let expected = Route::Settings;
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_router_previous_navigation() {
-        let mut fixture = Router::with_route(Route::Settings);
+        let mut fixture = Router::default().current_route(Route::Settings);
         fixture.navigate_previous();
-        let actual = fixture.current_route();
-        let expected = &Route::Chat;
+        let actual = fixture.current_route;
+        let expected = Route::Chat;
         assert_eq!(actual, expected);
     }
 

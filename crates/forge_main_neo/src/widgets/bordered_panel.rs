@@ -1,9 +1,7 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Style, Stylize};
-use ratatui::widgets::{Block, Borders, StatefulWidget, Widget};
-
-use crate::model::State;
+use ratatui::widgets::{Block, Borders, Widget};
 
 /// A reusable bordered panel that wraps content with consistent styling
 /// This provides a simple border around any widget content for visual
@@ -17,29 +15,6 @@ impl<W> BorderedPanel<W> {
     /// Create a new bordered panel with the given content widget
     pub fn new(content: W) -> Self {
         Self { content }
-    }
-}
-
-impl<W> StatefulWidget for BorderedPanel<W>
-where
-    W: StatefulWidget<State = State>,
-{
-    type State = State;
-
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State)
-    where
-        Self: Sized,
-    {
-        // Create a bordered block
-        let block = Block::bordered()
-            .borders(Borders::ALL)
-            .border_style(Style::default().dark_gray());
-
-        // Render the content inside the bordered area
-        self.content.render(block.inner(area), buf, state);
-
-        // Render the border
-        block.render(area, buf);
     }
 }
 

@@ -28,12 +28,12 @@ impl App {
             }
             Action::NavigateNext => {
                 self.router.navigate_next();
-                state.current_route = self.router.current_route().clone();
+                state.current_route = self.router.current_route.clone();
                 Command::Empty
             }
             Action::NavigatePrevious => {
                 self.router.navigate_previous();
-                state.current_route = self.router.current_route().clone();
+                state.current_route = self.router.current_route.clone();
                 Command::Empty
             }
             Action::CrossTerm(event) => match event {
@@ -51,7 +51,7 @@ impl App {
                     // Navigation shortcuts
                     if key_event.code == KeyCode::Tab && !shift {
                         self.router.navigate_next();
-                        state.current_route = self.router.current_route().clone();
+                        state.current_route = self.router.current_route.clone();
                         return Command::Empty;
                     }
 
@@ -59,7 +59,7 @@ impl App {
                         || (key_event.code == KeyCode::Tab && shift)
                     {
                         self.router.navigate_previous();
-                        state.current_route = self.router.current_route().clone();
+                        state.current_route = self.router.current_route.clone();
                         return Command::Empty;
                     }
 

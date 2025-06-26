@@ -47,8 +47,7 @@ impl StatefulWidget for &Help {
         .style(Style::default().cyan())
         .centered();
 
-        let panel = BorderedPanel::new(content);
-        Widget::render(panel, area, buf);
+        BorderedPanel::new(content).render(area, buf);
     }
 }
 
