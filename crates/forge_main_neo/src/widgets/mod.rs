@@ -1,4 +1,5 @@
 mod app;
+mod bordered_panel;
 mod chat;
 mod chat_container;
 mod help;

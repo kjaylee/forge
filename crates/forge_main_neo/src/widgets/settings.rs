@@ -5,6 +5,7 @@ use ratatui::style::{Style, Stylize};
 use ratatui::widgets::{Paragraph, StatefulWidget, Widget};
 
 use crate::model::{Command, State};
+use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Settings widget that handles the settings interface
 #[derive(Default)]
@@ -34,7 +35,8 @@ impl StatefulWidget for &Settings {
             .style(Style::default().yellow())
             .centered();
 
-        content.render(area, buf);
+        let panel = BorderedPanel::new(content).title("Settings");
+        Widget::render(panel, area, buf);
     }
 }
 

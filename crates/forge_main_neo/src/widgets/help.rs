@@ -5,6 +5,7 @@ use ratatui::style::{Style, Stylize};
 use ratatui::widgets::{Paragraph, StatefulWidget, Widget};
 
 use crate::model::{Command, State};
+use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Help widget that handles the help interface
 #[derive(Default)]
@@ -46,7 +47,8 @@ impl StatefulWidget for &Help {
         .style(Style::default().cyan())
         .centered();
 
-        content.render(area, buf);
+        let panel = BorderedPanel::new(content).title("Help");
+        Widget::render(panel, area, buf);
     }
 }
 
