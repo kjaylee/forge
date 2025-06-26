@@ -7,11 +7,13 @@ use yek::count_tokens;
 #[derive(Debug, Default)]
 pub struct Config {
     pub sharding: Option<Sharding>,
+    pub ignore_patterns: Option<Vec<String>>,
 }
 
 #[derive(Debug)]
 pub enum Sharding {
     Token(usize),
+    Byte(usize),
 }
 
 impl Sharding {
@@ -43,6 +45,7 @@ impl Sharding {
     pub fn shard(&self, contents: Vec<String>) -> Vec<Shard> {
         match self {
             Sharding::Token(max_tokens) => Self::shard_by_fn(*max_tokens, contents, count_tokens),
+            Sharding::Byte(max_tokens) => Self::shard_by_fn(*max_tokens, contents, count_tokens),
         }
     }
 }
@@ -74,7 +77,7 @@ impl IndexCodebaseService for ForgeIndex {
         config.input_paths = target_directories.unwrap_or(vec![self.cwd.display().to_string()]);
 
         // Use yek to process the repository
-        let (content, processed_files) = yek::serialize_repo(&config)
+        let (_, processed_files) = yek::serialize_repo(&config)
             .with_context(|| format!("Failed to index paths: {:?}", config.input_paths))?;
 
         // perform sharding
@@ -91,7 +94,18 @@ impl IndexCodebaseService for ForgeIndex {
                     .collect(),
             )
         } else {
-            vec![Shard(content)]
+            vec![Shard(
+                processed_files
+                    .into_iter()
+                    .map(|file| {
+                        format!(
+                            "<file path=\"{}\">\n{}\n</file>",
+                            file.rel_path, file.content
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            )]
         };
 
         Ok(CodebaseIndexOutput { shards })
