@@ -2,15 +2,16 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use forge_app::{CodebaseIndexOutput, IndexCodebaseService, Shard};
+use forge_domain::{IndexingConfig, ShardingConfig, ShardingType};
 use yek::count_tokens;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Config {
     pub sharding: Option<Sharding>,
     pub ignore_patterns: Option<Vec<String>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Sharding {
     Token(usize),
     Byte(usize),
@@ -50,6 +51,34 @@ impl Sharding {
     }
 }
 
+impl From<ShardingType> for Sharding {
+    fn from(sharding_type: ShardingType) -> Self {
+        match sharding_type {
+            ShardingType::Token(limit) => Sharding::Token(limit),
+            ShardingType::Byte(limit) => Sharding::Byte(limit),
+        }
+    }
+}
+
+impl From<ShardingConfig> for Sharding {
+    fn from(config: ShardingConfig) -> Self {
+        config.sharding_type.into()
+    }
+}
+
+impl From<IndexingConfig> for Config {
+    fn from(config: IndexingConfig) -> Self {
+        Config {
+            sharding: config.sharding.map(|s| s.into()),
+            ignore_patterns: if config.ignore_patterns.is_empty() {
+                None
+            } else {
+                Some(config.ignore_patterns)
+            },
+        }
+    }
+}
+
 pub struct ForgeIndex {
     config: Config,
     cwd: PathBuf,
@@ -58,6 +87,11 @@ pub struct ForgeIndex {
 impl ForgeIndex {
     pub fn with_config(mut self, config: Config) -> Self {
         self.config = config;
+        self
+    }
+
+    pub fn with_indexing_config(mut self, config: IndexingConfig) -> Self {
+        self.config = config.into();
         self
     }
 
@@ -73,8 +107,15 @@ impl IndexCodebaseService for ForgeIndex {
         target_directories: Option<Vec<String>>,
     ) -> anyhow::Result<CodebaseIndexOutput> {
         // Configure yek with the provided options
-        let mut config = yek::config::YekConfig::default();
-        config.input_paths = target_directories.unwrap_or(vec![self.cwd.display().to_string()]);
+        let mut config = yek::config::YekConfig {
+            input_paths: target_directories.unwrap_or(vec![self.cwd.display().to_string()]),
+            ..Default::default()
+        };
+
+        // Apply ignore patterns from configuration
+        if let Some(ignore_patterns) = &self.config.ignore_patterns {
+            config.ignore_patterns.extend(ignore_patterns.clone());
+        }
 
         // Use yek to process the repository
         let (_, processed_files) = yek::serialize_repo(&config)
@@ -200,7 +241,7 @@ mod tests {
         let test2 = fixture_dir.path().join("test2.txt");
         fs::write(&test2, "test2 content for sharding").await?;
 
-        let fixture_config = Config { sharding: Some(Sharding::Token(100)) };
+        let fixture_config = Config { sharding: Some(Sharding::Token(100)), ignore_patterns: None };
         let fixture_index =
             ForgeIndex::from_path(fixture_dir.path().to_path_buf()).with_config(fixture_config);
         let actual = fixture_index.index(None).await?;
