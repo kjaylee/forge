@@ -53,4 +53,66 @@ pub enum Command {
     ReadWorkspace,
     Empty,
     Exit,
+    And(Vec<Command>),
+}
+
+impl Command {
+    pub fn and(self, other: Command) -> Command {
+        match self {
+            Command::And(mut commands) => {
+                commands.push(other);
+                Command::And(commands)
+            }
+            _ => Command::And(vec![self, other]),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_command_and_with_two_commands() {
+        let fixture = Command::Empty.and(Command::Exit);
+        let actual = fixture;
+        let expected = Command::And(vec![Command::Empty, Command::Exit]);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_command_and_chaining() {
+        let fixture = Command::Empty
+            .and(Command::Exit)
+            .and(Command::ReadWorkspace);
+        let actual = fixture;
+        let expected = Command::And(vec![Command::Empty, Command::Exit, Command::ReadWorkspace]);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_command_and_with_existing_and() {
+        let fixture = Command::And(vec![Command::Empty]).and(Command::Exit);
+        let actual = fixture;
+        let expected = Command::And(vec![Command::Empty, Command::Exit]);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_command_and_complex_chaining() {
+        let fixture = Command::Chat("hello".to_string())
+            .and(Command::ReadWorkspace)
+            .and(Command::Empty)
+            .and(Command::Exit);
+        let actual = fixture;
+        let expected = Command::And(vec![
+            Command::Chat("hello".to_string()),
+            Command::ReadWorkspace,
+            Command::Empty,
+            Command::Exit,
+        ]);
+        assert_eq!(actual, expected);
+    }
 }
