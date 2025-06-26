@@ -262,7 +262,7 @@ mod tests {
     use reqwest::Client;
 
     use super::*;
-    use crate::mock_server::MockServer;
+    use crate::mock_server::{normalize_ports, MockServer};
 
     fn create_provider(base_url: &str) -> anyhow::Result<ForgeProvider> {
         let provider = Provider::OpenAI {
@@ -340,14 +340,7 @@ mod tests {
 
         // Verify that we got an error
         assert!(actual.is_err());
-        let error = actual.unwrap_err();
-        let error_string = format!("{:?}", error);
-
-        // Check that error contains expected status code and message
-        assert!(error_string.contains("401"));
-        assert!(error_string.contains("Invalid API key"));
-        assert!(error_string.contains("Failed to fetch the models"));
-
+        insta::assert_snapshot!(normalize_ports(format!("{:#?}",actual.unwrap_err())));
         Ok(())
     }
 
@@ -365,14 +358,7 @@ mod tests {
 
         // Verify that we got an error
         assert!(actual.is_err());
-        let error = actual.unwrap_err();
-        let error_string = format!("{:?}", error);
-
-        // Check that error contains expected status code and message
-        assert!(error_string.contains("500"));
-        assert!(error_string.contains("Internal Server Error"));
-        assert!(error_string.contains("Failed to fetch the models"));
-
+        insta::assert_snapshot!(normalize_ports(format!("{:#?}",actual.unwrap_err())));
         Ok(())
     }
 

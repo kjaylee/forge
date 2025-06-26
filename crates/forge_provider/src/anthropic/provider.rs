@@ -190,6 +190,7 @@ mod tests {
         Context, ContextMessage, ToolCallFull, ToolCallId, ToolChoice, ToolName, ToolOutput,
         ToolResult,
     };
+    use crate::mock_server::normalize_ports;
 
     use super::*;
     use crate::mock_server::MockServer;
@@ -320,13 +321,7 @@ mod tests {
 
         // Verify that we got an error
         assert!(actual.is_err());
-        let error = actual.unwrap_err();
-        let error_string = format!("{:?}", error);
-
-        // Check that error contains expected status code and context
-        assert!(error_string.contains("Invalid API key"));
-        assert!(error_string.contains("Failed to fetch the models"));
-
+        insta::assert_snapshot!(normalize_ports(format!("{:#?}",actual.unwrap_err())));
         Ok(())
     }
 
@@ -344,12 +339,7 @@ mod tests {
 
         // Verify that we got an error
         assert!(actual.is_err());
-        let error = actual.unwrap_err();
-        let error_string = format!("{:?}", error);
-
-        // Check that error contains expected context
-        assert!(error_string.contains("Internal Server Error"));
-        assert!(error_string.contains("Failed to fetch the models"));
+        insta::assert_snapshot!(normalize_ports(format!("{:#?}",actual.unwrap_err())));
 
         Ok(())
     }
