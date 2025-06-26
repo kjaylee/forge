@@ -4,7 +4,7 @@ use ratatui::widgets::{StatefulWidget, Widget};
 
 use crate::model::State;
 use crate::widgets::chat::Chat;
-use crate::widgets::container::Container;
+use crate::widgets::chat_container::ChatContainer;
 
 /// Represents the different routes/views available in the application
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -121,7 +121,7 @@ impl StatefulWidget for &Router {
                     .style(Style::default().yellow())
                     .centered();
 
-                Container::new(content).render(area, buf);
+                content.render(area, buf);
             }
             Route::Help => {
                 // Help view with container and status bar
@@ -144,7 +144,7 @@ impl StatefulWidget for &Router {
                 .style(Style::default().cyan())
                 .centered();
 
-                Container::new(content).render(area, buf);
+                content.render(area, buf);
             }
         }
     }
