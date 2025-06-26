@@ -443,13 +443,17 @@ pub struct TaskListClear {
     pub explanation: Option<String>,
 }
 
-/// Helps answer queries related to the codebase by searching and analyzing
-/// project files, structure, and content. Use this tool whenever you need to
-/// understand anything about the codebase - from finding specific functions
-/// and types to understanding project architecture and code patterns.
+/// Find snippets of code from the codebase most relevant to the search query.
+/// This is a semantic search tool, so the query should ask for something
+/// semantically matching what is needed. Unless there is a clear reason to
+/// use your own search query, please just reuse the user's exact query with their wording.
+/// Their exact wording/phrasing can often be helpful for searching. Keeping
+/// the same exact question format can also be helpful.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
 pub struct CodebaseSearch {
-    /// Query regarding the codebase to focus the search
+    /// The search query to find relevant code.
+    /// You should reuse the user's exact query/most recent message with their
+    /// wording unless there is a clear reason not to.
     pub query: String,
 
     /// One sentence explanation as to why this specific tool is being used, and

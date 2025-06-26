@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::{TaskList, ToolCallContext, ToolCallFull, ToolOutput, Tools};
+use forge_domain::{ModelId, TaskList, ToolCallContext, ToolCallFull, ToolOutput, Tools};
+use futures::StreamExt;
 
 use crate::error::Error;
 use crate::fmt::content::FormatContent;
@@ -10,8 +11,11 @@ use crate::services::ShellService;
 use crate::{
     ConversationService, EnvironmentService, FollowUpService, FsCreateService, FsPatchService,
     FsReadService, FsRemoveService, FsSearchService, FsUndoService, IndexCodebaseService,
-    NetFetchService,
+    NetFetchService, ProviderService,
 };
+
+/// System prompt used for codebase search
+const CODEBASE_SEARCH: &str = include_str!("../../../templates/sage-agent.hbs");
 
 pub struct ToolExecutor<S> {
     services: Arc<S>,
@@ -29,7 +33,8 @@ impl<
         + FollowUpService
         + ConversationService
         + EnvironmentService
-        + IndexCodebaseService,
+        + IndexCodebaseService
+        + ProviderService,
 > ToolExecutor<S>
 {
     pub fn new(services: Arc<S>) -> Self {
@@ -153,8 +158,62 @@ impl<
                 Operation::TaskListClear { _input: input, before, after: tasks.clone() }
             }
             Tools::ForgeToolCodebaseSearch(input) => {
-                let _output = self.services.index().await?;
-                Operation::CodebaseSearch { input, output: "Codebase Indexed".to_string() }
+                let index_output = self.services.index().await?;
+
+                // Process shards in parallel
+                let shard_futures: Vec<_> = index_output
+                    .shards
+                    .into_iter()
+                    .map(|shard| {
+                        let services = self.services.clone();
+                        let query = input.query.clone();
+                        async move {
+                            let context = forge_domain::Context::default()
+                                .add_message(forge_domain::ContextMessage::system(CODEBASE_SEARCH))
+                                .add_message(forge_domain::ContextMessage::user(
+                                    format!("<codebase>{}</codebase>\n query: {}", shard.0, query),
+                                    None,
+                                ));
+
+                            let mut response = services
+                                .chat(&ModelId::new("google/gemini-2.5-pro"), context)
+                                .await?;
+
+                            let mut shard_result = String::new();
+                            while let Some(message) = response.next().await {
+                                let message = message?;
+                                if let Some(content) = message.content {
+                                    shard_result.push_str(content.as_str());
+                                }
+                            }
+
+                            anyhow::Ok(shard_result)
+                        }
+                    })
+                    .collect();
+
+                // Execute all shard processing in parallel and collect results
+                let shard_results = futures::future::join_all(shard_futures)
+                    .await
+                    .into_iter()
+                    .collect::<anyhow::Result<Vec<_>>>()?;
+
+                // Filter out empty results
+                let results: Vec<String> = shard_results
+                    .into_iter()
+                    .filter(|result| !result.is_empty())
+                    .collect();
+
+                let output = if results.is_empty() {
+                    "No results found from codebase analysis.".to_string()
+                } else {
+                    format!(
+                        "Codebase Analysis Results:\n\n{}",
+                        results.join("\n\n---\n\n")
+                    )
+                };
+
+                Operation::CodebaseSearch { input, output }
             }
         })
     }

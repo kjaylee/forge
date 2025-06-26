@@ -363,7 +363,7 @@ impl Operation {
                 forge_domain::ToolOutput::text(elm)
             }
             Operation::CodebaseSearch { input, output } => {
-                let elm = Element::new("repo_index")
+                let elm = Element::new("codebase_search")
                     .attr("query", input.query)
                     .attr("output", output);
                 forge_domain::ToolOutput::text(elm)

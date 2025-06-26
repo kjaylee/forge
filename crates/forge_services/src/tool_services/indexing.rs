@@ -97,8 +97,6 @@ impl IndexCodebaseService for ForgeIndex {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tokio::fs;
@@ -185,9 +183,7 @@ mod tests {
         let test2 = fixture_dir.path().join("test2.txt");
         fs::write(&test2, "test2 content for sharding").await?;
 
-        let fixture_config = Config {
-            sharding: Some(Sharding::Token(100)), 
-        };
+        let fixture_config = Config { sharding: Some(Sharding::Token(100)) };
         let fixture_index =
             ForgeIndex::from_path(fixture_dir.path().to_path_buf()).with_config(fixture_config);
         let actual = fixture_index.index().await?;
