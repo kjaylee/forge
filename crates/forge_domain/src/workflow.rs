@@ -150,8 +150,7 @@ pub struct IndexingConfig {
     pub ignore_patterns: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, JsonSchema)]
-#[setters(strip_option)]
+#[derive(Debug, Clone, Serialize, Deserialize, Merge, JsonSchema)]
 pub struct ShardingConfig {
     /// Type of sharding to use
     #[serde(flatten)]
