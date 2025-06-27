@@ -1,7 +1,7 @@
 <h1 align="center">⚒️ Forge: AI-Enhanced Terminal Development Environment</h1>
 <p align="center">A comprehensive coding agent that integrates AI capabilities with your development environment</p>
 
-<p align="center"><code>npm install -g @antinomyhq/forge</code></p>
+<p align="center"><code>npx forgecode@latest</code></p>
 
 [![CI Status](https://img.shields.io/github/actions/workflow/status/antinomyhq/forge/ci.yml?style=for-the-badge)](https://github.com/antinomyhq/forge/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/antinomyhq/forge?style=for-the-badge)](https://github.com/antinomyhq/forge/releases)
@@ -34,7 +34,8 @@
 ---
 
 ## Quickstart
-Sign up at [Forgecode.dev](https://app.forgecode.dev/app/) to enable the Forge provider.
+
+Sign up at [Forgecode.dev](https://app.forgecode.dev/app/) to create a key for the Forge provider.
 
 Then set up your Forge provider key:
 
@@ -63,6 +64,7 @@ Forge can be used in different ways depending on your needs. Here are some commo
 ```
 
 Forge will analyze your project's structure, identify authentication-related files, and provide a detailed explanation of the authentication flow, including the relationships between different components.
+
 </details>
 
 <details>
@@ -73,6 +75,7 @@ Forge will analyze your project's structure, identify authentication-related fil
 ```
 
 Forge will suggest the best approach based on your current codebase, explain the steps needed, and even scaffold the necessary components and styles for you.
+
 </details>
 
 <details>
@@ -83,6 +86,7 @@ Forge will suggest the best approach based on your current codebase, explain the
 ```
 
 Forge will analyze the error, suggest potential causes based on your code, and propose different solutions to fix the issue.
+
 </details>
 
 <details>
@@ -93,6 +97,7 @@ Forge will analyze the error, suggest potential causes based on your code, and p
 ```
 
 Forge will analyze the code, identify potential issues, and suggest improvements for readability, performance, security, and maintainability.
+
 </details>
 
 <details>
@@ -103,6 +108,7 @@ Forge will analyze the code, identify potential issues, and suggest improvements
 ```
 
 Forge will provide a tailored tutorial on integrating GraphQL with Express, using your specific project structure as context.
+
 </details>
 
 <details>
@@ -113,6 +119,7 @@ Forge will provide a tailored tutorial on integrating GraphQL with Express, usin
 ```
 
 Forge will suggest an appropriate schema design, including tables/collections, relationships, indexes, and constraints based on your project's existing database technology.
+
 </details>
 
 <details>
@@ -123,6 +130,7 @@ Forge will suggest an appropriate schema design, including tables/collections, r
 ```
 
 Forge can help modernize your codebase by walking you through refactoring steps and implementing them with your approval.
+
 </details>
 
 <details>
@@ -133,6 +141,7 @@ Forge can help modernize your codebase by walking you through refactoring steps 
 ```
 
 Forge can guide you through resolving git conflicts, explaining the differences and suggesting the best way to reconcile them.
+
 </details>
 
 ## Why Forge?
@@ -178,6 +187,7 @@ FORGE_KEY=ForgeKey
 ```
 
 To use Forgecode's provider with Forge:
+
 1. Visit [https://app.forgecode.dev/](https://app.forgecode.dev/)
 2. Login with your existing credentials or create a new account
 3. Once logged in, your account will automatically enable the Forge Provider
@@ -411,7 +421,7 @@ Or manually create a `.mcp.json` file with the following structure:
     "server_name": {
       "command": "command_to_execute",
       "args": ["arg1", "arg2"],
-      "env": {"ENV_VAR": "value"}
+      "env": { "ENV_VAR": "value" }
     },
     "another_server": {
       "url": "http://localhost:3000/events"
