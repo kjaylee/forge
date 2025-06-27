@@ -1,9 +1,8 @@
 use derive_setters::Setters;
 use ratatui::buffer::Buffer;
 use ratatui::prelude::Rect;
-use ratatui::widgets::StatefulWidget;
+use ratatui::widgets::Widget;
 
-use crate::model::State;
 use crate::widgets::chat::Chat;
 use crate::widgets::help::Help;
 use crate::widgets::settings::Settings;
@@ -82,35 +81,32 @@ impl Router {
     pub fn handle_event(
         &mut self,
         event: ratatui::crossterm::event::Event,
-        state: &mut State,
     ) -> crate::model::Command {
         match self.current_route {
-            Route::Chat => self.chat.handle_event(event, state),
-            Route::Settings => self.settings.handle_event(event, state),
-            Route::Help => self.help.handle_event(event, state),
+            Route::Chat => self.chat.handle_event(event),
+            Route::Settings => self.settings.handle_event(event),
+            Route::Help => self.help.handle_event(event),
         }
     }
 }
 
-impl StatefulWidget for &Router {
-    type State = State;
-
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State)
+impl Widget for &Router {
+    fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
     {
         match self.current_route {
             Route::Chat => {
                 // Render the chat widget
-                self.chat.render(area, buf, state);
+                self.chat.render(area, buf);
             }
             Route::Settings => {
                 // Render the settings widget
-                self.settings.render(area, buf, state);
+                self.settings.render(area, buf);
             }
             Route::Help => {
                 // Render the help widget
-                self.help.render(area, buf, state);
+                self.help.render(area, buf);
             }
         }
     }

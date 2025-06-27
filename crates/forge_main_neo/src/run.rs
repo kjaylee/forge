@@ -3,10 +3,11 @@ use std::time::Duration;
 
 use forge_api::ForgeAPI;
 use ratatui::DefaultTerminal;
+use ratatui::widgets::Widget;
 
 use crate::event_reader::EventReader;
 use crate::executor::Executor;
-use crate::model::{Action, Command, State};
+use crate::model::{Action, Command};
 use crate::widgets::App;
 
 pub async fn run(mut terminal: DefaultTerminal) -> anyhow::Result<()> {
@@ -14,7 +15,6 @@ pub async fn run(mut terminal: DefaultTerminal) -> anyhow::Result<()> {
     let (action_tx, mut action_rx) = tokio::sync::mpsc::channel::<anyhow::Result<Action>>(1024);
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel::<Command>(1024);
 
-    let mut state = State::default();
     let mut app = App::default();
     let api = ForgeAPI::init(false);
 
@@ -30,11 +30,11 @@ pub async fn run(mut terminal: DefaultTerminal) -> anyhow::Result<()> {
     action_tx.send(Ok(Action::Initialize)).await?;
     loop {
         terminal.draw(|frame| {
-            frame.render_stateful_widget(&app, frame.area(), &mut state);
+            Widget::render(&app, frame.area(), frame.buffer_mut());
         })?;
 
         if let Some(action) = action_rx.recv().await {
-            let cmd = app.update(action?, &mut state);
+            let cmd = app.update(action?);
             if cmd == Command::Exit {
                 break;
             } else {

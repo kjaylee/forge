@@ -8,7 +8,6 @@ use crate::widgets::Route;
 pub struct State {
     pub messages: Vec<String>,
     pub editor: EditorState,
-    pub exit: bool,
     pub current_branch: Option<String>,
     pub current_dir: Option<String>,
     pub current_route: Route,

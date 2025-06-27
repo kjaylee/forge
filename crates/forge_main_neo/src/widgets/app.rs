@@ -1,7 +1,7 @@
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Style, Stylize};
 use ratatui::text::Line;
-use ratatui::widgets::{StatefulWidget, Tabs, Widget};
+use ratatui::widgets::{Tabs, Widget};
 
 use crate::model::{Action, Command, State};
 use crate::widgets::{Route, Router};
@@ -9,31 +9,32 @@ use crate::widgets::{Route, Router};
 #[derive(Default)]
 pub struct App {
     router: Router,
+    state: State,
 }
 
 impl App {
     #[must_use]
-    pub fn update(&mut self, action: impl Into<Action>, state: &mut State) -> Command {
+    pub fn update(&mut self, action: impl Into<Action>) -> Command {
         match action.into() {
             Action::Initialize => Command::ReadWorkspace,
             Action::Workspace { current_dir, current_branch } => {
-                state.current_dir = current_dir;
-                state.current_branch = current_branch;
+                self.state.current_dir = current_dir;
+                self.state.current_branch = current_branch;
                 Command::Empty
             }
             Action::NavigateToRoute(route) => {
                 self.router.navigate_to(route.clone());
-                state.current_route = route;
+                self.state.current_route = route;
                 Command::Empty
             }
             Action::NavigateNext => {
                 self.router.navigate_next();
-                state.current_route = self.router.current_route.clone();
+                self.state.current_route = self.router.current_route.clone();
                 Command::Empty
             }
             Action::NavigatePrevious => {
                 self.router.navigate_previous();
-                state.current_route = self.router.current_route.clone();
+                self.state.current_route = self.router.current_route.clone();
                 Command::Empty
             }
             Action::CrossTerm(event) => match event {
@@ -51,7 +52,7 @@ impl App {
                     // Navigation shortcuts
                     if key_event.code == KeyCode::Tab && !shift {
                         self.router.navigate_next();
-                        state.current_route = self.router.current_route.clone();
+                        self.state.current_route = self.router.current_route.clone();
                         return Command::Empty;
                     }
 
@@ -59,38 +60,33 @@ impl App {
                         || (key_event.code == KeyCode::Tab && shift)
                     {
                         self.router.navigate_previous();
-                        state.current_route = self.router.current_route.clone();
+                        self.state.current_route = self.router.current_route.clone();
                         return Command::Empty;
                     }
 
                     // Delegate other key events to router
                     self.router
-                        .handle_event(ratatui::crossterm::event::Event::Key(key_event), state)
+                        .handle_event(ratatui::crossterm::event::Event::Key(key_event))
                 }
                 ratatui::crossterm::event::Event::Mouse(mouse_event) => {
                     // Delegate mouse events to router
                     self.router
-                        .handle_event(ratatui::crossterm::event::Event::Mouse(mouse_event), state)
+                        .handle_event(ratatui::crossterm::event::Event::Mouse(mouse_event))
                 }
                 ratatui::crossterm::event::Event::Paste(_) => Command::Empty,
                 ratatui::crossterm::event::Event::Resize(_, _) => Command::Empty,
             },
             Action::ChatResponse { message } => {
-                state.messages.push(message);
+                self.state.messages.push(message);
                 Command::Empty
             }
         }
     }
 }
 
-impl StatefulWidget for &App {
-    type State = State;
-    fn render(
-        self,
-        area: ratatui::prelude::Rect,
-        buf: &mut ratatui::prelude::Buffer,
-        state: &mut Self::State,
-    ) where
+impl Widget for &App {
+    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
+    where
         Self: Sized,
     {
         // Create main layout with tabs at the top
@@ -108,7 +104,7 @@ impl StatefulWidget for &App {
 
         let current_tab_index = Route::all()
             .iter()
-            .position(|route| route == &state.current_route)
+            .position(|route| route == &self.state.current_route)
             .unwrap_or(0);
 
         Tabs::new(tab_titles)
@@ -119,6 +115,6 @@ impl StatefulWidget for &App {
             .render(tabs_area, buf);
 
         // Delegate content rendering to router
-        self.router.render(content_area, buf, state);
+        self.router.render(content_area, buf);
     }
 }

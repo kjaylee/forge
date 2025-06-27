@@ -2,32 +2,30 @@ use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::Event;
 use ratatui::prelude::Rect;
 use ratatui::style::{Style, Stylize};
-use ratatui::widgets::{Paragraph, StatefulWidget, Widget};
+use ratatui::widgets::{Paragraph, Widget};
 
-use crate::model::{Command, State};
+use crate::model::Command;
 use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Help widget that handles the help interface
 #[derive(Default)]
-pub struct Help;
+pub struct Help {}
 
 impl Help {
     /// Create a new Help widget
     pub fn new() -> Self {
-        Self
+        Self {}
     }
 
     /// Handle events for the help interface
-    pub fn handle_event(&mut self, _event: Event, _state: &mut State) -> Command {
+    pub fn handle_event(&mut self, _event: Event) -> Command {
         // Help view doesn't handle events yet
         Command::Empty
     }
 }
 
-impl StatefulWidget for &Help {
-    type State = State;
-
-    fn render(self, area: Rect, buf: &mut Buffer, _state: &mut Self::State)
+impl Widget for &Help {
+    fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
     {
@@ -58,10 +56,6 @@ mod tests {
 
     use super::*;
 
-    fn create_test_state() -> State {
-        State::default()
-    }
-
     #[test]
     fn test_help_creation() {
         let _fixture = Help::new();
@@ -71,10 +65,9 @@ mod tests {
     #[test]
     fn test_help_handle_event() {
         let mut fixture = Help::new();
-        let mut state = create_test_state();
 
         let key_event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
-        let actual = fixture.handle_event(Event::Key(key_event), &mut state);
+        let actual = fixture.handle_event(Event::Key(key_event));
         let expected = Command::Empty;
         assert_eq!(actual, expected);
     }
