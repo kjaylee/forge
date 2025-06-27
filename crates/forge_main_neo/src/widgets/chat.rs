@@ -1,5 +1,6 @@
 use std::any::{Any, TypeId};
 
+use derive_more::From;
 use edtui::{EditorEventHandler, EditorMode, EditorTheme, EditorView};
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent};
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -9,8 +10,6 @@ use ratatui::widgets::{Block, Borders, Padding, Widget};
 
 use crate::widgets::message_list::MessageList;
 use crate::widgets::status_bar::StatusBar;
-
-use derive_more::From;
 
 /// Chat-specific actions
 #[derive(From, Debug, Clone, PartialEq)]
