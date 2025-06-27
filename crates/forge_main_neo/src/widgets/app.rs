@@ -3,8 +3,16 @@ use ratatui::style::{Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{Tabs, Widget};
 
-use crate::model::{Action, Command, State};
+use crate::model::{Action, Command};
 use crate::widgets::{Route, Router};
+
+#[derive(Default, derive_setters::Setters)]
+#[setters(strip_option, into)]
+pub struct State {
+    pub current_branch: Option<String>,
+    pub current_dir: Option<String>,
+    pub current_route: Route,
+}
 
 #[derive(Default)]
 pub struct App {
@@ -22,19 +30,36 @@ impl App {
                 self.state.current_branch = current_branch;
                 Command::Empty
             }
-            Action::NavigateToRoute(route) => {
-                self.router.navigate_to(route.clone());
-                self.state.current_route = route;
+            Action::Router(router_action) => match router_action {
+                crate::widgets::router::Action::NavigateToRoute(route) => {
+                    self.router.navigate_to(route.clone());
+                    self.state.current_route = route;
+                    Command::Empty
+                }
+                crate::widgets::router::Action::NavigateNext => {
+                    self.router.navigate_next();
+                    self.state.current_route = self.router.current_route.clone();
+                    Command::Empty
+                }
+                crate::widgets::router::Action::NavigatePrevious => {
+                    self.router.navigate_previous();
+                    self.state.current_route = self.router.current_route.clone();
+                    Command::Empty
+                }
+            },
+            Action::Chat(chat_action) => match chat_action {
+                crate::widgets::chat::Action::MessageAdded(message) => {
+                    self.router.add_chat_message(message);
+                    Command::Empty
+                }
+                crate::widgets::chat::Action::EditorUpdated => Command::Empty,
+            },
+            Action::Help(_help_action) => {
+                // Help actions can be handled here when implemented
                 Command::Empty
             }
-            Action::NavigateNext => {
-                self.router.navigate_next();
-                self.state.current_route = self.router.current_route.clone();
-                Command::Empty
-            }
-            Action::NavigatePrevious => {
-                self.router.navigate_previous();
-                self.state.current_route = self.router.current_route.clone();
+            Action::Settings(_settings_action) => {
+                // Settings actions can be handled here when implemented
                 Command::Empty
             }
             Action::CrossTerm(event) => match event {
@@ -64,20 +89,46 @@ impl App {
                         return Command::Empty;
                     }
 
-                    // Delegate other key events to router
-                    self.router
-                        .handle_event(ratatui::crossterm::event::Event::Key(key_event))
+                    // Delegate other key events to router and handle the command
+                    let router_cmd = self
+                        .router
+                        .update(ratatui::crossterm::event::Event::Key(key_event));
+
+                    // Check if we need to extract and route chat commands
+                    match self.state.current_route {
+                        Route::Chat => {
+                            let chat_cmd = self
+                                .router
+                                .chat
+                                .handle_event(ratatui::crossterm::event::Event::Key(key_event));
+                            Command::Chat(chat_cmd)
+                        }
+                        _ => Command::Router(router_cmd),
+                    }
                 }
                 ratatui::crossterm::event::Event::Mouse(mouse_event) => {
-                    // Delegate mouse events to router
-                    self.router
-                        .handle_event(ratatui::crossterm::event::Event::Mouse(mouse_event))
+                    // Delegate mouse events to router and handle the command
+                    let router_cmd = self
+                        .router
+                        .update(ratatui::crossterm::event::Event::Mouse(mouse_event));
+
+                    // Check if we need to extract and route chat commands
+                    match self.state.current_route {
+                        Route::Chat => {
+                            let chat_cmd = self
+                                .router
+                                .chat
+                                .handle_event(ratatui::crossterm::event::Event::Mouse(mouse_event));
+                            Command::Chat(chat_cmd)
+                        }
+                        _ => Command::Router(router_cmd),
+                    }
                 }
                 ratatui::crossterm::event::Event::Paste(_) => Command::Empty,
                 ratatui::crossterm::event::Event::Resize(_, _) => Command::Empty,
             },
             Action::ChatResponse { message } => {
-                self.state.messages.push(message);
+                self.router.add_chat_message(message);
                 Command::Empty
             }
         }
@@ -114,7 +165,33 @@ impl Widget for &App {
             .divider(" ")
             .render(tabs_area, buf);
 
-        // Delegate content rendering to router
-        self.router.render(content_area, buf);
+        // Delegate content rendering to router with shared state
+        self.router.render_with_state(
+            content_area,
+            buf,
+            self.state.current_branch.clone(),
+            self.state.current_dir.clone(),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_state_setters() {
+        let mut fixture = State::default();
+
+        // Test setters work with the derive_setters attributes
+        fixture = fixture.current_branch("main".to_string());
+        fixture = fixture.current_dir("/path/to/dir".to_string());
+        fixture = fixture.current_route(Route::Chat);
+
+        assert_eq!(fixture.current_branch, Some("main".to_string()));
+        assert_eq!(fixture.current_dir, Some("/path/to/dir".to_string()));
+        assert_eq!(fixture.current_route, Route::Chat);
     }
 }

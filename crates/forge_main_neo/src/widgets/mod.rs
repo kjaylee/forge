@@ -1,10 +1,10 @@
-mod app;
+pub mod app;
 mod bordered_panel;
-mod chat;
-mod help;
+pub mod chat;
+pub mod help;
 mod message_list;
-mod router;
-mod settings;
+pub mod router;
+pub mod settings;
 mod status_bar;
 
 pub use app::App;

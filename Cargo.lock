@@ -1363,6 +1363,7 @@ name = "forge_main_neo"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-recursion",
  "color-eyre",
  "derive_more",
  "derive_setters",

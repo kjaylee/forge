@@ -1,36 +1,12 @@
+use std::any::{Any, TypeId};
+
 use derive_more::From;
-use edtui::{EditorState, Index2};
 use ratatui::crossterm::event::Event;
 
-use crate::widgets::Route;
+use crate::widgets::{chat, help, router, settings};
 
-#[derive(Default)]
-pub struct State {
-    pub messages: Vec<String>,
-    pub editor: EditorState,
-    pub current_branch: Option<String>,
-    pub current_dir: Option<String>,
-    pub current_route: Route,
-}
-
-impl State {
-    pub fn editor_lines(&self) -> Vec<String> {
-        self.editor
-            .lines
-            .iter_row()
-            .map(|row| row.iter().collect::<String>())
-            .collect::<Vec<_>>()
-    }
-
-    pub fn take_lines(&mut self) -> Vec<String> {
-        let text = self.editor_lines();
-        self.editor.lines.clear();
-        self.editor.cursor = Index2::default();
-        text
-    }
-}
-
-#[derive(From)]
+/// Top-level application actions that wrap route-specific actions
+#[derive(From, Debug, Clone, PartialEq)]
 pub enum Action {
     CrossTerm(Event),
     Initialize,
@@ -41,18 +17,26 @@ pub enum Action {
     ChatResponse {
         message: String,
     },
-    NavigateToRoute(Route),
-    NavigateNext,
-    NavigatePrevious,
+    // Route-specific action containers
+    Router(router::Action),
+    Chat(chat::Action),
+    Help(help::Action),
+    Settings(settings::Action),
 }
 
-#[derive(From, PartialEq, Eq, Debug)]
+/// Top-level application commands that wrap route-specific commands
+#[derive(Clone, From, PartialEq, Eq, Debug)]
 pub enum Command {
-    Chat(String),
     ReadWorkspace,
     Empty,
     Exit,
     And(Vec<Command>),
+    Tagged(Box<Command>, TypeId),
+    // Route-specific command containers
+    Router(router::Command),
+    Chat(chat::Command),
+    Help(help::Command),
+    Settings(settings::Command),
 }
 
 impl Command {
@@ -64,6 +48,10 @@ impl Command {
             }
             _ => Command::And(vec![self, other]),
         }
+    }
+
+    pub fn tagged<T: Any>(self, t: T) -> Self {
+        Command::Tagged(Box::new(self), t.type_id())
     }
 }
 
@@ -101,13 +89,13 @@ mod tests {
 
     #[test]
     fn test_command_and_complex_chaining() {
-        let fixture = Command::Chat("hello".to_string())
+        let fixture = Command::Chat(chat::Command::SendMessage("hello".to_string()))
             .and(Command::ReadWorkspace)
             .and(Command::Empty)
             .and(Command::Exit);
         let actual = fixture;
         let expected = Command::And(vec![
-            Command::Chat("hello".to_string()),
+            Command::Chat(chat::Command::SendMessage("hello".to_string())),
             Command::ReadWorkspace,
             Command::Empty,
             Command::Exit,

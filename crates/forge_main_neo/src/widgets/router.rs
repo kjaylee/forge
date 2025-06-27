@@ -1,3 +1,38 @@
+use std::any::{Any, TypeId};
+
+use derive_more::From;
+
+/// Router-specific actions
+#[derive(From, Debug, Clone, PartialEq)]
+pub enum Action {
+    NavigateToRoute(Route),
+    NavigateNext,
+    NavigatePrevious,
+}
+
+/// Router-specific commands
+#[derive(Clone, From, PartialEq, Eq, Debug)]
+pub enum Command {
+    Empty,
+    And(Vec<Command>),
+    Tagged(Box<Command>, TypeId),
+}
+
+impl Command {
+    pub fn and(self, other: Command) -> Command {
+        match self {
+            Command::And(mut commands) => {
+                commands.push(other);
+                Command::And(commands)
+            }
+            _ => Command::And(vec![self, other]),
+        }
+    }
+
+    pub fn tagged<T: Any>(self, t: T) -> Self {
+        Command::Tagged(Box::new(self), t.type_id())
+    }
+}
 use derive_setters::Setters;
 use ratatui::buffer::Buffer;
 use ratatui::prelude::Rect;
@@ -78,14 +113,55 @@ impl Router {
     }
 
     /// Handle events for the current route
-    pub fn handle_event(
-        &mut self,
-        event: ratatui::crossterm::event::Event,
-    ) -> crate::model::Command {
+    pub fn update(&mut self, event: ratatui::crossterm::event::Event) -> Command {
         match self.current_route {
-            Route::Chat => self.chat.handle_event(event),
-            Route::Settings => self.settings.handle_event(event),
-            Route::Help => self.help.handle_event(event),
+            Route::Chat => {
+                // Get chat command and convert to router command if needed
+                let _chat_cmd = self.chat.handle_event(event);
+                // For now, router just returns empty for chat commands
+                // In the future, we might need to wrap or translate these
+                Command::Empty
+            }
+            Route::Settings => {
+                let _settings_cmd = self.settings.handle_event(event);
+                Command::Empty
+            }
+            Route::Help => {
+                let _help_cmd = self.help.handle_event(event);
+                Command::Empty
+            }
+        }
+    }
+}
+
+impl Router {
+    /// Add a message to the chat widget
+    pub fn add_chat_message(&mut self, message: String) {
+        self.chat.add_message(message);
+    }
+
+    /// Render with shared application state
+    pub fn render_with_state(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        current_branch: Option<String>,
+        current_dir: Option<String>,
+    ) {
+        match self.current_route {
+            Route::Chat => {
+                // Render the chat widget with shared state
+                self.chat
+                    .render_with_state(area, buf, current_branch, current_dir);
+            }
+            Route::Settings => {
+                // Render the settings widget
+                self.settings.render(area, buf);
+            }
+            Route::Help => {
+                // Render the help widget
+                self.help.render(area, buf);
+            }
         }
     }
 }

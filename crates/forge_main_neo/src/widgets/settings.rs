@@ -1,26 +1,71 @@
+use std::any::{Any, TypeId};
+
+use derive_more::From;
+
+/// Settings-specific actions
+#[derive(From, Debug, Clone, PartialEq)]
+pub enum Action {
+    // Future settings actions can be added here
+}
+
+/// Settings-specific commands
+#[derive(Clone, From, PartialEq, Eq, Debug)]
+pub enum Command {
+    Empty,
+    And(Vec<Command>),
+    Tagged(Box<Command>, TypeId),
+}
+
+impl Command {
+    pub fn and(self, other: Command) -> Command {
+        match self {
+            Command::And(mut commands) => {
+                commands.push(other);
+                Command::And(commands)
+            }
+            _ => Command::And(vec![self, other]),
+        }
+    }
+
+    pub fn tagged<T: Any>(self, t: T) -> Self {
+        Command::Tagged(Box::new(self), t.type_id())
+    }
+}
+#[derive(Default, derive_setters::Setters)]
+#[setters(strip_option, into)]
+pub struct State {
+    // Future settings-specific state can be added here
+}
+
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::Event;
 use ratatui::prelude::Rect;
 use ratatui::style::{Style, Stylize};
 use ratatui::widgets::{Paragraph, Widget};
 
-use crate::model::Command;
 use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Settings widget that handles the settings interface
-#[derive(Default)]
-pub struct Settings {}
+pub struct Settings {
+    state: State,
+}
 
 impl Settings {
     /// Create a new Settings widget
     pub fn new() -> Self {
-        Self {}
+        Self { state: State::default() }
     }
 
     /// Handle events for the settings interface
     pub fn handle_event(&mut self, _event: Event) -> Command {
         // Settings view doesn't handle events yet
         Command::Empty
+    }
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
