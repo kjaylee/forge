@@ -1,4 +1,3 @@
-use ratatui::style::{Color, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Widget, Wrap};
 
@@ -18,16 +17,20 @@ impl Widget for MessageList {
     where
         Self: Sized,
     {
-        if self.messages.is_empty() {
-            Paragraph::new("[Start typing to begin a conversation]")
-                .fg(Color::DarkGray)
-                .centered()
-                .wrap(Wrap { trim: false })
-                .render(area, buf);
-        } else {
-            Paragraph::new(self.messages.iter().map(Line::raw).collect::<Vec<_>>())
-                .wrap(Wrap { trim: false })
-                .render(area, buf);
-        };
+        // if self.messages.is_empty() {
+        //     Paragraph::new("[Start typing to begin a conversation]")
+        //         .fg(Color::DarkGray)
+        //         .centered()
+        //         .wrap(Wrap { trim: false })
+        //         .render(area, buf);
+        // } else {
+        //     Paragraph::new(self.messages.iter().map(Line::raw).collect::<Vec<_>>())
+        //         .wrap(Wrap { trim: false })
+        //         .render(area, buf);
+        // };
+
+        Paragraph::new(self.messages.iter().map(Line::raw).collect::<Vec<_>>())
+            .wrap(Wrap { trim: false })
+            .render(area, buf);
     }
 }

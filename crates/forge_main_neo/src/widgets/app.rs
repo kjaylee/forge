@@ -89,12 +89,7 @@ impl App {
                         return Command::Empty;
                     }
 
-                    // Delegate other key events to router and handle the command
-                    let router_cmd = self
-                        .router
-                        .update(ratatui::crossterm::event::Event::Key(key_event));
-
-                    // Check if we need to extract and route chat commands
+                    // Handle events based on current route
                     match self.state.current_route {
                         Route::Chat => {
                             let chat_cmd = self
@@ -103,16 +98,14 @@ impl App {
                                 .handle_event(ratatui::crossterm::event::Event::Key(key_event));
                             Command::Chat(chat_cmd)
                         }
-                        _ => Command::Router(router_cmd),
+                        _ => Command::Router(
+                            self.router
+                                .update(ratatui::crossterm::event::Event::Key(key_event)),
+                        ),
                     }
                 }
                 ratatui::crossterm::event::Event::Mouse(mouse_event) => {
-                    // Delegate mouse events to router and handle the command
-                    let router_cmd = self
-                        .router
-                        .update(ratatui::crossterm::event::Event::Mouse(mouse_event));
-
-                    // Check if we need to extract and route chat commands
+                    // Handle events based on current route
                     match self.state.current_route {
                         Route::Chat => {
                             let chat_cmd = self
@@ -121,7 +114,12 @@ impl App {
                                 .handle_event(ratatui::crossterm::event::Event::Mouse(mouse_event));
                             Command::Chat(chat_cmd)
                         }
-                        _ => Command::Router(router_cmd),
+                        _ => {
+                            let router_cmd = self
+                                .router
+                                .update(ratatui::crossterm::event::Event::Mouse(mouse_event));
+                            Command::Router(router_cmd)
+                        }
                     }
                 }
                 ratatui::crossterm::event::Event::Paste(_) => Command::Empty,

@@ -123,19 +123,19 @@ impl Chat {
         current_branch: Option<String>,
         current_dir: Option<String>,
     ) {
-        // Create chat layout with messages area and user input area
+        // Create chat layout with user input area at top and messages area at bottom
         let chat_layout = Layout::new(
             Direction::Vertical,
-            [Constraint::Fill(0), Constraint::Max(5)],
+            [Constraint::Max(5), Constraint::Fill(0)],
         );
-        let [messages_area, user_area] = chat_layout.areas(area);
+        let [user_area, messages_area] = chat_layout.areas(area);
 
-        // Messages area block
+        // Messages area block (now at bottom)
         let content_block = Block::bordered()
-            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT | Borders::TOP)
+            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
             .border_set(border::Set {
-                bottom_right: line::VERTICAL_LEFT,
-                bottom_left: line::VERTICAL_RIGHT,
+                top_right: line::VERTICAL_LEFT,
+                top_left: line::VERTICAL_RIGHT,
                 ..border::PLAIN
             })
             .border_style(Style::default().dark_gray())
@@ -145,15 +145,15 @@ impl Chat {
         MessageList::new(self.state.messages.clone())
             .render(content_block.inner(messages_area), buf);
 
-        // User input area block with status bar
+        // User input area block with status bar (now at top)
         let user_block = Block::bordered()
             .padding(Padding::new(0, 0, 0, 1))
             .border_set(border::Set {
-                top_left: line::VERTICAL_RIGHT,
-                top_right: line::VERTICAL_LEFT,
+                bottom_left: line::VERTICAL_RIGHT,
+                bottom_right: line::VERTICAL_LEFT,
                 ..border::PLAIN
             })
-            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
+            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
             .title_style(Style::default().dark_gray())
             .border_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(
@@ -211,19 +211,19 @@ impl Widget for &Chat {
     where
         Self: Sized,
     {
-        // Create chat layout with messages area and user input area
+        // Create chat layout with user input area at top and messages area at bottom
         let chat_layout = Layout::new(
             Direction::Vertical,
-            [Constraint::Fill(0), Constraint::Max(5)],
+            [Constraint::Max(5), Constraint::Fill(0)],
         );
-        let [messages_area, user_area] = chat_layout.areas(area);
+        let [user_area, messages_area] = chat_layout.areas(area);
 
-        // Messages area block
+        // Messages area block (now at bottom)
         let content_block = Block::bordered()
-            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT | Borders::TOP)
+            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
             .border_set(border::Set {
-                bottom_right: line::VERTICAL_LEFT,
-                bottom_left: line::VERTICAL_RIGHT,
+                top_right: line::VERTICAL_LEFT,
+                top_left: line::VERTICAL_RIGHT,
                 ..border::PLAIN
             })
             .border_style(Style::default().dark_gray())
@@ -233,15 +233,15 @@ impl Widget for &Chat {
         MessageList::new(self.state.messages.clone())
             .render(content_block.inner(messages_area), buf);
 
-        // User input area block with status bar
+        // User input area block with status bar (now at top)
         let user_block = Block::bordered()
             .padding(Padding::new(0, 0, 0, 1))
             .border_set(border::Set {
-                top_left: line::VERTICAL_RIGHT,
-                top_right: line::VERTICAL_LEFT,
+                bottom_left: line::VERTICAL_RIGHT,
+                bottom_right: line::VERTICAL_LEFT,
                 ..border::PLAIN
             })
-            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
+            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
             .title_style(Style::default().dark_gray())
             .border_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(
