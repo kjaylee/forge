@@ -289,6 +289,7 @@ impl Chat {
     fn render_slash_command_popup(
         &self,
         area: ratatui::prelude::Rect,
+        user_area: ratatui::prelude::Rect,
         buf: &mut ratatui::prelude::Buffer,
     ) {
         if !self.state.slash_commands.is_active
@@ -297,11 +298,11 @@ impl Chat {
             return;
         }
 
-        // Calculate popup position (below the input area)
+        // Calculate popup position (above the user input area)
         let popup_height = (self.state.slash_commands.filtered_commands.len() as u16).min(5) + 2; // +2 for borders
         let popup_area = ratatui::prelude::Rect {
             x: area.x + 1,
-            y: area.y + 5, // Position below the input area
+            y: user_area.y.saturating_sub(popup_height), // Position above the user input area
             width: area.width.saturating_sub(2).min(40),
             height: popup_height,
         };
@@ -316,7 +317,7 @@ impl Chat {
         let inner_area = popup_block.inner(popup_area);
 
         // Render popup background
-        Clear::default().render(popup_area, buf);
+        Clear.render(popup_area, buf);
         popup_block.render(popup_area, buf);
         for (i, command) in self
             .state
@@ -365,19 +366,19 @@ impl Chat {
         current_branch: Option<String>,
         current_dir: Option<String>,
     ) {
-        // Create chat layout with user input area at top and messages area at bottom
+        // Create chat layout with messages area at top and user input area at bottom
         let chat_layout = Layout::new(
             Direction::Vertical,
-            [Constraint::Max(5), Constraint::Fill(0)],
+            [Constraint::Fill(0), Constraint::Max(5)],
         );
-        let [user_area, messages_area] = chat_layout.areas(area);
+        let [messages_area, user_area] = chat_layout.areas(area);
 
-        // Messages area block (now at bottom)
+        // Messages area block (now at top)
         let content_block = Block::bordered()
-            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
+            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT)
             .border_set(border::Set {
-                top_right: line::VERTICAL_LEFT,
-                top_left: line::VERTICAL_RIGHT,
+                bottom_right: line::VERTICAL_LEFT,
+                bottom_left: line::VERTICAL_RIGHT,
                 ..border::PLAIN
             })
             .border_style(Style::default().dark_gray())
@@ -387,15 +388,15 @@ impl Chat {
         MessageList::new(self.state.messages.clone())
             .render(content_block.inner(messages_area), buf);
 
-        // User input area block with status bar (now at top)
+        // User input area block with status bar (now at bottom)
         let user_block = Block::bordered()
             .padding(Padding::new(0, 0, 0, 1))
             .border_set(border::Set {
-                bottom_left: line::VERTICAL_RIGHT,
-                bottom_right: line::VERTICAL_LEFT,
+                top_left: line::VERTICAL_RIGHT,
+                top_right: line::VERTICAL_LEFT,
                 ..border::PLAIN
             })
-            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
+            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT)
             .title_style(Style::default().dark_gray())
             .border_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(
@@ -425,7 +426,7 @@ impl Chat {
         user_block.render(user_area, buf);
 
         // Render slash command popup if active
-        self.render_slash_command_popup(area, buf);
+        self.render_slash_command_popup(area, user_area, buf);
     }
 }
 
@@ -509,19 +510,19 @@ impl Widget for &Chat {
     where
         Self: Sized,
     {
-        // Create chat layout with user input area at top and messages area at bottom
+        // Create chat layout with messages area at top and user input area at bottom
         let chat_layout = Layout::new(
             Direction::Vertical,
-            [Constraint::Max(5), Constraint::Fill(0)],
+            [Constraint::Fill(0), Constraint::Max(5)],
         );
-        let [user_area, messages_area] = chat_layout.areas(area);
+        let [messages_area, user_area] = chat_layout.areas(area);
 
-        // Messages area block (now at bottom)
+        // Messages area block (now at top)
         let content_block = Block::bordered()
             .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
             .border_set(border::Set {
-                top_right: line::VERTICAL_LEFT,
-                top_left: line::VERTICAL_RIGHT,
+                bottom_right: line::VERTICAL_LEFT,
+                bottom_left: line::VERTICAL_RIGHT,
                 ..border::PLAIN
             })
             .border_style(Style::default().dark_gray())
@@ -531,15 +532,15 @@ impl Widget for &Chat {
         MessageList::new(self.state.messages.clone())
             .render(content_block.inner(messages_area), buf);
 
-        // User input area block with status bar (now at top)
+        // User input area block with status bar (now at bottom)
         let user_block = Block::bordered()
             .padding(Padding::new(0, 0, 0, 1))
             .border_set(border::Set {
-                bottom_left: line::VERTICAL_RIGHT,
-                bottom_right: line::VERTICAL_LEFT,
+                top_left: line::VERTICAL_RIGHT,
+                top_right: line::VERTICAL_LEFT,
                 ..border::PLAIN
             })
-            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
+            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT)
             .title_style(Style::default().dark_gray())
             .border_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(
@@ -569,6 +570,6 @@ impl Widget for &Chat {
         user_block.render(user_area, buf);
 
         // Render slash command popup if active
-        self.render_slash_command_popup(area, buf);
+        self.render_slash_command_popup(area, user_area, buf);
     }
 }
