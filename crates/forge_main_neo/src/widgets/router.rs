@@ -135,9 +135,15 @@ impl Router {
 }
 
 impl Router {
-    /// Add a message to the chat widget
+    /// Add a message to the chat widget (assumes assistant message for
+    /// ChatResponse)
     pub fn add_chat_message(&mut self, message: String) {
-        self.chat.add_message(message);
+        self.chat.add_assistant_message(message);
+    }
+
+    /// Add a user message to the chat widget
+    pub fn add_user_chat_message(&mut self, message: String) {
+        self.chat.add_user_message(message);
     }
 
     /// Render with shared application state

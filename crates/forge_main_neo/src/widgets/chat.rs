@@ -9,7 +9,7 @@ use ratatui::symbols::{border, line};
 use ratatui::widgets::{Block, Borders, Padding, Widget};
 
 use crate::widgets::autocomplete::{AutoComplete, AutocompletePopup};
-use crate::widgets::message_list::MessageList;
+use crate::widgets::message_list::{Message, MessageList};
 use crate::widgets::status_bar::StatusBar;
 
 /// Chat-specific actions
@@ -50,7 +50,7 @@ use edtui::{EditorState, Index2};
 #[setters(strip_option, into)]
 pub struct Chat {
     editor: EditorEventHandler,
-    pub messages: Vec<String>,
+    pub messages: Vec<Message>,
     pub editor_state: EditorState,
     pub autocomplete: AutoComplete,
 }
@@ -154,7 +154,7 @@ impl Chat {
         // Submit message on Enter in Normal mode
         if event.code == KeyCode::Enter && self.editor_state.mode == EditorMode::Normal {
             let message = self.take_lines().join("\n");
-            self.messages.push(message.clone());
+            self.messages.push(Message::User(message.clone()));
             self.autocomplete.deactivate(); // Ensure popup is closed
             if message.trim().is_empty() {
                 Command::Empty
@@ -199,8 +199,18 @@ impl Chat {
 
 impl Chat {
     /// Add a message to the chat
-    pub fn add_message(&mut self, message: String) {
+    pub fn add_message(&mut self, message: Message) {
         self.messages.push(message);
+    }
+
+    /// Add a user message to the chat
+    pub fn add_user_message(&mut self, message: String) {
+        self.messages.push(Message::User(message));
+    }
+
+    /// Add an assistant message to the chat
+    pub fn add_assistant_message(&mut self, message: String) {
+        self.messages.push(Message::Assistant(message));
     }
 
     /// Render the chat widget with shared application state
@@ -285,7 +295,10 @@ mod tests {
         let fixture = Chat::default();
 
         // Test setters work with the derive_setters attributes
-        let messages = vec!["Hello".to_string(), "World".to_string()];
+        let messages = vec![
+            Message::User("Hello".to_string()),
+            Message::Assistant("World".to_string()),
+        ];
         let editor = EditorState::default();
 
         let fixture = fixture

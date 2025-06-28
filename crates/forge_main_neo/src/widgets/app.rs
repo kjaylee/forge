@@ -44,7 +44,7 @@ impl App {
             },
             Action::Chat(chat_action) => match chat_action {
                 crate::widgets::chat::Action::MessageAdded(message) => {
-                    self.router.add_chat_message(message);
+                    self.router.add_user_chat_message(message);
                     Command::Empty
                 }
                 crate::widgets::chat::Action::EditorUpdated => Command::Empty,

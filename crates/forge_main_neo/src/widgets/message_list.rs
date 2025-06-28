@@ -1,15 +1,64 @@
-use ratatui::style::{Color, Stylize};
-use ratatui::text::Line;
+use ratatui::style::{Color, Style, Stylize};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget, Wrap};
+
+/// Enum to differentiate between user and assistant messages
+#[derive(Debug, Clone, PartialEq)]
+pub enum Message {
+    User(String),
+    Assistant(String),
+}
+
+impl Message {
+    /// Get the content of the message regardless of type
+    pub fn content(&self) -> &str {
+        match self {
+            Message::User(content) => content,
+            Message::Assistant(content) => content,
+        }
+    }
+
+    /// Check if this is a user message
+    pub fn is_user(&self) -> bool {
+        matches!(self, Message::User(_))
+    }
+
+    /// Check if this is an assistant message
+    pub fn is_assistant(&self) -> bool {
+        matches!(self, Message::Assistant(_))
+    }
+}
 
 #[derive(Default)]
 pub struct MessageList {
-    pub messages: Vec<String>,
+    pub messages: Vec<Message>,
 }
 
 impl MessageList {
-    pub fn new(messages: Vec<String>) -> Self {
+    pub fn new(messages: Vec<Message>) -> Self {
         Self { messages }
+    }
+
+    /// Create MessageList from Vec<String> for backward compatibility
+    pub fn from_strings(messages: Vec<String>) -> Self {
+        let messages = messages
+            .into_iter()
+            .map(Message::User) // Default to user messages for backward compatibility
+            .collect();
+        Self { messages }
+    }
+
+    /// Convert messages to styled lines for rendering
+    fn messages_to_lines(&self) -> Vec<Line> {
+        self.messages
+            .iter()
+            .map(|message| match message {
+                Message::User(content) => {
+                    Line::from(vec![Span::styled(content, Style::default().dim().bold())])
+                }
+                Message::Assistant(content) => Line::from(Span::raw(content)),
+            })
+            .collect()
     }
 }
 
@@ -25,9 +74,79 @@ impl Widget for MessageList {
                 .wrap(Wrap { trim: false })
                 .render(area, buf);
         } else {
-            Paragraph::new(self.messages.iter().map(Line::raw).collect::<Vec<_>>())
+            Paragraph::new(self.messages_to_lines())
                 .wrap(Wrap { trim: false })
                 .render(area, buf);
         };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_message_content() {
+        let user_message = Message::User("Hello".to_string());
+        let assistant_message = Message::Assistant("Hi there".to_string());
+
+        assert_eq!(user_message.content(), "Hello");
+        assert_eq!(assistant_message.content(), "Hi there");
+    }
+
+    #[test]
+    fn test_message_type_checks() {
+        let user_message = Message::User("Hello".to_string());
+        let assistant_message = Message::Assistant("Hi there".to_string());
+
+        assert!(user_message.is_user());
+        assert!(!user_message.is_assistant());
+        assert!(assistant_message.is_assistant());
+        assert!(!assistant_message.is_user());
+    }
+
+    #[test]
+    fn test_message_list_new() {
+        let messages = vec![
+            Message::User("Hello".to_string()),
+            Message::Assistant("Hi there".to_string()),
+        ];
+        let message_list = MessageList::new(messages.clone());
+
+        assert_eq!(message_list.messages, messages);
+    }
+
+    #[test]
+    fn test_message_list_from_strings() {
+        let strings = vec!["Hello".to_string(), "World".to_string()];
+        let message_list = MessageList::from_strings(strings);
+
+        let expected = vec![
+            Message::User("Hello".to_string()),
+            Message::User("World".to_string()),
+        ];
+        assert_eq!(message_list.messages, expected);
+    }
+
+    #[test]
+    fn test_messages_to_lines() {
+        let messages = vec![
+            Message::User("Hello".to_string()),
+            Message::Assistant("Hi there".to_string()),
+        ];
+        let message_list = MessageList::new(messages);
+        let lines = message_list.messages_to_lines();
+
+        assert_eq!(lines.len(), 2);
+        // We can't easily test the exact Line content due to styling,
+        // but we can verify the count is correct
+    }
+
+    #[test]
+    fn test_empty_message_list() {
+        let message_list = MessageList::default();
+        assert!(message_list.messages.is_empty());
     }
 }
