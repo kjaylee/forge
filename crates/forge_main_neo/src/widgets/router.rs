@@ -1,89 +1,13 @@
-use std::any::{Any, TypeId};
-
-use derive_more::From;
-
-/// Router-specific actions
-#[derive(From, Debug, Clone, PartialEq)]
-pub enum Action {
-    NavigateToRoute(Route),
-    NavigateNext,
-    NavigatePrevious,
-}
-
-/// Router-specific commands
-#[derive(Clone, From, PartialEq, Eq, Debug)]
-pub enum Command {
-    Empty,
-    And(Vec<Command>),
-    Tagged(Box<Command>, TypeId),
-}
-
-impl Command {
-    pub fn and(self, other: Command) -> Command {
-        match self {
-            Command::And(mut commands) => {
-                commands.push(other);
-                Command::And(commands)
-            }
-            _ => Command::And(vec![self, other]),
-        }
-    }
-
-    pub fn tagged<T: Any>(self, t: T) -> Self {
-        Command::Tagged(Box::new(self), t.type_id())
-    }
-}
 use derive_setters::Setters;
 use ratatui::buffer::Buffer;
 use ratatui::prelude::Rect;
 use ratatui::widgets::Widget;
 
+use crate::action::Route;
+use crate::command::Command as Command;
 use crate::widgets::chat::Chat;
 use crate::widgets::help::Help;
 use crate::widgets::settings::Settings;
-
-/// Represents the different routes/views available in the application
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub enum Route {
-    #[default]
-    Chat,
-    Settings,
-    Help,
-}
-
-impl Route {
-    /// Get all available routes
-    pub fn all() -> Vec<Route> {
-        vec![Route::Chat, Route::Settings, Route::Help]
-    }
-
-    /// Get the display name for the route
-    pub fn display_name(&self) -> &'static str {
-        match self {
-            Route::Chat => "CHAT",
-            Route::Settings => "SETTINGS",
-            Route::Help => "HELP",
-        }
-    }
-
-    /// Navigate to the next route in sequence
-    pub fn next(&self) -> Route {
-        match self {
-            Route::Chat => Route::Settings,
-            Route::Settings => Route::Help,
-            Route::Help => Route::Chat,
-        }
-    }
-
-    /// Navigate to the previous route in sequence
-    pub fn previous(&self) -> Route {
-        match self {
-            Route::Chat => Route::Help,
-            Route::Settings => Route::Chat,
-            Route::Help => Route::Settings,
-        }
-    }
-}
 
 /// Router widget that renders different content based on the current route
 #[allow(clippy::needless_update)]

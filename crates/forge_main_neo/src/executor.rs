@@ -7,7 +7,8 @@ use serde_json::Value;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::StreamExt;
 
-use crate::model::{Action, Command};
+use crate::action::Action;
+use crate::command::Command;
 
 pub struct Executor<T> {
     api: Arc<T>,
@@ -91,77 +92,9 @@ impl<T: API + 'static> Executor<T> {
         tags: &mut Vec<TypeId>,
     ) -> anyhow::Result<()> {
         match cmd {
-            Command::Chat(chat_cmd) => {
-                match chat_cmd {
-                    crate::widgets::chat::Command::SendMessage(message) => {
-                        if let Some(action) = self.handle_chat(message).await? {
-                            tx.send(Ok(action)).await.unwrap();
-                        }
-                    }
-                    crate::widgets::chat::Command::Empty => {
-                        // Empty command doesn't send any action
-                    }
-                    crate::widgets::chat::Command::And(commands) => {
-                        for command in commands {
-                            Box::pin(self.execute(Command::Chat(command), tx, tags)).await?;
-                        }
-                    }
-                    crate::widgets::chat::Command::Tagged(command, type_id) => {
-                        tags.push(type_id);
-                        self.execute(Command::Chat(*command), tx, tags).await?;
-                    }
-                }
-            }
-            Command::Router(router_cmd) => {
-                // Router commands don't typically need executor handling
-                // They're handled directly in the app update loop
-                match router_cmd {
-                    crate::widgets::router::Command::Empty => {
-                        // Empty command doesn't send any action
-                    }
-                    crate::widgets::router::Command::And(commands) => {
-                        for command in commands {
-                            Box::pin(self.execute(Command::Router(command), tx, tags)).await?;
-                        }
-                    }
-                    crate::widgets::router::Command::Tagged(command, type_id) => {
-                        tags.push(type_id);
-                        self.execute(Command::Router(*command), tx, tags).await?;
-                    }
-                }
-            }
-            Command::Help(help_cmd) => {
-                // Help commands don't typically need executor handling
-                match help_cmd {
-                    crate::widgets::help::Command::Empty => {
-                        // Empty command doesn't send any action
-                    }
-                    crate::widgets::help::Command::And(commands) => {
-                        for command in commands {
-                            Box::pin(self.execute(Command::Help(command), tx, tags)).await?;
-                        }
-                    }
-                    crate::widgets::help::Command::Tagged(command, type_id) => {
-                        tags.push(type_id);
-                        self.execute(Command::Help(*command), tx, tags).await?;
-                    }
-                }
-            }
-            Command::Settings(settings_cmd) => {
-                // Settings commands don't typically need executor handling
-                match settings_cmd {
-                    crate::widgets::settings::Command::Empty => {
-                        // Empty command doesn't send any action
-                    }
-                    crate::widgets::settings::Command::And(commands) => {
-                        for command in commands {
-                            Box::pin(self.execute(Command::Settings(command), tx, tags)).await?;
-                        }
-                    }
-                    crate::widgets::settings::Command::Tagged(command, type_id) => {
-                        tags.push(type_id);
-                        self.execute(Command::Settings(*command), tx, tags).await?;
-                    }
+            Command::SendMessage(message) => {
+                if let Some(action) = self.handle_chat(message).await? {
+                    tx.send(Ok(action)).await.unwrap();
                 }
             }
             Command::ReadWorkspace => {

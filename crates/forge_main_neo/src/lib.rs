@@ -1,3 +1,5 @@
+mod action;
+mod command;
 mod event_reader;
 mod executor;
 mod model;

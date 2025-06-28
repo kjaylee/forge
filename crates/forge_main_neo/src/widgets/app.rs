@@ -3,8 +3,9 @@ use ratatui::style::{Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{Tabs, Widget};
 
-use crate::model::{Action, Command};
-use crate::widgets::{Route, Router};
+use crate::action::{Action, ChatAction, Route, RouterAction};
+use crate::command::Command;
+use crate::widgets::Router;
 
 #[derive(Clone, Default, derive_setters::Setters)]
 #[setters(strip_option, into)]
@@ -26,28 +27,17 @@ impl App {
                 Command::Empty
             }
             Action::Router(router_action) => match router_action {
-                crate::widgets::router::Action::NavigateToRoute(route) => {
+                RouterAction::NavigateToRoute(route) => {
                     self.router.navigate_to(route.clone());
                     self.current_route = route;
                     Command::Empty
                 }
-                crate::widgets::router::Action::NavigateNext => {
-                    self.router.navigate_next();
-                    self.current_route = self.router.current_route.clone();
-                    Command::Empty
-                }
-                crate::widgets::router::Action::NavigatePrevious => {
-                    self.router.navigate_previous();
-                    self.current_route = self.router.current_route.clone();
-                    Command::Empty
-                }
             },
             Action::Chat(chat_action) => match chat_action {
-                crate::widgets::chat::Action::MessageAdded(message) => {
+                ChatAction::MessageAdded(message) => {
                     self.router.add_user_chat_message(message);
                     Command::Empty
                 }
-                crate::widgets::chat::Action::EditorUpdated => Command::Empty,
             },
             Action::Help(_help_action) => {
                 // Help actions can be handled here when implemented
@@ -86,35 +76,25 @@ impl App {
 
                     // Handle events based on current route
                     match self.current_route {
-                        Route::Chat => {
-                            let chat_cmd = self
-                                .router
-                                .chat
-                                .handle_event(ratatui::crossterm::event::Event::Key(key_event));
-                            Command::Chat(chat_cmd)
-                        }
-                        _ => Command::Router(
-                            self.router
-                                .update(ratatui::crossterm::event::Event::Key(key_event)),
-                        ),
+                        Route::Chat => self
+                            .router
+                            .chat
+                            .handle_event(ratatui::crossterm::event::Event::Key(key_event)),
+                        _ => self
+                            .router
+                            .update(ratatui::crossterm::event::Event::Key(key_event)),
                     }
                 }
                 ratatui::crossterm::event::Event::Mouse(mouse_event) => {
                     // Handle events based on current route
                     match self.current_route {
-                        Route::Chat => {
-                            let chat_cmd = self
-                                .router
-                                .chat
-                                .handle_event(ratatui::crossterm::event::Event::Mouse(mouse_event));
-                            Command::Chat(chat_cmd)
-                        }
-                        _ => {
-                            let router_cmd = self
-                                .router
-                                .update(ratatui::crossterm::event::Event::Mouse(mouse_event));
-                            Command::Router(router_cmd)
-                        }
+                        Route::Chat => self
+                            .router
+                            .chat
+                            .handle_event(ratatui::crossterm::event::Event::Mouse(mouse_event)),
+                        _ => self
+                            .router
+                            .update(ratatui::crossterm::event::Event::Mouse(mouse_event)),
                     }
                 }
                 ratatui::crossterm::event::Event::Paste(_) => Command::Empty,

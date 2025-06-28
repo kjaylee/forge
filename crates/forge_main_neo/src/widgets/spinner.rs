@@ -7,11 +7,7 @@ pub struct Spinner {
     state: ThrobberState,
 }
 
-impl Spinner {
-    pub fn on_tick(&mut self) {
-        self.state.calc_next();
-    }
-}
+impl Spinner {}
 
 impl Widget for Spinner {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)

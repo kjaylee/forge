@@ -12,6 +12,7 @@ pub enum Message {
     Assistant(String),
 }
 
+#[cfg(test)]
 impl Message {
     /// Get the content of the message regardless of type
     pub fn content(&self) -> &str {
@@ -55,8 +56,7 @@ impl MessageList {
 
     /// Convert messages to styled lines for rendering
     fn messages_to_lines(&self) -> Vec<Line> {
-        let lines = self
-            .messages
+        self.messages
             .iter()
             .map(|message| match message {
                 Message::User(content) => {
@@ -64,9 +64,7 @@ impl MessageList {
                 }
                 Message::Assistant(content) => Line::from(Span::raw(content)),
             })
-            .collect();
-
-        lines
+            .collect()
     }
 }
 

@@ -10,4 +10,4 @@ pub mod spinner;
 mod status_bar;
 
 pub use app::App;
-pub use router::{Route, Router};
+pub use router::Router;

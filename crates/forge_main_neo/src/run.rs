@@ -5,9 +5,10 @@ use forge_api::ForgeAPI;
 use ratatui::DefaultTerminal;
 use ratatui::widgets::Widget;
 
+use crate::action::Action;
+use crate::command::Command;
 use crate::event_reader::EventReader;
 use crate::executor::Executor;
-use crate::model::{Action, Command};
 use crate::widgets::App;
 
 pub async fn run(mut terminal: DefaultTerminal) -> anyhow::Result<()> {

@@ -1,50 +1,14 @@
-use std::any::{Any, TypeId};
-
-use derive_more::From;
-use edtui::{EditorEventHandler, EditorMode, EditorTheme, EditorView};
+use edtui::{EditorEventHandler, EditorMode, EditorState, EditorTheme, EditorView, Index2};
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::symbols::{border, line};
 use ratatui::widgets::{Block, Borders, Padding, Widget};
 
+use crate::command::Command;
 use crate::widgets::autocomplete::{AutoComplete, AutocompletePopup};
 use crate::widgets::message_list::{Message, MessageList};
-use crate::widgets::spinner::Spinner;
 use crate::widgets::status_bar::StatusBar;
-
-/// Chat-specific actions
-#[derive(From, Debug, Clone, PartialEq)]
-pub enum Action {
-    MessageAdded(String),
-    EditorUpdated,
-}
-
-/// Chat-specific commands
-#[derive(Clone, From, PartialEq, Eq, Debug)]
-pub enum Command {
-    SendMessage(String),
-    Empty,
-    And(Vec<Command>),
-    Tagged(Box<Command>, TypeId),
-}
-
-impl Command {
-    pub fn and(self, other: Command) -> Command {
-        match self {
-            Command::And(mut commands) => {
-                commands.push(other);
-                Command::And(commands)
-            }
-            _ => Command::And(vec![self, other]),
-        }
-    }
-
-    pub fn tagged<T: Any>(self, t: T) -> Self {
-        Command::Tagged(Box::new(self), t.type_id())
-    }
-}
-use edtui::{EditorState, Index2};
 
 /// Chat widget that handles the chat interface with editor and message list
 #[derive(Clone, derive_setters::Setters)]
@@ -54,7 +18,6 @@ pub struct Chat {
     pub messages: Vec<Message>,
     pub editor_state: EditorState,
     pub autocomplete: AutoComplete,
-    pub spinner: Spinner,
 }
 
 impl Default for Chat {
@@ -68,7 +31,6 @@ impl Default for Chat {
             messages: Vec::new(),
             editor_state,
             autocomplete: AutoComplete::default(),
-            spinner: Spinner::default(),
         }
     }
 }
@@ -201,11 +163,6 @@ impl Chat {
 }
 
 impl Chat {
-    /// Add a message to the chat
-    pub fn add_message(&mut self, message: Message) {
-        self.messages.push(message);
-    }
-
     /// Add a user message to the chat
     pub fn add_user_message(&mut self, message: String) {
         self.messages.push(Message::User(message));
