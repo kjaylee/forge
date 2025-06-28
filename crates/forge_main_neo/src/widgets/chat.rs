@@ -6,7 +6,7 @@ use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::symbols::{border, line};
-use ratatui::widgets::{Block, Borders, Padding, Widget};
+use ratatui::widgets::{Block, Borders, Clear, Padding, Widget};
 
 use crate::widgets::message_list::MessageList;
 use crate::widgets::status_bar::StatusBar;
@@ -316,6 +316,7 @@ impl Chat {
         let inner_area = popup_block.inner(popup_area);
 
         // Render popup background
+        Clear::default().render(popup_area, buf);
         popup_block.render(popup_area, buf);
         for (i, command) in self
             .state
