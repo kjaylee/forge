@@ -136,42 +136,37 @@ impl Command {
 }
 use edtui::{EditorState, Index2};
 
+/// Chat widget that handles the chat interface with editor and message list
 #[derive(Default, derive_setters::Setters)]
 #[setters(strip_option, into)]
-pub struct State {
+pub struct Chat {
+    editor: EditorEventHandler,
     pub messages: Vec<String>,
-    pub editor: EditorState,
+    pub editor_state: EditorState,
     pub slash_commands: SlashCommandState,
 }
 
-impl State {
+impl Chat {
+    /// Get editor lines as strings
     pub fn editor_lines(&self) -> Vec<String> {
-        self.editor
+        self.editor_state
             .lines
             .iter_row()
             .map(|row| row.iter().collect::<String>())
             .collect::<Vec<_>>()
     }
 
+    /// Take lines from editor and clear it
     pub fn take_lines(&mut self) -> Vec<String> {
         let text = self.editor_lines();
-        self.editor.lines.clear();
-        self.editor.cursor = Index2::default();
+        self.editor_state.lines.clear();
+        self.editor_state.cursor = Index2::default();
         text
     }
-}
 
-/// Chat widget that handles the chat interface with editor and message list
-#[derive(Default)]
-pub struct Chat {
-    editor: EditorEventHandler,
-    state: State,
-}
-
-impl Chat {
     /// Check if current input starts with slash command
     fn is_slash_command_input(&self) -> bool {
-        let lines = self.state.editor_lines();
+        let lines = self.editor_lines();
         if let Some(first_line) = lines.first() {
             first_line.starts_with('/')
         } else {
@@ -181,7 +176,7 @@ impl Chat {
 
     /// Get current slash command filter text
     fn get_slash_command_filter(&self) -> String {
-        let lines = self.state.editor_lines();
+        let lines = self.editor_lines();
         if let Some(first_line) = lines.first() {
             if let Some(stripped) = first_line.strip_prefix('/') {
                 stripped.to_string()
@@ -196,35 +191,34 @@ impl Chat {
     /// Handle key events for the chat interface
     pub fn handle_key_event(&mut self, event: KeyEvent) -> Command {
         // Handle slash command navigation when popup is active
-        if self.state.slash_commands.is_active {
+        if self.slash_commands.is_active {
             match event.code {
                 KeyCode::Up => {
-                    self.state.slash_commands.select_previous();
+                    self.slash_commands.select_previous();
                     return Command::Empty;
                 }
                 KeyCode::Down => {
-                    self.state.slash_commands.select_next();
+                    self.slash_commands.select_next();
                     return Command::Empty;
                 }
                 KeyCode::Enter => {
-                    if let Some(selected_command) = self.state.slash_commands.get_selected_command()
-                    {
+                    if let Some(selected_command) = self.slash_commands.get_selected_command() {
                         let command_text = format!("/{}", selected_command.name);
                         // Clear editor and insert command
-                        self.state.editor.lines.clear();
-                        self.state.editor.cursor = Index2::default();
+                        self.editor_state.lines.clear();
+                        self.editor_state.cursor = Index2::default();
                         for ch in command_text.chars() {
                             self.editor.on_key_event(
                                 KeyEvent::new(KeyCode::Char(ch), event.modifiers),
-                                &mut self.state.editor,
+                                &mut self.editor_state,
                             );
                         }
-                        self.state.slash_commands.deactivate();
+                        self.slash_commands.deactivate();
                         return Command::Empty;
                     }
                 }
                 KeyCode::Esc => {
-                    self.state.slash_commands.deactivate();
+                    self.slash_commands.deactivate();
                     return Command::Empty;
                 }
                 _ => {
@@ -234,10 +228,10 @@ impl Chat {
         }
 
         // Submit message on Enter in Normal mode
-        if event.code == KeyCode::Enter && self.state.editor.mode == EditorMode::Normal {
-            let message = self.state.take_lines().join("\n");
-            self.state.messages.push(message.clone());
-            self.state.slash_commands.deactivate(); // Ensure popup is closed
+        if event.code == KeyCode::Enter && self.editor_state.mode == EditorMode::Normal {
+            let message = self.take_lines().join("\n");
+            self.messages.push(message.clone());
+            self.slash_commands.deactivate(); // Ensure popup is closed
             if message.trim().is_empty() {
                 Command::Empty
             } else {
@@ -245,18 +239,18 @@ impl Chat {
             }
         } else {
             // Handle editor events
-            self.editor.on_key_event(event, &mut self.state.editor);
+            self.editor.on_key_event(event, &mut self.editor_state);
 
             // Check if we should activate/update slash command popup
             if self.is_slash_command_input() {
                 let filter_text = self.get_slash_command_filter();
-                if !self.state.slash_commands.is_active {
-                    self.state.slash_commands.activate(filter_text);
+                if !self.slash_commands.is_active {
+                    self.slash_commands.activate(filter_text);
                 } else {
-                    self.state.slash_commands.update_filter(filter_text);
+                    self.slash_commands.update_filter(filter_text);
                 }
-            } else if self.state.slash_commands.is_active {
-                self.state.slash_commands.deactivate();
+            } else if self.slash_commands.is_active {
+                self.slash_commands.deactivate();
             }
 
             Command::Empty
@@ -265,7 +259,7 @@ impl Chat {
 
     /// Handle mouse events for the chat interface
     pub fn handle_mouse_event(&mut self, event: MouseEvent) -> Command {
-        self.editor.on_mouse_event(event, &mut self.state.editor);
+        self.editor.on_mouse_event(event, &mut self.editor_state);
         Command::Empty
     }
 
@@ -282,7 +276,7 @@ impl Chat {
 impl Chat {
     /// Add a message to the chat
     pub fn add_message(&mut self, message: String) {
-        self.state.messages.push(message);
+        self.messages.push(message);
     }
 
     /// Render slash command popup
@@ -292,14 +286,12 @@ impl Chat {
         user_area: ratatui::prelude::Rect,
         buf: &mut ratatui::prelude::Buffer,
     ) {
-        if !self.state.slash_commands.is_active
-            || self.state.slash_commands.filtered_commands.is_empty()
-        {
+        if !self.slash_commands.is_active || self.slash_commands.filtered_commands.is_empty() {
             return;
         }
 
         // Calculate popup position (above the user input area)
-        let popup_height = (self.state.slash_commands.filtered_commands.len() as u16).min(5) + 2; // +2 for borders
+        let popup_height = (self.slash_commands.filtered_commands.len() as u16).min(5) + 2; // +2 for borders
         let popup_area = ratatui::prelude::Rect {
             x: area.x + 1,
             y: user_area.y.saturating_sub(popup_height), // Position above the user input area
@@ -319,19 +311,13 @@ impl Chat {
         // Render popup background
         Clear.render(popup_area, buf);
         popup_block.render(popup_area, buf);
-        for (i, command) in self
-            .state
-            .slash_commands
-            .filtered_commands
-            .iter()
-            .enumerate()
-        {
+        for (i, command) in self.slash_commands.filtered_commands.iter().enumerate() {
             if i >= inner_area.height as usize {
                 break;
             }
 
             let y = inner_area.y + i as u16;
-            let style = if i == self.state.slash_commands.selected_index {
+            let style = if i == self.slash_commands.selected_index {
                 Style::default().bg(Color::Blue).fg(Color::White)
             } else {
                 Style::default()
@@ -385,8 +371,7 @@ impl Chat {
             .title_style(Style::default().dark_gray());
 
         // Render message list
-        MessageList::new(self.state.messages.clone())
-            .render(content_block.inner(messages_area), buf);
+        MessageList::new(self.messages.clone()).render(content_block.inner(messages_area), buf);
 
         // User input area block with status bar (now at bottom)
         let user_block = Block::bordered()
@@ -401,7 +386,7 @@ impl Chat {
             .border_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(
                 "FORGE",
-                self.state.editor.mode.name(),
+                self.editor_state.mode.name(),
                 current_branch,
                 current_dir,
             ));
@@ -410,7 +395,7 @@ impl Chat {
         // Widget trait This will need to be addressed differently - perhaps by
         // storing editor state separately For now, we'll create a temporary
         // mutable copy for rendering
-        let mut temp_editor = self.state.editor.clone();
+        let mut temp_editor = self.editor_state.clone();
         EditorView::new(&mut temp_editor)
             .theme(
                 EditorTheme::default()
@@ -437,18 +422,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_state_setters() {
-        let fixture = State::default();
+    fn test_chat_setters() {
+        let fixture = Chat::default();
 
         // Test setters work with the derive_setters attributes
         let messages = vec!["Hello".to_string(), "World".to_string()];
         let editor = EditorState::default();
 
-        let fixture = fixture.messages(messages.clone()).editor(editor.clone());
+        let fixture = fixture
+            .messages(messages.clone())
+            .editor_state(editor.clone());
 
         assert_eq!(fixture.messages, messages);
         // EditorState doesn't implement PartialEq, so we just verify it was set
-        assert_eq!(fixture.editor.lines.len(), editor.lines.len());
+        assert_eq!(fixture.editor_state.lines.len(), editor.lines.len());
     }
 
     #[test]
@@ -529,8 +516,7 @@ impl Widget for &Chat {
             .title_style(Style::default().dark_gray());
 
         // Render message list
-        MessageList::new(self.state.messages.clone())
-            .render(content_block.inner(messages_area), buf);
+        MessageList::new(self.messages.clone()).render(content_block.inner(messages_area), buf);
 
         // User input area block with status bar (now at bottom)
         let user_block = Block::bordered()
@@ -545,7 +531,7 @@ impl Widget for &Chat {
             .border_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(
                 "FORGE",
-                self.state.editor.mode.name(),
+                self.editor_state.mode.name(),
                 None, // No branch info in Widget impl
                 None, // No dir info in Widget impl
             ));
@@ -554,7 +540,7 @@ impl Widget for &Chat {
         // Widget trait This will need to be addressed differently - perhaps by
         // storing editor state separately For now, we'll create a temporary
         // mutable copy for rendering
-        let mut temp_editor = self.state.editor.clone();
+        let mut temp_editor = self.editor_state.clone();
         EditorView::new(&mut temp_editor)
             .theme(
                 EditorTheme::default()

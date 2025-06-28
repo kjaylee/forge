@@ -31,11 +31,7 @@ impl Command {
         Command::Tagged(Box::new(self), t.type_id())
     }
 }
-#[derive(Default, derive_setters::Setters)]
-#[setters(strip_option, into)]
-pub struct State {
-    // Future settings-specific state can be added here
-}
+// State fields moved directly into Settings widget struct
 
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::Event;
@@ -47,13 +43,15 @@ use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Settings widget that handles the settings interface
 pub struct Settings {
-    state: State,
+    // Future settings-specific state can be added here
 }
 
 impl Settings {
     /// Create a new Settings widget
     pub fn new() -> Self {
-        Self { state: State::default() }
+        Self {
+            // Future settings-specific state can be added here
+        }
     }
 
     /// Handle events for the settings interface

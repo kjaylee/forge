@@ -8,16 +8,11 @@ use crate::widgets::{Route, Router};
 
 #[derive(Default, derive_setters::Setters)]
 #[setters(strip_option, into)]
-pub struct State {
+pub struct App {
+    router: Router,
     pub current_branch: Option<String>,
     pub current_dir: Option<String>,
     pub current_route: Route,
-}
-
-#[derive(Default)]
-pub struct App {
-    router: Router,
-    state: State,
 }
 
 impl App {
@@ -26,24 +21,24 @@ impl App {
         match action.into() {
             Action::Initialize => Command::ReadWorkspace,
             Action::Workspace { current_dir, current_branch } => {
-                self.state.current_dir = current_dir;
-                self.state.current_branch = current_branch;
+                self.current_dir = current_dir;
+                self.current_branch = current_branch;
                 Command::Empty
             }
             Action::Router(router_action) => match router_action {
                 crate::widgets::router::Action::NavigateToRoute(route) => {
                     self.router.navigate_to(route.clone());
-                    self.state.current_route = route;
+                    self.current_route = route;
                     Command::Empty
                 }
                 crate::widgets::router::Action::NavigateNext => {
                     self.router.navigate_next();
-                    self.state.current_route = self.router.current_route.clone();
+                    self.current_route = self.router.current_route.clone();
                     Command::Empty
                 }
                 crate::widgets::router::Action::NavigatePrevious => {
                     self.router.navigate_previous();
-                    self.state.current_route = self.router.current_route.clone();
+                    self.current_route = self.router.current_route.clone();
                     Command::Empty
                 }
             },
@@ -77,7 +72,7 @@ impl App {
                     // Navigation shortcuts
                     if key_event.code == KeyCode::Tab && !shift {
                         self.router.navigate_next();
-                        self.state.current_route = self.router.current_route.clone();
+                        self.current_route = self.router.current_route.clone();
                         return Command::Empty;
                     }
 
@@ -85,12 +80,12 @@ impl App {
                         || (key_event.code == KeyCode::Tab && shift)
                     {
                         self.router.navigate_previous();
-                        self.state.current_route = self.router.current_route.clone();
+                        self.current_route = self.router.current_route.clone();
                         return Command::Empty;
                     }
 
                     // Handle events based on current route
-                    match self.state.current_route {
+                    match self.current_route {
                         Route::Chat => {
                             let chat_cmd = self
                                 .router
@@ -106,7 +101,7 @@ impl App {
                 }
                 ratatui::crossterm::event::Event::Mouse(mouse_event) => {
                     // Handle events based on current route
-                    match self.state.current_route {
+                    match self.current_route {
                         Route::Chat => {
                             let chat_cmd = self
                                 .router
@@ -153,7 +148,7 @@ impl Widget for &App {
 
         let current_tab_index = Route::all()
             .iter()
-            .position(|route| route == &self.state.current_route)
+            .position(|route| route == &self.current_route)
             .unwrap_or(0);
 
         Tabs::new(tab_titles)
@@ -167,8 +162,8 @@ impl Widget for &App {
         self.router.render_with_state(
             content_area,
             buf,
-            self.state.current_branch.clone(),
-            self.state.current_dir.clone(),
+            self.current_branch.clone(),
+            self.current_dir.clone(),
         );
     }
 }
@@ -180,8 +175,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_state_setters() {
-        let mut fixture = State::default();
+    fn test_app_setters() {
+        let mut fixture = App::default();
 
         // Test setters work with the derive_setters attributes
         fixture = fixture.current_branch("main".to_string());

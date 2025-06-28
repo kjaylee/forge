@@ -31,11 +31,7 @@ impl Command {
         Command::Tagged(Box::new(self), t.type_id())
     }
 }
-#[derive(Default, derive_setters::Setters)]
-#[setters(strip_option, into)]
-pub struct State {
-    // Future help-specific state can be added here
-}
+// State fields moved directly into Help widget struct
 
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::Event;
@@ -47,13 +43,15 @@ use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Help widget that handles the help interface
 pub struct Help {
-    state: State,
+    // Future help-specific state can be added here
 }
 
 impl Help {
     /// Create a new Help widget
     pub fn new() -> Self {
-        Self { state: State::default() }
+        Self {
+            // Future help-specific state can be added here
+        }
     }
 
     /// Handle events for the help interface
