@@ -1,6 +1,6 @@
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
-use ratatui::widgets::{Block, Clear, Widget};
+use ratatui::widgets::{Clear, Widget};
 
 /// Represents an individual autocomplete command option
 #[derive(Clone, Debug, PartialEq)]
@@ -116,8 +116,8 @@ impl<'a> Widget for AutocompletePopup<'a> {
             return;
         }
 
-        // Calculate popup position (above the user input area)
-        let popup_height = (self.autocomplete.filtered_commands.len() as u16).min(5) + 2; // +2 for borders
+        // Calculate popup position (above the user input area) - no borders needed
+        let popup_height = (self.autocomplete.filtered_commands.len() as u16).min(5);
         let popup_area = Rect {
             x: self.area.x + 1,
             y: self.user_area.y.saturating_sub(popup_height), // Position above the user input area
@@ -125,46 +125,36 @@ impl<'a> Widget for AutocompletePopup<'a> {
             height: popup_height,
         };
 
-        // Create popup block
-        let popup_block = Block::bordered()
-            .title("Commands")
-            .border_style(Style::default().fg(Color::Cyan))
-            .style(Style::default().bg(Color::Black));
-
-        // Get inner area before rendering the block
-        let inner_area = popup_block.inner(popup_area);
-
-        // Render popup background
+        // Clear the popup area before rendering
         Clear.render(popup_area, buf);
-        popup_block.render(popup_area, buf);
 
         for (i, command) in self.autocomplete.filtered_commands.iter().enumerate() {
-            if i >= inner_area.height as usize {
+            if i >= popup_area.height as usize {
                 break;
             }
 
-            let y = inner_area.y + i as u16;
+            let y = popup_area.y + i as u16;
             let style = if i == self.autocomplete.selected_index {
-                Style::default().bg(Color::Blue).fg(Color::White)
+                Style::default().bg(Color::White)
             } else {
                 Style::default()
             };
 
             let command_text = format!("/{} - {}", command.name, command.description);
-            let truncated_text = if command_text.len() > inner_area.width as usize {
+            let truncated_text = if command_text.len() > popup_area.width as usize {
                 format!(
                     "{}...",
-                    &command_text[..inner_area.width.saturating_sub(3) as usize]
+                    &command_text[..popup_area.width.saturating_sub(3) as usize]
                 )
             } else {
                 command_text
             };
 
             for (j, ch) in truncated_text.chars().enumerate() {
-                if j >= inner_area.width as usize {
+                if j >= popup_area.width as usize {
                     break;
                 }
-                let cell = buf.cell_mut((inner_area.x + j as u16, y)).unwrap();
+                let cell = buf.cell_mut((popup_area.x + j as u16, y)).unwrap();
                 cell.set_char(ch);
                 cell.set_style(style);
             }
