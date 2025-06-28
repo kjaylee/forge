@@ -6,6 +6,7 @@ pub mod help;
 mod message_list;
 pub mod router;
 pub mod settings;
+pub mod spinner;
 mod status_bar;
 
 pub use app::App;

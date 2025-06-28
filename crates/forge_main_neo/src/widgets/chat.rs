@@ -10,6 +10,7 @@ use ratatui::widgets::{Block, Borders, Padding, Widget};
 
 use crate::widgets::autocomplete::{AutoComplete, AutocompletePopup};
 use crate::widgets::message_list::{Message, MessageList};
+use crate::widgets::spinner::Spinner;
 use crate::widgets::status_bar::StatusBar;
 
 /// Chat-specific actions
@@ -53,6 +54,7 @@ pub struct Chat {
     pub messages: Vec<Message>,
     pub editor_state: EditorState,
     pub autocomplete: AutoComplete,
+    pub spinner: Spinner,
 }
 
 impl Default for Chat {
@@ -66,6 +68,7 @@ impl Default for Chat {
             messages: Vec::new(),
             editor_state,
             autocomplete: AutoComplete::default(),
+            spinner: Spinner::default(),
         }
     }
 }

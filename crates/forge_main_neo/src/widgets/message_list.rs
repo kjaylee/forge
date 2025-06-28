@@ -1,6 +1,9 @@
+use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget, Wrap};
+
+use crate::widgets::spinner::Spinner;
 
 /// Enum to differentiate between user and assistant messages
 #[derive(Debug, Clone, PartialEq)]
@@ -32,25 +35,28 @@ impl Message {
 #[derive(Default)]
 pub struct MessageList {
     pub messages: Vec<Message>,
+    pub spinner: Spinner,
 }
 
 impl MessageList {
     pub fn new(messages: Vec<Message>) -> Self {
-        Self { messages }
+        Self { messages, spinner: Spinner::default() }
     }
 
     /// Create MessageList from Vec<String> for backward compatibility
+    #[cfg(test)]
     pub fn from_strings(messages: Vec<String>) -> Self {
         let messages = messages
             .into_iter()
             .map(Message::User) // Default to user messages for backward compatibility
             .collect();
-        Self { messages }
+        Self { messages, spinner: Spinner::default() }
     }
 
     /// Convert messages to styled lines for rendering
     fn messages_to_lines(&self) -> Vec<Line> {
-        self.messages
+        let lines = self
+            .messages
             .iter()
             .map(|message| match message {
                 Message::User(content) => {
@@ -58,7 +64,9 @@ impl MessageList {
                 }
                 Message::Assistant(content) => Line::from(Span::raw(content)),
             })
-            .collect()
+            .collect();
+
+        lines
     }
 }
 
@@ -74,9 +82,14 @@ impl Widget for MessageList {
                 .wrap(Wrap { trim: false })
                 .render(area, buf);
         } else {
+            let [message_cont, loader_cont] =
+                Layout::vertical([Constraint::Fill(0), Constraint::Max(1)]).areas(area);
+
             Paragraph::new(self.messages_to_lines())
                 .wrap(Wrap { trim: false })
-                .render(area, buf);
+                .render(message_cont, buf);
+
+            self.spinner.render(loader_cont, buf);
         };
     }
 }
