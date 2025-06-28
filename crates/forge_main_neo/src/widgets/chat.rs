@@ -8,7 +8,7 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::symbols::{border, line};
 use ratatui::widgets::{Block, Borders, Padding, Widget};
 
-use crate::widgets::autocomplete::{AutocompletePopup, AutocompleteState};
+use crate::widgets::autocomplete::{AutoComplete, AutocompletePopup};
 use crate::widgets::message_list::MessageList;
 use crate::widgets::status_bar::StatusBar;
 
@@ -46,13 +46,28 @@ impl Command {
 use edtui::{EditorState, Index2};
 
 /// Chat widget that handles the chat interface with editor and message list
-#[derive(Default, derive_setters::Setters)]
+#[derive(derive_setters::Setters)]
 #[setters(strip_option, into)]
 pub struct Chat {
     editor: EditorEventHandler,
     pub messages: Vec<String>,
     pub editor_state: EditorState,
-    pub autocomplete: AutocompleteState,
+    pub autocomplete: AutoComplete,
+}
+
+impl Default for Chat {
+    fn default() -> Self {
+        let mut editor_state = EditorState::default();
+        // Start the editor in Insert mode instead of Normal mode
+        editor_state.mode = EditorMode::Insert;
+
+        Self {
+            editor: EditorEventHandler::default(),
+            messages: Vec::new(),
+            editor_state,
+            autocomplete: AutoComplete::default(),
+        }
+    }
 }
 
 impl Chat {
@@ -280,6 +295,14 @@ mod tests {
         assert_eq!(fixture.messages, messages);
         // EditorState doesn't implement PartialEq, so we just verify it was set
         assert_eq!(fixture.editor_state.lines.len(), editor.lines.len());
+    }
+
+    #[test]
+    fn test_chat_default_starts_in_insert_mode() {
+        let fixture = Chat::default();
+
+        // Verify that the editor starts in Insert mode instead of Normal mode
+        assert_eq!(fixture.editor_state.mode, EditorMode::Insert);
     }
 }
 
