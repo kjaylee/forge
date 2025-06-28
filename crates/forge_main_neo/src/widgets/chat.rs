@@ -316,7 +316,7 @@ impl Chat {
         let inner_area = popup_block.inner(popup_area);
 
         // Render popup background
-        Clear::default().render(popup_area, buf);
+        Clear.render(popup_area, buf);
         popup_block.render(popup_area, buf);
         for (i, command) in self
             .state
