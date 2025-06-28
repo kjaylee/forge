@@ -42,6 +42,7 @@ use ratatui::widgets::{Paragraph, Widget};
 use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Help widget that handles the help interface
+#[derive(Clone)]
 pub struct Help {
     // Future help-specific state can be added here
 }

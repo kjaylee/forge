@@ -29,8 +29,9 @@ pub async fn run(mut terminal: DefaultTerminal) -> anyhow::Result<()> {
     // Send initial Initialize action - workspace info will be read by executor
     action_tx.send(Ok(Action::Initialize)).await?;
     loop {
+        let render_app = app.clone();
         terminal.draw(|frame| {
-            Widget::render(&app, frame.area(), frame.buffer_mut());
+            Widget::render(render_app.clone(), frame.area(), frame.buffer_mut());
         })?;
 
         if let Some(action) = action_rx.recv().await {

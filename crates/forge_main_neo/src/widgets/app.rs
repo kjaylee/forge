@@ -6,7 +6,7 @@ use ratatui::widgets::{Tabs, Widget};
 use crate::model::{Action, Command};
 use crate::widgets::{Route, Router};
 
-#[derive(Default, derive_setters::Setters)]
+#[derive(Clone, Default, derive_setters::Setters)]
 #[setters(strip_option, into)]
 pub struct App {
     router: Router,
@@ -128,7 +128,7 @@ impl App {
     }
 }
 
-impl Widget for &App {
+impl Widget for App {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
@@ -159,12 +159,7 @@ impl Widget for &App {
             .render(tabs_area, buf);
 
         // Delegate content rendering to router with shared state
-        self.router.render_with_state(
-            content_area,
-            buf,
-            self.current_branch.clone(),
-            self.current_dir.clone(),
-        );
+        self.router.render(content_area, buf);
     }
 }
 

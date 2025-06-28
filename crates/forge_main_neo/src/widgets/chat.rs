@@ -47,7 +47,7 @@ impl Command {
 use edtui::{EditorState, Index2};
 
 /// Chat widget that handles the chat interface with editor and message list
-#[derive(derive_setters::Setters)]
+#[derive(Clone, derive_setters::Setters)]
 #[setters(strip_option, into)]
 pub struct Chat {
     editor: EditorEventHandler,
@@ -215,15 +215,13 @@ impl Chat {
     pub fn add_assistant_message(&mut self, message: String) {
         self.messages.push(Message::Assistant(message));
     }
+}
 
-    /// Render the chat widget with shared application state
-    pub fn render_with_state(
-        &self,
-        area: ratatui::prelude::Rect,
-        buf: &mut ratatui::prelude::Buffer,
-        current_branch: Option<String>,
-        current_dir: Option<String>,
-    ) {
+impl Widget for Chat {
+    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
+    where
+        Self: Sized,
+    {
         // Create chat layout with messages area at top and user input area at bottom
         let chat_layout = Layout::new(
             Direction::Vertical,
@@ -253,14 +251,14 @@ impl Chat {
                 top_right: line::VERTICAL_LEFT,
                 ..border::PLAIN
             })
-            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT)
+            // .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
             .title_style(Style::default().dark_gray())
             .border_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(
                 "FORGE",
                 self.editor_state.mode.name(),
-                current_branch,
-                current_dir,
+                None, // No branch info in Widget impl
+                None, // No dir info in Widget impl
             ));
 
         // Note: EditorView needs mutable access to state, which we can't provide in
@@ -319,73 +317,5 @@ mod tests {
 
         // Verify that the editor starts in Insert mode instead of Normal mode
         assert_eq!(fixture.editor_state.mode, EditorMode::Insert);
-    }
-}
-
-impl Widget for &Chat {
-    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
-    where
-        Self: Sized,
-    {
-        // Create chat layout with messages area at top and user input area at bottom
-        let chat_layout = Layout::new(
-            Direction::Vertical,
-            [Constraint::Fill(0), Constraint::Max(5)],
-        );
-        let [messages_area, user_area] = chat_layout.areas(area);
-
-        // Messages area block (now at top)
-        let content_block = Block::bordered()
-            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
-            .border_set(border::Set {
-                bottom_right: line::VERTICAL_LEFT,
-                bottom_left: line::VERTICAL_RIGHT,
-                ..border::PLAIN
-            })
-            .border_style(Style::default().dark_gray())
-            .title_style(Style::default().dark_gray());
-
-        // Render message list
-        MessageList::new(self.messages.clone()).render(content_block.inner(messages_area), buf);
-
-        // User input area block with status bar (now at bottom)
-        let user_block = Block::bordered()
-            .padding(Padding::new(0, 0, 0, 1))
-            .border_set(border::Set {
-                top_left: line::VERTICAL_RIGHT,
-                top_right: line::VERTICAL_LEFT,
-                ..border::PLAIN
-            })
-            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT)
-            .title_style(Style::default().dark_gray())
-            .border_style(Style::default().dark_gray())
-            .title_bottom(StatusBar::new(
-                "FORGE",
-                self.editor_state.mode.name(),
-                None, // No branch info in Widget impl
-                None, // No dir info in Widget impl
-            ));
-
-        // Note: EditorView needs mutable access to state, which we can't provide in
-        // Widget trait This will need to be addressed differently - perhaps by
-        // storing editor state separately For now, we'll create a temporary
-        // mutable copy for rendering
-        let mut temp_editor = self.editor_state.clone();
-        EditorView::new(&mut temp_editor)
-            .theme(
-                EditorTheme::default()
-                    .base(Style::reset())
-                    .cursor_style(Style::default().fg(Color::Black).bg(Color::White))
-                    .hide_status_line(),
-            )
-            .wrap(true)
-            .render(user_block.inner(user_area), buf);
-
-        // Render blocks
-        content_block.render(messages_area, buf);
-        user_block.render(user_area, buf);
-
-        // Render autocomplete popup if active
-        AutocompletePopup::new(&self.autocomplete, area, user_area).render(area, buf);
     }
 }

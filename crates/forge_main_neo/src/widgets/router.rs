@@ -87,7 +87,7 @@ impl Route {
 
 /// Router widget that renders different content based on the current route
 #[allow(clippy::needless_update)]
-#[derive(Default, Setters)]
+#[derive(Clone, Default, Setters)]
 #[setters(strip_option, into)]
 pub struct Router {
     pub current_route: Route,
@@ -145,34 +145,9 @@ impl Router {
     pub fn add_user_chat_message(&mut self, message: String) {
         self.chat.add_user_message(message);
     }
-
-    /// Render with shared application state
-    pub fn render_with_state(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        current_branch: Option<String>,
-        current_dir: Option<String>,
-    ) {
-        match self.current_route {
-            Route::Chat => {
-                // Render the chat widget with shared state
-                self.chat
-                    .render_with_state(area, buf, current_branch, current_dir);
-            }
-            Route::Settings => {
-                // Render the settings widget
-                self.settings.render(area, buf);
-            }
-            Route::Help => {
-                // Render the help widget
-                self.help.render(area, buf);
-            }
-        }
-    }
 }
 
-impl Widget for &Router {
+impl Widget for Router {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,

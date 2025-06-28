@@ -42,6 +42,7 @@ use ratatui::widgets::{Paragraph, Widget};
 use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Settings widget that handles the settings interface
+#[derive(Clone)]
 pub struct Settings {
     // Future settings-specific state can be added here
 }
