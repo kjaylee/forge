@@ -1,0 +1,233 @@
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Style};
+use ratatui::widgets::{Block, Clear, Widget};
+
+/// Represents an autocomplete command
+#[derive(Clone, Debug, PartialEq)]
+pub struct AutocompleteCommand {
+    pub name: String,
+    pub description: String,
+}
+
+impl AutocompleteCommand {
+    pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
+        Self { name: name.into(), description: description.into() }
+    }
+}
+
+/// State for autocomplete popup
+#[derive(Clone, Debug)]
+pub struct AutocompleteState {
+    pub is_active: bool,
+    pub selected_index: usize,
+    pub filter_text: String,
+    pub available_commands: Vec<AutocompleteCommand>,
+    pub filtered_commands: Vec<AutocompleteCommand>,
+}
+
+impl Default for AutocompleteState {
+    fn default() -> Self {
+        let available_commands = vec![
+            AutocompleteCommand::new("foo", "Execute foo command"),
+            AutocompleteCommand::new("bar", "Execute bar command"),
+            AutocompleteCommand::new("baz", "Execute baz command"),
+        ];
+
+        Self {
+            is_active: false,
+            selected_index: 0,
+            filter_text: String::new(),
+            filtered_commands: available_commands.clone(),
+            available_commands,
+        }
+    }
+}
+
+impl AutocompleteState {
+    pub fn activate(&mut self, filter_text: String) {
+        self.is_active = true;
+        self.filter_text = filter_text;
+        self.selected_index = 0;
+        self.update_filtered_commands();
+    }
+
+    pub fn deactivate(&mut self) {
+        self.is_active = false;
+        self.filter_text.clear();
+        self.selected_index = 0;
+        self.filtered_commands = self.available_commands.clone();
+    }
+
+    pub fn update_filter(&mut self, filter_text: String) {
+        self.filter_text = filter_text;
+        self.selected_index = 0;
+        self.update_filtered_commands();
+    }
+
+    fn update_filtered_commands(&mut self) {
+        self.filtered_commands = self
+            .available_commands
+            .iter()
+            .filter(|cmd| cmd.name.contains(&self.filter_text))
+            .cloned()
+            .collect();
+    }
+
+    pub fn select_next(&mut self) {
+        if !self.filtered_commands.is_empty() {
+            self.selected_index = (self.selected_index + 1) % self.filtered_commands.len();
+        }
+    }
+
+    pub fn select_previous(&mut self) {
+        if !self.filtered_commands.is_empty() {
+            self.selected_index = if self.selected_index == 0 {
+                self.filtered_commands.len() - 1
+            } else {
+                self.selected_index - 1
+            };
+        }
+    }
+
+    pub fn get_selected_command(&self) -> Option<&AutocompleteCommand> {
+        self.filtered_commands.get(self.selected_index)
+    }
+}
+
+/// Autocomplete popup widget
+pub struct AutocompletePopup<'a> {
+    state: &'a AutocompleteState,
+    area: Rect,
+    user_area: Rect,
+}
+
+impl<'a> AutocompletePopup<'a> {
+    pub fn new(state: &'a AutocompleteState, area: Rect, user_area: Rect) -> Self {
+        Self { state, area, user_area }
+    }
+}
+
+impl<'a> Widget for AutocompletePopup<'a> {
+    fn render(self, _area: Rect, buf: &mut ratatui::prelude::Buffer)
+    where
+        Self: Sized,
+    {
+        if !self.state.is_active || self.state.filtered_commands.is_empty() {
+            return;
+        }
+
+        // Calculate popup position (above the user input area)
+        let popup_height = (self.state.filtered_commands.len() as u16).min(5) + 2; // +2 for borders
+        let popup_area = Rect {
+            x: self.area.x + 1,
+            y: self.user_area.y.saturating_sub(popup_height), // Position above the user input area
+            width: self.area.width.saturating_sub(2).min(40),
+            height: popup_height,
+        };
+
+        // Create popup block
+        let popup_block = Block::bordered()
+            .title("Commands")
+            .border_style(Style::default().fg(Color::Cyan))
+            .style(Style::default().bg(Color::Black));
+
+        // Get inner area before rendering the block
+        let inner_area = popup_block.inner(popup_area);
+
+        // Render popup background
+        Clear.render(popup_area, buf);
+        popup_block.render(popup_area, buf);
+
+        for (i, command) in self.state.filtered_commands.iter().enumerate() {
+            if i >= inner_area.height as usize {
+                break;
+            }
+
+            let y = inner_area.y + i as u16;
+            let style = if i == self.state.selected_index {
+                Style::default().bg(Color::Blue).fg(Color::White)
+            } else {
+                Style::default()
+            };
+
+            let command_text = format!("/{} - {}", command.name, command.description);
+            let truncated_text = if command_text.len() > inner_area.width as usize {
+                format!(
+                    "{}...",
+                    &command_text[..inner_area.width.saturating_sub(3) as usize]
+                )
+            } else {
+                command_text
+            };
+
+            for (j, ch) in truncated_text.chars().enumerate() {
+                if j >= inner_area.width as usize {
+                    break;
+                }
+                let cell = buf.cell_mut((inner_area.x + j as u16, y)).unwrap();
+                cell.set_char(ch);
+                cell.set_style(style);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_autocomplete_command_creation() {
+        let fixture = AutocompleteCommand::new("test", "Test command");
+        let actual = fixture;
+        let expected = AutocompleteCommand {
+            name: "test".to_string(),
+            description: "Test command".to_string(),
+        };
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_autocomplete_state_new() {
+        let fixture = AutocompleteState::default();
+        let actual = fixture.available_commands.len();
+        let expected = 3;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_autocomplete_state_filtering() {
+        let mut fixture = AutocompleteState::default();
+        fixture.update_filter("fo".to_string());
+        let actual = fixture.filtered_commands.len();
+        let expected = 1; // Only "foo" should match
+        assert_eq!(actual, expected);
+        assert_eq!(fixture.filtered_commands[0].name, "foo");
+    }
+
+    #[test]
+    fn test_autocomplete_state_navigation() {
+        let mut fixture = AutocompleteState::default();
+        fixture.activate("".to_string());
+
+        // Test next selection
+        fixture.select_next();
+        let actual = fixture.selected_index;
+        let expected = 1;
+        assert_eq!(actual, expected);
+
+        // Test previous selection
+        fixture.select_previous();
+        let actual = fixture.selected_index;
+        let expected = 0;
+        assert_eq!(actual, expected);
+
+        // Test wrap around
+        fixture.select_previous();
+        let actual = fixture.selected_index;
+        let expected = 2; // Should wrap to last item
+        assert_eq!(actual, expected);
+    }
+}

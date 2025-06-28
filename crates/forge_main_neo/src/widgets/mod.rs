@@ -1,4 +1,5 @@
 pub mod app;
+pub mod autocomplete;
 mod bordered_panel;
 pub mod chat;
 pub mod help;

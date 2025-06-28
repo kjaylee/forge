@@ -123,7 +123,7 @@ impl Router {
                 Command::Empty
             }
             Route::Settings => {
-                let _settings_cmd = self.settings.handle_event(event);
+                self.settings.handle_event(event);
                 Command::Empty
             }
             Route::Help => {
