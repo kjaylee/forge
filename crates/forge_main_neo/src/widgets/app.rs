@@ -4,8 +4,8 @@ use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{StatefulWidget, Tabs, Widget};
 
-use crate::domain::{Route, State};
-use crate::widgets::router::RouterWidget;
+use crate::domain::State;
+use crate::widgets::chat::ChatWidget;
 
 #[derive(Clone, Default)]
 pub struct App;
@@ -20,53 +20,6 @@ impl StatefulWidget for App {
     ) where
         Self: Sized,
     {
-        // Create main layout with tabs at the top
-        let main_layout = Layout::new(
-            Direction::Vertical,
-            [Constraint::Max(1), Constraint::Fill(0)],
-        );
-        let [tabs_area, content_area] = main_layout.areas(area);
-
-        // Render tabs with conditional underlining of shortcut characters
-        let tab_titles: Vec<Line> = Route::all()
-            .iter()
-            .map(|route| {
-                if state.editor_state.mode == EditorMode::Normal {
-                    // Create styled spans with underlined shortcut characters
-                    match route {
-                        Route::Chat => Line::from(vec![
-                            Span::styled("C", Style::default().underlined()),
-                            Span::raw("HAT"),
-                        ]),
-                        Route::Settings => Line::from(vec![
-                            Span::styled("S", Style::default().underlined()),
-                            Span::raw("ETTINGS"),
-                        ]),
-                        Route::Help => Line::from(vec![
-                            Span::styled("H", Style::default().underlined()),
-                            Span::raw("ELP"),
-                        ]),
-                    }
-                } else {
-                    // In insert mode, show normal text without underlining
-                    Line::from(route.display_name())
-                }
-            })
-            .collect();
-
-        let current_tab_index = Route::all()
-            .iter()
-            .position(|route| route == &state.current_route)
-            .unwrap_or(0);
-
-        Tabs::new(tab_titles)
-            .style(Style::default().dark_gray())
-            .highlight_style(Style::default().yellow().bold())
-            .select(current_tab_index)
-            .divider(" ")
-            .render(tabs_area, buf);
-
-        // Delegate content rendering to router with shared state
-        RouterWidget.render(content_area, buf, state);
+        ChatWidget::default().render(area, buf, state);
     }
 }

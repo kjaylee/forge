@@ -7,12 +7,11 @@ use forge_api::ChatResponse;
 use throbber_widgets_tui::ThrobberState;
 use tokio_util::sync::CancellationToken;
 
-use crate::domain::{Message, Route, Workspace};
+use crate::domain::{Message, Workspace};
 
 #[derive(Clone, Setters)]
 pub struct State {
     pub workspace: Workspace,
-    pub current_route: Route,
     pub editor_state: EditorState,
     pub messages: Vec<Message>,
     pub spinner: ThrobberState,
@@ -26,7 +25,6 @@ impl Default for State {
         editor_state.mode = EditorMode::Insert;
         Self {
             workspace: Default::default(),
-            current_route: Default::default(),
             editor_state,
             messages: Default::default(),
             spinner: Default::default(),
@@ -68,16 +66,6 @@ impl From<CancellationToken> for TimerId {
 }
 
 impl State {
-    /// Navigate to the next route
-    pub fn navigate_next(&mut self) {
-        self.current_route = self.current_route.next();
-    }
-
-    /// Navigate to the previous route
-    pub fn navigate_previous(&mut self) {
-        self.current_route = self.current_route.previous();
-    }
-
     /// Get editor lines as strings
     pub fn editor_lines(&self) -> Vec<String> {
         self.editor_state

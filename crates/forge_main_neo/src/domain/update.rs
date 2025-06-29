@@ -59,48 +59,9 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
                 }
 
                 // Handle EXIT events and other special keys
-
-                // Switching TAB
-                if key_event.code == KeyCode::Tab && !shift {
-                    state.navigate_next();
-                    state.current_route = state.current_route.clone();
-                    return Command::Empty;
-                }
-
-                // Switching TAB (back)
-                if key_event.code == KeyCode::BackTab || (key_event.code == KeyCode::Tab && shift) {
-                    state.navigate_previous();
-                    state.current_route = state.current_route.clone();
-                    return Command::Empty;
-                }
-
                 // Exit
                 if key_event.code == KeyCode::Char('d') && ctrl {
                     return Command::Exit;
-                }
-
-                // Tab navigation shortcuts in normal mode
-                if state.editor_state.mode == EditorMode::Normal {
-                    match key_event.code {
-                        KeyCode::Char('c') => {
-                            state.current_route = crate::domain::Route::Chat;
-                            return Command::Empty;
-                        }
-                        KeyCode::Char('s') => {
-                            state.current_route = crate::domain::Route::Settings;
-                            return Command::Empty;
-                        }
-                        KeyCode::Char('h') => {
-                            state.current_route = crate::domain::Route::Help;
-                            return Command::Empty;
-                        }
-                        KeyCode::Char('i') => {
-                            state.current_route = crate::domain::Route::Chat;
-                            state.editor_state.mode = EditorMode::Insert;
-                            return Command::Empty;
-                        }
-                        _ => {}
-                    }
                 }
 
                 // Submit
@@ -173,22 +134,6 @@ mod tests {
     }
 
     #[test]
-    fn test_i_key_switches_to_chat_and_insert_mode() {
-        let mut state = State::default();
-        state.editor_state.mode = EditorMode::Normal;
-        state.current_route = crate::domain::Route::Settings; // Start on a different route
-
-        let key_event = KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE);
-        let action = Action::CrossTerm(ratatui::crossterm::event::Event::Key(key_event));
-        let actual_command = update(&mut state, action);
-        let expected_command = Command::Empty;
-
-        assert_eq!(actual_command, expected_command);
-        assert_eq!(state.current_route, crate::domain::Route::Chat);
-        assert_eq!(state.editor_state.mode, EditorMode::Insert);
-    }
-
-    #[test]
     fn test_macos_option_left_moves_word_backward() {
         let mut state = create_test_state_with_text();
         let initial_cursor = state.editor_state.cursor;
@@ -248,61 +193,6 @@ mod tests {
         // position 25)
         assert_eq!(state.editor_state.cursor.row, initial_row);
         assert_eq!(state.editor_state.cursor.col, 25);
-    }
-
-    #[test]
-    fn test_tab_navigation_shortcuts_in_normal_mode() {
-        let mut state = State::default();
-        state.editor_state.mode = EditorMode::Normal;
-
-        // Test 'c' for chat
-        let key_event = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE);
-        let action = Action::CrossTerm(ratatui::crossterm::event::Event::Key(key_event));
-        let actual_command = update(&mut state, action);
-        let expected_command = Command::Empty;
-        assert_eq!(actual_command, expected_command);
-        assert_eq!(state.current_route, crate::domain::Route::Chat);
-
-        // Test 's' for settings
-        let key_event = KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE);
-        let action = Action::CrossTerm(ratatui::crossterm::event::Event::Key(key_event));
-        let actual_command = update(&mut state, action);
-        let expected_command = Command::Empty;
-        assert_eq!(actual_command, expected_command);
-        assert_eq!(state.current_route, crate::domain::Route::Settings);
-
-        // Test 'h' for help
-        let key_event = KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE);
-        let action = Action::CrossTerm(ratatui::crossterm::event::Event::Key(key_event));
-        let actual_command = update(&mut state, action);
-        let expected_command = Command::Empty;
-        assert_eq!(actual_command, expected_command);
-        assert_eq!(state.current_route, crate::domain::Route::Help);
-    }
-
-    #[test]
-    fn test_tab_navigation_shortcuts_not_active_in_insert_mode() {
-        let mut state = State::default();
-        state.editor_state.mode = EditorMode::Insert;
-        state.current_route = crate::domain::Route::Chat;
-
-        // Test that 'c' doesn't change route in insert mode
-        let key_event = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE);
-        let action = Action::CrossTerm(ratatui::crossterm::event::Event::Key(key_event));
-        let actual_command = update(&mut state, action);
-        let expected_command = Command::Empty;
-        assert_eq!(actual_command, expected_command);
-        // Route should remain unchanged
-        assert_eq!(state.current_route, crate::domain::Route::Chat);
-
-        // Test that 's' doesn't change route in insert mode
-        let key_event = KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE);
-        let action = Action::CrossTerm(ratatui::crossterm::event::Event::Key(key_event));
-        let actual_command = update(&mut state, action);
-        let expected_command = Command::Empty;
-        assert_eq!(actual_command, expected_command);
-        // Route should remain unchanged
-        assert_eq!(state.current_route, crate::domain::Route::Chat);
     }
 
     #[test]
