@@ -178,9 +178,10 @@ impl<T: API + 'static> Executor<T> {
         tx: Sender<anyhow::Result<Action>>,
         cancellation_token: CancellationToken,
     ) {
-        use crate::domain::Timer;
         use chrono::Utc;
         use tokio::time::interval;
+
+        use crate::domain::Timer;
 
         let start_time = Utc::now();
         let id = TimerId::from(cancellation_token.clone());
@@ -195,7 +196,6 @@ impl<T: API + 'static> Executor<T> {
         loop {
             tokio::select! {
                 _ = interval_timer.tick() => {
-                    tracing::debug!("Tick...");
                     let current_time = Utc::now();
                     let timer = Timer {start_time, current_time, duration, id: id.clone() };
                     let action = Action::IntervalTick(timer);
