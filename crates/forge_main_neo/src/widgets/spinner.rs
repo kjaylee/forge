@@ -1,11 +1,7 @@
-use derive_setters::Setters;
 use ratatui::widgets::Widget;
-use throbber_widgets_tui::ThrobberState;
 
-#[derive(Clone, Default, Setters)]
-pub struct Spinner {
-    state: ThrobberState,
-}
+#[derive(Clone, Default)]
+pub struct Spinner {}
 
 impl Spinner {}
 

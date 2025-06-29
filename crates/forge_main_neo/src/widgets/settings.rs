@@ -22,7 +22,7 @@ impl Settings {
     }
 
     /// Handle events for the settings interface
-    pub fn update(&mut self, action: impl Into<Action>) -> Command {
+    pub fn update(&mut self, _: impl Into<Action>) -> Command {
         // Settings view doesn't handle events yet
         Command::Empty
     }
@@ -51,7 +51,7 @@ impl Widget for &Settings {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
     use super::*;
 

@@ -11,7 +11,6 @@ use crate::widgets::help::Help;
 use crate::widgets::settings::Settings;
 
 /// Router widget that renders different content based on the current route
-#[allow(clippy::needless_update)]
 #[derive(Clone, Default, Setters)]
 #[setters(strip_option, into)]
 pub struct Router {
@@ -22,11 +21,6 @@ pub struct Router {
 }
 
 impl Router {
-    /// Navigate to a specific route
-    pub fn navigate_to(&mut self, route: Route) {
-        self.current_route = route;
-    }
-
     /// Navigate to the next route
     pub fn navigate_next(&mut self) {
         self.current_route = self.current_route.next();
@@ -172,15 +166,6 @@ mod tests {
         let fixture = Router::default();
         let actual = fixture.current_route;
         let expected = Route::Chat;
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_router_navigation() {
-        let mut fixture = Router::default();
-        fixture.navigate_to(Route::Settings);
-        let actual = fixture.current_route;
-        let expected = Route::Settings;
         assert_eq!(actual, expected);
     }
 

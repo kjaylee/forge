@@ -1,10 +1,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use forge_api::ForgeAPI;
+use forge_api::{API, ForgeAPI};
 use ratatui::DefaultTerminal;
 use ratatui::widgets::Widget;
 
+use crate::TRACKER;
 use crate::action::Action;
 use crate::command::Command;
 use crate::event_reader::EventReader;
@@ -18,6 +19,10 @@ pub async fn run(mut terminal: DefaultTerminal) -> anyhow::Result<()> {
 
     let mut app = App::default();
     let api = ForgeAPI::init(false);
+
+    // Initialize forge_tracker using the API instance
+    let env = api.environment();
+    let _guard = forge_tracker::init_tracing(env.log_path(), TRACKER.clone())?;
 
     // Initialize Executor
     let executor = Executor::new(Arc::new(api));
@@ -37,6 +42,9 @@ pub async fn run(mut terminal: DefaultTerminal) -> anyhow::Result<()> {
 
         if let Some(action) = action_rx.recv().await {
             let cmd = app.update(action?);
+            if cmd != Command::Empty {
+                tracing::debug!(command = ?cmd, "Command Received");
+            }
             if cmd == Command::Exit {
                 break;
             } else {

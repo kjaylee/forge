@@ -169,12 +169,12 @@ impl Chat {
         }
     }
     /// Add a user message to the chat
-    pub fn add_user_message(&mut self, message: String) {
+    fn add_user_message(&mut self, message: String) {
         self.messages.push(Message::User(message));
     }
 
     /// Add an assistant message to the chat
-    pub fn add_assistant_message(&mut self, message: String) {
+    fn add_assistant_message(&mut self, message: String) {
         self.messages.push(Message::Assistant(message));
     }
 }
