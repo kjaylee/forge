@@ -1,4 +1,3 @@
-use std::any::TypeId;
 use std::sync::Arc;
 
 use forge_api::{API, AgentId, ChatRequest, ChatResponse, Event, Workflow};
@@ -89,10 +88,10 @@ impl<T: API + 'static> Executor<T> {
         &self,
         cmd: Command,
         tx: &Sender<anyhow::Result<Action>>,
-        tags: &mut Vec<TypeId>,
+        tags: &mut Vec<&'static str>,
     ) -> anyhow::Result<()> {
         match cmd {
-            Command::SendMessage(message) => {
+            Command::ChatMessage(message) => {
                 if let Some(action) = self.handle_chat(message).await? {
                     tx.send(Ok(action)).await.unwrap();
                 }

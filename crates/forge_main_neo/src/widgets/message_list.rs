@@ -55,7 +55,7 @@ impl MessageList {
     }
 
     /// Convert messages to styled lines for rendering
-    fn messages_to_lines(&self) -> Vec<Line> {
+    fn messages_to_lines(&self) -> Vec<Line<'_>> {
         self.messages
             .iter()
             .map(|message| match message {

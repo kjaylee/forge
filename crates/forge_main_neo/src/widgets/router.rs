@@ -1,10 +1,11 @@
 use derive_setters::Setters;
 use ratatui::buffer::Buffer;
+use ratatui::crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::prelude::Rect;
 use ratatui::widgets::Widget;
 
-use crate::action::Route;
-use crate::command::Command as Command;
+use crate::action::Action;
+use crate::command::Command;
 use crate::widgets::chat::Chat;
 use crate::widgets::help::Help;
 use crate::widgets::settings::Settings;
@@ -37,37 +38,80 @@ impl Router {
     }
 
     /// Handle events for the current route
-    pub fn update(&mut self, event: ratatui::crossterm::event::Event) -> Command {
+    pub fn update(&mut self, action: impl Into<Action>) -> Command {
+        let action = action.into();
+        match &action {
+            Action::CrossTerm(Event::Key(key_event)) => {
+                let shift = key_event.modifiers.contains(KeyModifiers::SHIFT);
+
+                // Navigation shortcuts
+                if key_event.code == KeyCode::Tab && !shift {
+                    self.navigate_next();
+                    self.current_route = self.current_route.clone();
+                    return Command::Empty;
+                }
+
+                if key_event.code == KeyCode::BackTab || (key_event.code == KeyCode::Tab && shift) {
+                    self.navigate_previous();
+                    self.current_route = self.current_route.clone();
+                    return Command::Empty;
+                }
+
+                self.handle_route(action)
+            }
+            _ => self.handle_route(action),
+        }
+    }
+
+    fn handle_route(&mut self, action: impl Into<Action>) -> Command {
         match self.current_route {
-            Route::Chat => {
-                // Get chat command and convert to router command if needed
-                let _chat_cmd = self.chat.handle_event(event);
-                // For now, router just returns empty for chat commands
-                // In the future, we might need to wrap or translate these
-                Command::Empty
-            }
-            Route::Settings => {
-                self.settings.handle_event(event);
-                Command::Empty
-            }
-            Route::Help => {
-                let _help_cmd = self.help.handle_event(event);
-                Command::Empty
-            }
+            Route::Chat => self.chat.update(action),
+            Route::Settings => self.settings.update(action),
+            Route::Help => self.help.update(action),
         }
     }
 }
 
-impl Router {
-    /// Add a message to the chat widget (assumes assistant message for
-    /// ChatResponse)
-    pub fn add_chat_message(&mut self, message: String) {
-        self.chat.add_assistant_message(message);
+/// Represents the different routes/views available in the application
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum Route {
+    #[default]
+    Chat,
+    Settings,
+    Help,
+}
+
+impl Route {
+    /// Get all available routes
+    pub fn all() -> Vec<Route> {
+        vec![Route::Chat, Route::Settings, Route::Help]
     }
 
-    /// Add a user message to the chat widget
-    pub fn add_user_chat_message(&mut self, message: String) {
-        self.chat.add_user_message(message);
+    /// Get the display name for the route
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Route::Chat => "CHAT",
+            Route::Settings => "SETTINGS",
+            Route::Help => "HELP",
+        }
+    }
+
+    /// Navigate to the next route in sequence
+    pub fn next(&self) -> Route {
+        match self {
+            Route::Chat => Route::Settings,
+            Route::Settings => Route::Help,
+            Route::Help => Route::Chat,
+        }
+    }
+
+    /// Navigate to the previous route in sequence
+    pub fn previous(&self) -> Route {
+        match self {
+            Route::Chat => Route::Help,
+            Route::Settings => Route::Chat,
+            Route::Help => Route::Settings,
+        }
     }
 }
 

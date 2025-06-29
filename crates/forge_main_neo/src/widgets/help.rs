@@ -1,10 +1,10 @@
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::Event;
 use ratatui::prelude::Rect;
 use ratatui::style::{Style, Stylize};
 use ratatui::widgets::{Paragraph, Widget};
 
-use crate::command::Command as Command;
+use crate::action::Action;
+use crate::command::Command;
 use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Help widget that handles the help interface
@@ -22,7 +22,7 @@ impl Help {
     }
 
     /// Handle events for the help interface
-    pub fn handle_event(&mut self, _event: Event) -> Command {
+    pub fn update(&mut self, action: impl Into<Action>) -> Command {
         // Help view doesn't handle events yet
         Command::Empty
     }
@@ -77,7 +77,7 @@ mod tests {
         let mut fixture = Help::new();
 
         let key_event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
-        let actual = fixture.handle_event(Event::Key(key_event));
+        let actual = fixture.update(Event::Key(key_event));
         let expected = Command::Empty;
         assert_eq!(actual, expected);
     }

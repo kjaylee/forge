@@ -32,13 +32,13 @@ mod tests {
 
     #[test]
     fn test_command_and_complex_chaining() {
-        let fixture = Command::SendMessage("hello".to_string())
+        let fixture = Command::ChatMessage("hello".to_string())
             .and(Command::ReadWorkspace)
             .and(Command::Empty)
             .and(Command::Exit);
         let actual = fixture;
         let expected = Command::And(vec![
-            Command::SendMessage("hello".to_string()),
+            Command::ChatMessage("hello".to_string()),
             Command::ReadWorkspace,
             Command::Empty,
             Command::Exit,

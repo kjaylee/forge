@@ -5,6 +5,7 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::symbols::{border, line};
 use ratatui::widgets::{Block, Borders, Padding, Widget};
 
+use crate::action::Action;
 use crate::command::Command;
 use crate::widgets::autocomplete::{AutoComplete, AutocompletePopup};
 use crate::widgets::message_list::{Message, MessageList};
@@ -37,7 +38,7 @@ impl Default for Chat {
 
 impl Chat {
     /// Get editor lines as strings
-    pub fn editor_lines(&self) -> Vec<String> {
+    fn editor_lines(&self) -> Vec<String> {
         self.editor_state
             .lines
             .iter_row()
@@ -46,7 +47,7 @@ impl Chat {
     }
 
     /// Take lines from editor and clear it
-    pub fn take_lines(&mut self) -> Vec<String> {
+    fn take_lines(&mut self) -> Vec<String> {
         let text = self.editor_lines();
         self.editor_state.lines.clear();
         self.editor_state.cursor = Index2::default();
@@ -78,7 +79,7 @@ impl Chat {
     }
 
     /// Handle key events for the chat interface
-    pub fn handle_key_event(&mut self, event: KeyEvent) -> Command {
+    fn handle_key_event(&mut self, event: KeyEvent) -> Command {
         // Handle autocomplete navigation when popup is active
         if self.autocomplete.is_active {
             match event.code {
@@ -119,12 +120,12 @@ impl Chat {
         // Submit message on Enter in Normal mode
         if event.code == KeyCode::Enter && self.editor_state.mode == EditorMode::Normal {
             let message = self.take_lines().join("\n");
-            self.messages.push(Message::User(message.clone()));
+            self.add_user_message(message.clone());
             self.autocomplete.deactivate(); // Ensure popup is closed
             if message.trim().is_empty() {
                 Command::Empty
             } else {
-                Command::SendMessage(message)
+                Command::ChatMessage(message)
             }
         } else {
             // Handle editor events
@@ -147,22 +148,26 @@ impl Chat {
     }
 
     /// Handle mouse events for the chat interface
-    pub fn handle_mouse_event(&mut self, event: MouseEvent) -> Command {
+    fn handle_mouse_event(&mut self, event: MouseEvent) -> Command {
         self.editor.on_mouse_event(event, &mut self.editor_state);
         Command::Empty
     }
 
     /// Handle crossterm events for the chat interface
-    pub fn handle_event(&mut self, event: Event) -> Command {
-        match event {
-            Event::Key(key_event) => self.handle_key_event(key_event),
-            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event),
+    pub fn update(&mut self, action: impl Into<Action>) -> Command {
+        match action.into() {
+            Action::CrossTerm(event) => match event {
+                Event::Key(key_event) => self.handle_key_event(key_event),
+                Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event),
+                _ => Command::Empty,
+            },
+            Action::ChatResponse { message } => {
+                self.add_assistant_message(message);
+                Command::Empty
+            }
             _ => Command::Empty,
         }
     }
-}
-
-impl Chat {
     /// Add a user message to the chat
     pub fn add_user_message(&mut self, message: String) {
         self.messages.push(Message::User(message));
