@@ -14,7 +14,7 @@ fn messages_to_lines(messages: &[Message]) -> Vec<Line<'_>> {
         .iter()
         .map(|message| match message {
             Message::User(content) => {
-                Line::from(vec![Span::styled(content, Style::default().dim().bold())])
+                Line::from(vec![Span::styled(content, Style::default().cyan().bold())])
             }
             Message::Assistant(content) => Line::from(Span::raw(content)),
         })

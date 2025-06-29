@@ -4,7 +4,7 @@ use ratatui::text::Line;
 use ratatui::widgets::{StatefulWidget, Tabs, Widget};
 
 use crate::domain::{Route, State};
-use crate::widgets::RouterWidget;
+use crate::widgets::router::RouterWidget;
 
 #[derive(Clone, Default)]
 pub struct App;
