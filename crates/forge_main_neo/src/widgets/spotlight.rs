@@ -23,7 +23,7 @@ impl StatefulWidget for SpotlightWidget {
             .flex(Flex::Center)
             .areas(area);
 
-        let [area] = Layout::horizontal([Constraint::Percentage(50)])
+        let [area] = Layout::horizontal([Constraint::Percentage(80)])
             .flex(Flex::Center)
             .areas(area);
 

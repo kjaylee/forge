@@ -10,7 +10,7 @@ use tokio_util::sync::CancellationToken;
 use crate::domain::spotlight::SpotlightState;
 use crate::domain::{Message, Workspace};
 
-#[derive(Clone, Setters)]
+#[derive(Clone)]
 pub struct State {
     pub workspace: Workspace,
     pub editor: EditorState,
@@ -23,11 +23,11 @@ pub struct State {
 
 impl Default for State {
     fn default() -> Self {
-        let mut editor_state = EditorState::default();
-        editor_state.mode = EditorMode::Insert;
+        let prompt_editor = EditorState::default();
+
         Self {
             workspace: Default::default(),
-            editor: editor_state,
+            editor: prompt_editor,
             messages: Default::default(),
             spinner: Default::default(),
             timer: Default::default(),
