@@ -9,7 +9,6 @@ pub enum Command {
     Empty,
     Exit,
     And(Vec<Command>),
-    Tagged(Box<Command>, &'static str),
     ChatMessage(String),
 }
 
@@ -22,10 +21,6 @@ impl Command {
             }
             _ => Command::And(vec![self, other]),
         }
-    }
-
-    pub fn tag(self, t: &'static str) -> Self {
-        Command::Tagged(Box::new(self), t)
     }
 }
 

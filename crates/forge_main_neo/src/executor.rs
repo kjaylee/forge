@@ -23,7 +23,11 @@ impl<T: API + 'static> Executor<T> {
         Executor { api }
     }
 
-    async fn handle_chat(&self, message: String) -> anyhow::Result<Option<Action>> {
+    async fn handle_chat(
+        &self,
+        message: String,
+        tx: &Sender<anyhow::Result<Action>>,
+    ) -> anyhow::Result<()> {
         // Initialize a default workflow for conversation creation
         let workflow = match self.api.read_workflow(None).await {
             Ok(workflow) => {
@@ -79,7 +83,9 @@ impl<T: API + 'static> Executor<T> {
             responses.join("\n")
         };
 
-        Ok(Some(Action::ChatResponse { message: response_text }))
+        Ok(tx
+            .send(Ok(Action::ChatResponse { message: response_text }))
+            .await?)
     }
 
     #[async_recursion::async_recursion]
@@ -91,9 +97,7 @@ impl<T: API + 'static> Executor<T> {
     ) -> anyhow::Result<()> {
         match cmd {
             Command::ChatMessage(message) => {
-                if let Some(action) = self.handle_chat(message).await? {
-                    tx.send(Ok(action)).await.unwrap();
-                }
+                self.handle_chat(message, tx).await?;
             }
             Command::ReadWorkspace => {
                 // Get current directory
@@ -135,10 +139,6 @@ impl<T: API + 'static> Executor<T> {
                 for command in commands {
                     Box::pin(self.execute(command, tx, tags)).await?;
                 }
-            }
-            Command::Tagged(command, type_id) => {
-                tags.push(type_id);
-                self.execute(*command.to_owned(), tx, tags).await?;
             }
         }
         Ok(())

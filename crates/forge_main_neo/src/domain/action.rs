@@ -1,7 +1,6 @@
 use derive_more::From;
 use ratatui::crossterm::event::Event;
 
-use crate::domain::command::Command;
 
 /// Top-level application actions that wrap route-specific actions
 #[derive(Clone, From, Debug, PartialEq)]
@@ -15,17 +14,4 @@ pub enum Action {
     ChatResponse {
         message: String,
     },
-}
-
-#[derive(Clone, From, Debug, PartialEq)]
-pub struct TaggedAction(Box<Action>, &'static str);
-
-impl TaggedAction {
-    pub fn update(&self, id: &'static str, f: impl FnOnce(Action) -> Command) -> Command {
-        if self.1 == id {
-            f(self.0.as_ref().clone()).tag(id)
-        } else {
-            Command::Empty
-        }
-    }
 }

@@ -1,4 +1,4 @@
-use edtui::{EditorEventHandler, EditorTheme, EditorView};
+use edtui::{EditorTheme, EditorView};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::symbols::{border, line};
@@ -10,9 +10,7 @@ use crate::widgets::status_bar::StatusBar;
 
 /// Chat widget that handles the chat interface with editor and message list
 #[derive(Clone, Default)]
-pub struct ChatWidget {
-    editor: EditorEventHandler,
-}
+pub struct ChatWidget;
 
 impl StatefulWidget for ChatWidget {
     type State = State;
