@@ -45,7 +45,7 @@ impl StatefulWidget for MessageList {
                 .wrap(Wrap { trim: false })
                 .render(message_area, buf);
 
-            Spinner::default().render(loader_area, buf);
+            Spinner::default().render(loader_area, buf, state);
         };
     }
 }

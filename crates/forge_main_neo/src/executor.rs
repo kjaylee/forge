@@ -1,26 +1,32 @@
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use forge_api::{API, AgentId, ChatRequest, ChatResponse, Event, Workflow};
 use merge::Merge;
 use serde_json::Value;
+use tokio::sync::Mutex;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::StreamExt;
+use tokio_util::sync::CancellationToken;
 
 use crate::domain::{Action, Command};
+use crate::execute_interval;
 
 pub struct Executor<T> {
     api: Arc<T>,
+    intervals: Arc<Mutex<HashMap<u64, CancellationToken>>>,
 }
 
 impl<T> Clone for Executor<T> {
     fn clone(&self) -> Self {
-        Self { api: self.api.clone() }
+        Self { api: self.api.clone(), intervals: self.intervals.clone() }
     }
 }
 
 impl<T: API + 'static> Executor<T> {
     pub fn new(api: Arc<T>) -> Self {
-        Executor { api }
+        Executor { api, intervals: Arc::new(Mutex::new(HashMap::new())) }
     }
 
     async fn handle_chat(
@@ -139,6 +145,27 @@ impl<T: API + 'static> Executor<T> {
                     self.execute(command, tx).await?;
                 }
             }
+            Command::Interval { duration } => {
+                // Use default duration if none provided
+                let interval_duration = duration.unwrap_or(Duration::from_secs(1));
+                let cancellation_token = CancellationToken::new();
+                let id = execute_interval::execute_interval(
+                    interval_duration,
+                    tx.clone(),
+                    cancellation_token.clone(),
+                )
+                .await;
+
+                // Store the cancellation token for this interval
+                self.intervals.lock().await.insert(id, cancellation_token);
+            }
+            Command::CancelInterval { id } => {
+                // Remove and cancel the interval if it exists
+                if let Some(cancellation_token) = self.intervals.lock().await.remove(&id) {
+                    cancellation_token.cancel();
+                }
+                // No action is sent for cancellation
+            }
         }
         Ok(())
     }
@@ -157,6 +184,8 @@ impl<T: API + 'static> Executor<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use pretty_assertions::assert_eq;
     use tokio::sync::mpsc;
 
@@ -206,5 +235,32 @@ mod tests {
         // Verify no messages were sent
         let result = rx.try_recv();
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_interval_command_structure() {
+        let duration = Some(Duration::from_millis(100));
+        let fixture = Command::Interval { duration };
+
+        match fixture {
+            Command::Interval { duration: actual_duration } => {
+                let expected = Some(Duration::from_millis(100));
+                assert_eq!(actual_duration, expected);
+            }
+            _ => panic!("Expected Command::Interval"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_interval_command_with_none_duration() {
+        let fixture = Command::Interval { duration: None };
+
+        match fixture {
+            Command::Interval { duration: actual_duration } => {
+                let expected = None;
+                assert_eq!(actual_duration, expected);
+            }
+            _ => panic!("Expected Command::Interval"),
+        }
     }
 }

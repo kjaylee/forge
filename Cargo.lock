@@ -1364,6 +1364,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-recursion",
+ "chrono",
  "color-eyre",
  "derive_more",
  "derive_setters",
@@ -1378,6 +1379,7 @@ dependencies = [
  "throbber-widgets-tui",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tracing",
 ]
 

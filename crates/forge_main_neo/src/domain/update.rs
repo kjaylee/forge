@@ -1,4 +1,5 @@
 use edtui::{EditorEventHandler, EditorMode};
+use std::time::Duration;
 
 use crate::domain::{Action, Command, State};
 
@@ -48,7 +49,8 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
                     if message.trim().is_empty() {
                         return Command::Empty;
                     } else {
-                        return Command::ChatMessage(message);
+                        return Command::Interval { duration: Some(Duration::from_millis(100)) }
+                            .and_then(Command::ChatMessage(message));
                     }
                 }
 
@@ -63,6 +65,13 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
         },
         Action::ChatResponse { message } => {
             state.add_assistant_message(message.clone());
+            Command::Empty
+        }
+        Action::IntervalTick(timer) => {
+            state.spinner.calc_next();
+            // For now, interval ticks don't trigger any state changes or commands
+            // This could be extended to update a timer display or trigger other actions
+            state.timer = Some(timer.to_owned());
             Command::Empty
         }
     }

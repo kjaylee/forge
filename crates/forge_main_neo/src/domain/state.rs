@@ -1,5 +1,9 @@
+use std::time::Duration;
+
+use chrono::{DateTime, Utc};
 use derive_setters::Setters;
 use edtui::{EditorState, Index2};
+use throbber_widgets_tui::ThrobberState;
 
 use crate::domain::{Message, Route, Workspace};
 
@@ -9,7 +13,18 @@ pub struct State {
     pub current_route: Route,
     pub editor_state: EditorState,
     pub messages: Vec<Message>,
+    pub spinner: ThrobberState,
+    pub timer: Option<Timer>,
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Timer {
+    pub start_time: DateTime<Utc>,
+    pub current_time: DateTime<Utc>,
+    pub duration: Duration,
+    pub id: u64,
+}
+
 
 impl State {
     /// Navigate to the next route
