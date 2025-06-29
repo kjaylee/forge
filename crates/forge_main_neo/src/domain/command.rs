@@ -17,13 +17,13 @@ pub enum Command {
         // FIXME: Drop Option
         duration: Option<Duration>,
     },
-    CancelInterval {
+    ClearInterval {
         id: u64,
     },
 }
 
 impl Command {
-    pub fn and_then(self, other: Command) -> Command {
+    pub fn and(self, other: Command) -> Command {
         match self {
             Command::And(mut commands) => {
                 commands.push(other);
@@ -42,7 +42,7 @@ mod tests {
 
     #[test]
     fn test_command_and_with_two_commands() {
-        let fixture = Command::Empty.and_then(Command::Exit);
+        let fixture = Command::Empty.and(Command::Exit);
         let actual = fixture;
         let expected = Command::And(vec![Command::Empty, Command::Exit]);
         assert_eq!(actual, expected);
@@ -51,8 +51,8 @@ mod tests {
     #[test]
     fn test_command_and_chaining() {
         let fixture = Command::Empty
-            .and_then(Command::Exit)
-            .and_then(Command::ReadWorkspace);
+            .and(Command::Exit)
+            .and(Command::ReadWorkspace);
         let actual = fixture;
         let expected = Command::And(vec![Command::Empty, Command::Exit, Command::ReadWorkspace]);
         assert_eq!(actual, expected);
@@ -60,7 +60,7 @@ mod tests {
 
     #[test]
     fn test_command_and_with_existing_and() {
-        let fixture = Command::And(vec![Command::Empty]).and_then(Command::Exit);
+        let fixture = Command::And(vec![Command::Empty]).and(Command::Exit);
         let actual = fixture;
         let expected = Command::And(vec![Command::Empty, Command::Exit]);
         assert_eq!(actual, expected);
@@ -69,9 +69,9 @@ mod tests {
     #[test]
     fn test_command_and_complex_chaining() {
         let fixture = Command::ChatMessage("hello".to_string())
-            .and_then(Command::ReadWorkspace)
-            .and_then(Command::Empty)
-            .and_then(Command::Exit);
+            .and(Command::ReadWorkspace)
+            .and(Command::Empty)
+            .and(Command::Exit);
         let actual = fixture;
         let expected = Command::And(vec![
             Command::ChatMessage("hello".to_string()),
@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_chat_command_and() {
-        let fixture = Command::Empty.and_then(Command::ChatMessage("test".to_string()));
+        let fixture = Command::Empty.and(Command::ChatMessage("test".to_string()));
         let actual = fixture;
         let expected = Command::And(vec![
             Command::Empty,
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_router_command_and() {
-        let fixture = Command::Empty.and_then(Command::Empty);
+        let fixture = Command::Empty.and(Command::Empty);
         let actual = fixture;
         let expected = Command::And(vec![Command::Empty, Command::Empty]);
         assert_eq!(actual, expected);
@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_help_command_and() {
-        let fixture = Command::Empty.and_then(Command::Empty);
+        let fixture = Command::Empty.and(Command::Empty);
         let actual = fixture;
         let expected = Command::And(vec![Command::Empty, Command::Empty]);
         assert_eq!(actual, expected);
@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_settings_command_and() {
-        let fixture = Command::Empty.and_then(Command::Empty);
+        let fixture = Command::Empty.and(Command::Empty);
         let actual = fixture;
         let expected = Command::And(vec![Command::Empty, Command::Empty]);
         assert_eq!(actual, expected);

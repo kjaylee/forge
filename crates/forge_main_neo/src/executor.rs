@@ -11,6 +11,7 @@ use tokio::sync::Mutex;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
+use tracing::{debug, error};
 
 use crate::domain::{Action, Command};
 use crate::execute_interval;
@@ -73,15 +74,29 @@ impl<T: API + 'static> Executor<T> {
         Ok(())
     }
 
+    async fn execute(&self, cmd: Command, tx: Sender<anyhow::Result<Action>>) -> () {
+        let this = self.clone();
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            match this.execute_inner(cmd, tx.clone()).await {
+                Ok(_) => {}
+                Err(err) => {
+                    error!(error = ?err, "Command Execution Error");
+                    tx.send(Err(err)).await.unwrap();
+                }
+            }
+        });
+    }
+
     #[async_recursion::async_recursion]
-    pub async fn execute(
+    async fn execute_inner(
         &self,
         cmd: Command,
-        tx: &Sender<anyhow::Result<Action>>,
+        tx: Sender<anyhow::Result<Action>>,
     ) -> anyhow::Result<()> {
         match cmd {
             Command::ChatMessage(message) => {
-                self.handle_chat(message, tx).await?;
+                self.handle_chat(message, &tx).await?;
             }
             Command::ReadWorkspace => {
                 // Get current directory
@@ -119,21 +134,23 @@ impl<T: API + 'static> Executor<T> {
                 // Exit command doesn't send any action
             }
             Command::And(commands) => {
-                // Execute all commands in sequence, each sending their own actions
-                join_all(
-                    commands
-                        .into_iter()
-                        .map(|command| self.execute(command, tx)),
-                )
-                .await
-                .into_iter()
-                .collect::<anyhow::Result<Vec<_>>>()?;
+                // Execute all commands
+                for cmd in commands {
+                    self.execute(cmd, tx.clone()).await;
+                }
             }
             Command::Interval { duration } => {
                 // Use default duration if none provided
                 let interval_duration = duration.unwrap_or(Duration::from_secs(1));
                 let cancellation_token = CancellationToken::new();
                 let id = INTERVAL_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+
+                // Store the cancellation token for this interval
+                self.intervals
+                    .lock()
+                    .await
+                    .insert(id, cancellation_token.clone());
+
                 execute_interval::execute_interval(
                     interval_duration,
                     tx.clone(),
@@ -141,14 +158,14 @@ impl<T: API + 'static> Executor<T> {
                     id,
                 )
                 .await;
-
-                // Store the cancellation token for this interval
-                self.intervals.lock().await.insert(id, cancellation_token);
             }
-            Command::CancelInterval { id } => {
+            Command::ClearInterval { id } => {
+                debug!("Cancellation Initiated");
                 // Remove and cancel the interval if it exists
                 if let Some(cancellation_token) = self.intervals.lock().await.remove(&id) {
+                    debug!("Cancellation Lock Acquired");
                     cancellation_token.cancel();
+                    debug!("Cancellation Completed");
                 }
                 // No action is sent for cancellation
             }
@@ -160,9 +177,7 @@ impl<T: API + 'static> Executor<T> {
         let this = self.clone();
         tokio::spawn(async move {
             while let Some(cmd) = rx.recv().await {
-                if let Err(error) = this.execute(cmd, &tx).await {
-                    tx.send(Err(error)).await.unwrap();
-                }
+                this.execute(cmd, tx.clone()).await
             }
         });
     }

@@ -52,8 +52,8 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
                         return Command::Empty;
                     } else {
                         state.show_spinner = true;
-                        return Command::Interval { duration: Some(Duration::from_millis(100)) }
-                            .and_then(Command::ChatMessage(message));
+                        return Command::Interval { duration: Some(Duration::from_millis(1000)) }
+                            .and(Command::ChatMessage(message));
                     }
                 }
 
@@ -78,7 +78,9 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             state.add_assistant_message(response);
             if let Some(ref time) = state.timer {
                 if !state.show_spinner {
-                    return Command::CancelInterval { id: time.id }
+                    let id = time.id;
+                    state.timer = None;
+                    return Command::ClearInterval { id };
                 }
             }
             Command::Empty
