@@ -13,9 +13,7 @@ pub enum Command {
     And(Vec<Command>),
     ChatMessage(String),
     Interval {
-        // FIXME: Use chrono
-        // FIXME: Drop Option
-        duration: Option<Duration>,
+        duration: Duration,
     },
     ClearInterval {
         id: u64,

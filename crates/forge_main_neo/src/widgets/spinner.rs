@@ -9,7 +9,7 @@ use crate::domain::State;
 pub struct Spinner {}
 
 impl Spinner {
-    pub fn to_line(&self, state: & State) -> Line<'_> {
+    pub fn to_line(&self, state: &State) -> Line<'_> {
         let duration = state
             .timer
             .as_ref()

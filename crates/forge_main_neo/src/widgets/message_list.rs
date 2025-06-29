@@ -53,7 +53,7 @@ impl StatefulWidget for MessageList {
             let mut lines = messages_to_lines(&state.messages);
             let s = Spinner::default();
             if state.show_spinner {
-                lines.push(s.to_line(&state));
+                lines.push(s.to_line(state));
             }
             Paragraph::new(lines)
                 .wrap(Wrap { trim: false })

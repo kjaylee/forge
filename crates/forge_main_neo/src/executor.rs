@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
 
-use ::futures::future::join_all;
 use forge_api::{API, AgentId, ChatRequest, Event, Workflow};
 use merge::Merge;
 use serde_json::Value;
@@ -140,8 +138,6 @@ impl<T: API + 'static> Executor<T> {
                 }
             }
             Command::Interval { duration } => {
-                // Use default duration if none provided
-                let interval_duration = duration.unwrap_or(Duration::from_secs(1));
                 let cancellation_token = CancellationToken::new();
                 let id = INTERVAL_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
@@ -152,7 +148,7 @@ impl<T: API + 'static> Executor<T> {
                     .insert(id, cancellation_token.clone());
 
                 execute_interval::execute_interval(
-                    interval_duration,
+                    duration,
                     tx.clone(),
                     cancellation_token.clone(),
                     id,
@@ -240,25 +236,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_interval_command_structure() {
-        let duration = Some(Duration::from_millis(100));
+        let duration = Duration::from_millis(100);
         let fixture = Command::Interval { duration };
 
         match fixture {
             Command::Interval { duration: actual_duration } => {
-                let expected = Some(Duration::from_millis(100));
-                assert_eq!(actual_duration, expected);
-            }
-            _ => panic!("Expected Command::Interval"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_interval_command_with_none_duration() {
-        let fixture = Command::Interval { duration: None };
-
-        match fixture {
-            Command::Interval { duration: actual_duration } => {
-                let expected = None;
+                let expected = Duration::from_millis(100);
                 assert_eq!(actual_duration, expected);
             }
             _ => panic!("Expected Command::Interval"),

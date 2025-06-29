@@ -52,7 +52,7 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
                         return Command::Empty;
                     } else {
                         state.show_spinner = true;
-                        return Command::Interval { duration: Some(Duration::from_millis(1000)) }
+                        return Command::Interval { duration: Duration::from_millis(200) }
                             .and(Command::ChatMessage(message));
                     }
                 }
@@ -67,21 +67,19 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             ratatui::crossterm::event::Event::Resize(_, _) => Command::Empty,
         },
         Action::ChatResponse(response) => {
-            match response {
-                ChatResponse::Text { ref text, is_complete, .. } => {
-                    if is_complete && !text.trim().is_empty() {
-                        state.show_spinner = false
-                    }
-                }
-                _ => {}
+            if let ChatResponse::Text { ref text, is_complete, .. } = response
+                && is_complete
+                && !text.trim().is_empty()
+            {
+                state.show_spinner = false
             }
             state.add_assistant_message(response);
-            if let Some(ref time) = state.timer {
-                if !state.show_spinner {
-                    let id = time.id;
-                    state.timer = None;
-                    return Command::ClearInterval { id };
-                }
+            if let Some(ref time) = state.timer
+                && !state.show_spinner
+            {
+                let id = time.id;
+                state.timer = None;
+                return Command::ClearInterval { id };
             }
             Command::Empty
         }
