@@ -1,5 +1,4 @@
 mod action;
-mod autocomplete;
 mod command;
 mod message;
 mod route;
