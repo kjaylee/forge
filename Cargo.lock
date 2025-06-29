@@ -1370,6 +1370,7 @@ dependencies = [
  "derive_setters",
  "edtui",
  "forge_api",
+ "forge_display",
  "forge_tracker",
  "futures",
  "lazy_static",

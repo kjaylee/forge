@@ -7,13 +7,14 @@ edition = "2024"
 ratatui = "0.29.0"
 forge_api.workspace = true
 color-eyre = "0.6.5"
-edtui = {version = "0.9.6", features = ["mouse-support"]}
+edtui = { version = "0.9.6", features = ["mouse-support"] }
 derive_more.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 # FIXME: add to workspace dependency
 tokio-util = "0.7"
+forge_display.workspace = true
 chrono.workspace = true
 derive_setters.workspace = true
 merge.workspace = true

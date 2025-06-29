@@ -1,6 +1,6 @@
 use forge_api::ChatResponse;
 use ratatui::style::{Color, Style, Stylize};
-use ratatui::text::{Line, Span};
+use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Paragraph, StatefulWidget, Widget, Wrap};
 
 use crate::domain::{Message, State};
@@ -12,22 +12,29 @@ pub struct MessageList;
 fn messages_to_lines(messages: &[Message]) -> Vec<Line<'_>> {
     messages
         .iter()
-        .filter_map(|message| match message {
-            Message::User(content) => Some(Line::from(vec![
+        .flat_map(|message| match message {
+            Message::User(content) => vec![Line::from(vec![
                 Span::styled("❯ ", Style::default().green()),
                 Span::styled(content, Style::default().cyan().bold()),
-            ])),
+            ])]
+            .into_iter(),
             Message::Assistant(response) => match response {
-                ChatResponse::Text { text, is_complete, is_md: _, is_summary: _ } => {
+                ChatResponse::Text { text, is_complete, is_md, is_summary: _ } => {
                     if *is_complete {
-                        Some(Line::raw(text))
+                        if *is_md {
+                            // Use Text::from() which handles newlines automatically and more efficiently
+                            let rendered_text = forge_display::MarkdownFormat::new().render(text);
+                            Text::from(rendered_text).lines.into_iter()
+                        } else {
+                            vec![Line::raw(text.clone())].into_iter()
+                        }
                     } else {
-                        None
+                        vec![].into_iter()
                     }
                 }
-                ChatResponse::ToolCallStart(_) => None,
-                ChatResponse::ToolCallEnd(_) => None,
-                ChatResponse::Usage(_) => None,
+                ChatResponse::ToolCallStart(_) => vec![].into_iter(),
+                ChatResponse::ToolCallEnd(_) => vec![].into_iter(),
+                ChatResponse::Usage(_) => vec![].into_iter(),
             },
         })
         .collect()
