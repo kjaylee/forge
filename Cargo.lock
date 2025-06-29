@@ -1371,6 +1371,7 @@ dependencies = [
  "edtui",
  "forge_api",
  "forge_tracker",
+ "futures",
  "lazy_static",
  "merge",
  "pretty_assertions",

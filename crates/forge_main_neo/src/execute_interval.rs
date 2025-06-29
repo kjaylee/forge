@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use chrono::Utc;
@@ -7,8 +6,6 @@ use tokio::time::interval;
 use tokio_util::sync::CancellationToken;
 
 use crate::domain::{Action, Timer};
-
-static INTERVAL_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 /// Execute an interval command that emits IntervalTick actions at regular
 /// intervals
@@ -28,8 +25,8 @@ pub async fn execute_interval(
     duration: Duration,
     tx: Sender<anyhow::Result<Action>>,
     cancellation_token: CancellationToken,
-) -> u64 {
-    let id = INTERVAL_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+    id: u64,
+) {
     let start_time = Utc::now();
 
     // Create a tokio interval timer
@@ -39,26 +36,23 @@ pub async fn execute_interval(
     interval_timer.tick().await;
 
     // Spawn a background task to handle the interval
-    tokio::spawn(async move {
-        loop {
-            tokio::select! {
-                _ = interval_timer.tick() => {
-                    let current_time = Utc::now();
-                    let action = Action::IntervalTick(Timer{start_time, current_time, duration, id });
 
-                    // Send the action, if the receiver is dropped, break the loop
-                    if tx.send(Ok(action)).await.is_err() {
-                        // Channel closed, exit the loop to prevent memory leaks
-                        break;
-                    }
-                }
-                _ = cancellation_token.cancelled() => {
-                    // Interval was cancelled, exit cleanly
+    loop {
+        tokio::select! {
+            _ = interval_timer.tick() => {
+                let current_time = Utc::now();
+                let action = Action::IntervalTick(Timer{start_time, current_time, duration, id });
+
+                // Send the action, if the receiver is dropped, break the loop
+                if tx.send(Ok(action)).await.is_err() {
+                    // Channel closed, exit the loop to prevent memory leaks
                     break;
                 }
             }
+            _ = cancellation_token.cancelled() => {
+                // Interval was cancelled, exit cleanly
+                break;
+            }
         }
-    });
-
-    id
+    }
 }

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
+use ::futures::future::join_all;
 use forge_api::{API, AgentId, ChatRequest, ChatResponse, Event, Workflow};
 use merge::Merge;
 use serde_json::Value;
@@ -17,6 +19,8 @@ pub struct Executor<T> {
     api: Arc<T>,
     intervals: Arc<Mutex<HashMap<u64, CancellationToken>>>,
 }
+
+static INTERVAL_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 impl<T> Clone for Executor<T> {
     fn clone(&self) -> Self {
@@ -141,18 +145,25 @@ impl<T: API + 'static> Executor<T> {
             }
             Command::And(commands) => {
                 // Execute all commands in sequence, each sending their own actions
-                for command in commands {
-                    self.execute(command, tx).await?;
-                }
+                join_all(
+                    commands
+                        .into_iter()
+                        .map(|command| self.execute(command, tx)),
+                )
+                .await
+                .into_iter()
+                .collect::<anyhow::Result<Vec<_>>>()?;
             }
             Command::Interval { duration } => {
                 // Use default duration if none provided
                 let interval_duration = duration.unwrap_or(Duration::from_secs(1));
                 let cancellation_token = CancellationToken::new();
-                let id = execute_interval::execute_interval(
+                let id = INTERVAL_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                execute_interval::execute_interval(
                     interval_duration,
                     tx.clone(),
                     cancellation_token.clone(),
+                    id,
                 )
                 .await;
 

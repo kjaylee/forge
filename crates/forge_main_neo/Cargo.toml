@@ -23,6 +23,7 @@ throbber-widgets-tui = "0.8.0"
 forge_tracker.workspace = true
 lazy_static.workspace = true
 tracing.workspace = true
+futures.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true
