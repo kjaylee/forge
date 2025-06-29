@@ -22,7 +22,8 @@ fn messages_to_lines(messages: &[Message]) -> Vec<Line<'_>> {
                 ChatResponse::Text { text, is_complete, is_md, is_summary: _ } => {
                     if *is_complete {
                         if *is_md {
-                            // Use Text::from() which handles newlines automatically and more efficiently
+                            // Use Text::from() which handles newlines automatically and more
+                            // efficiently
                             let rendered_text = forge_display::MarkdownFormat::new().render(text);
                             Text::from(rendered_text).lines.into_iter()
                         } else {
