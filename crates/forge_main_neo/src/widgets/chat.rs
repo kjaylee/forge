@@ -59,8 +59,7 @@ impl StatefulWidget for ChatWidget {
             .title_bottom(StatusBar::new(
                 "FORGE",
                 state.editor_state.mode.name(),
-                None, // No branch info in Widget impl
-                None, // No dir info in Widget impl
+                state.workspace.clone(),
             ));
 
         // Note: EditorView needs mutable access to state, which we can't provide in
