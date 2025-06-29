@@ -1,7 +1,7 @@
 use derive_more::From;
 use ratatui::crossterm::event::Event;
 
-use crate::command::Command;
+use crate::domain::command::Command;
 
 /// Top-level application actions that wrap route-specific actions
 #[derive(Clone, From, Debug, PartialEq)]

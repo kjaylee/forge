@@ -4,8 +4,7 @@ use ratatui::crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::prelude::Rect;
 use ratatui::widgets::Widget;
 
-use crate::action::Action;
-use crate::command::Command;
+use crate::domain::{Action, Command};
 use crate::widgets::chat::Chat;
 use crate::widgets::help::Help;
 use crate::widgets::settings::Settings;

@@ -5,8 +5,7 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::symbols::{border, line};
 use ratatui::widgets::{Block, Borders, Padding, Widget};
 
-use crate::action::Action;
-use crate::command::Command;
+use crate::domain::{Action, Command};
 use crate::widgets::autocomplete::{AutoComplete, AutocompletePopup};
 use crate::widgets::message_list::{Message, MessageList};
 use crate::widgets::status_bar::StatusBar;

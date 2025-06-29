@@ -3,8 +3,7 @@ use ratatui::style::{Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{Tabs, Widget};
 
-use crate::action::Action;
-use crate::command::Command;
+use crate::domain::{Action, Command};
 use crate::widgets::Router;
 use crate::widgets::router::Route;
 

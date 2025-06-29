@@ -6,8 +6,7 @@ use ratatui::DefaultTerminal;
 use ratatui::widgets::Widget;
 
 use crate::TRACKER;
-use crate::action::Action;
-use crate::command::Command;
+use crate::domain::{Action, Command};
 use crate::event_reader::EventReader;
 use crate::executor::Executor;
 use crate::widgets::App;

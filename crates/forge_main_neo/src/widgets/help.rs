@@ -3,8 +3,7 @@ use ratatui::prelude::Rect;
 use ratatui::style::{Style, Stylize};
 use ratatui::widgets::{Paragraph, Widget};
 
-use crate::action::Action;
-use crate::command::Command;
+use crate::domain::{Action, Command};
 use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Help widget that handles the help interface

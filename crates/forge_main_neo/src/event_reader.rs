@@ -3,7 +3,7 @@ use std::time::Duration;
 use ratatui::crossterm::event;
 use tokio::sync::mpsc::Sender;
 
-use crate::action::Action;
+use crate::domain::Action;
 
 pub struct EventReader {
     timeout: Duration,

@@ -6,8 +6,7 @@ use serde_json::Value;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::StreamExt;
 
-use crate::action::Action;
-use crate::command::Command;
+use crate::domain::{Action, Command};
 
 pub struct Executor<T> {
     api: Arc<T>,
