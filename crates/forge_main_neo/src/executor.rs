@@ -178,9 +178,10 @@ impl<T: API + 'static> Executor<T> {
         tx: Sender<anyhow::Result<Action>>,
         cancellation_token: CancellationToken,
     ) {
-        use crate::domain::Timer;
         use chrono::Utc;
         use tokio::time::interval;
+
+        use crate::domain::Timer;
 
         let start_time = Utc::now();
         let id = TimerId::from(cancellation_token.clone());
