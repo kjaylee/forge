@@ -2,12 +2,12 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use derive_setters::Setters;
-use edtui::{EditorState, Index2};
+use edtui::{EditorMode, EditorState, Index2};
 use throbber_widgets_tui::ThrobberState;
 
 use crate::domain::{Message, Route, Workspace};
 
-#[derive(Clone, Default, Setters)]
+#[derive(Clone, Setters)]
 pub struct State {
     pub workspace: Workspace,
     pub current_route: Route,
@@ -17,6 +17,21 @@ pub struct State {
     pub timer: Option<Timer>,
 }
 
+impl Default for State {
+    fn default() -> Self {
+        let mut editor_state = EditorState::default();
+        editor_state.mode = EditorMode::Insert;
+        Self {
+            workspace: Default::default(),
+            current_route: Default::default(),
+            editor_state,
+            messages: Default::default(),
+            spinner: Default::default(),
+            timer: Default::default(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Timer {
     pub start_time: DateTime<Utc>,
@@ -24,7 +39,6 @@ pub struct Timer {
     pub duration: Duration,
     pub id: u64,
 }
-
 
 impl State {
     /// Navigate to the next route

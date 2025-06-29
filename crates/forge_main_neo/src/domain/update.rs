@@ -1,5 +1,6 @@
-use edtui::{EditorEventHandler, EditorMode};
 use std::time::Duration;
+
+use edtui::{EditorEventHandler, EditorMode};
 
 use crate::domain::{Action, Command, State};
 

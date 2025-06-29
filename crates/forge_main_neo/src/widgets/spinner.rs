@@ -1,5 +1,7 @@
 use chrono::Duration;
-use ratatui::widgets::StatefulWidget;
+use ratatui::style::{Color, Style, Stylize};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{StatefulWidget, Widget};
 
 use crate::domain::State;
 
@@ -29,17 +31,17 @@ impl StatefulWidget for Spinner {
             })
             .unwrap_or_default();
         // Set full with state
-        let th = throbber_widgets_tui::Throbber::default()
-            .label(format!("Running... {}", duration))
-            .style(ratatui::style::Style::default().fg(ratatui::style::Color::Cyan))
-            .throbber_style(
-                ratatui::style::Style::default()
-                    .fg(ratatui::style::Color::Red)
-                    .add_modifier(ratatui::style::Modifier::BOLD),
-            )
-            .throbber_set(throbber_widgets_tui::CLOCK)
-            .use_type(throbber_widgets_tui::WhichUse::Spin);
+        let mut th_line = throbber_widgets_tui::Throbber::default()
+            .throbber_style(ratatui::style::Style::default().fg(ratatui::style::Color::Green))
+            .throbber_set(throbber_widgets_tui::BRAILLE_SIX)
+            .to_line(&state.spinner);
+        let lb_line = Line::from(vec![
+            Span::styled("Forging ", Style::default().fg(Color::Green).bold()),
+            Span::styled(format!("{duration}s"), Style::default()),
+            Span::styled(" · Ctrl+C to interrupt", Style::default().dim()),
+        ]);
 
-        StatefulWidget::render(th, area, buf, &mut state.spinner);
+        th_line.extend(lb_line);
+        th_line.render(area, buf);
     }
 }
