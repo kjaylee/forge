@@ -5,8 +5,3 @@ pub struct AutocompleteOption {
     pub description: String,
 }
 
-impl AutocompleteOption {
-    pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
-        Self { name: name.into(), description: description.into() }
-    }
-}

@@ -38,17 +38,3 @@ where
         block.render(area, buf);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use ratatui::widgets::Paragraph;
-
-    use super::*;
-
-    #[test]
-    fn test_bordered_panel_creation() {
-        let content = Paragraph::new("Test content");
-        let _fixture = BorderedPanel::new(content);
-        assert!(true); // BorderedPanel creation successful if we reach this point
-    }
-}

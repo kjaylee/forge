@@ -93,7 +93,6 @@ impl<T: API + 'static> Executor<T> {
         &self,
         cmd: Command,
         tx: &Sender<anyhow::Result<Action>>,
-        tags: &mut Vec<&'static str>,
     ) -> anyhow::Result<()> {
         match cmd {
             Command::ChatMessage(message) => {
@@ -137,7 +136,7 @@ impl<T: API + 'static> Executor<T> {
             Command::And(commands) => {
                 // Execute all commands in sequence, each sending their own actions
                 for command in commands {
-                    Box::pin(self.execute(command, tx, tags)).await?;
+                    self.execute(command, tx).await?;
                 }
             }
         }
@@ -148,7 +147,7 @@ impl<T: API + 'static> Executor<T> {
         let this = self.clone();
         tokio::spawn(async move {
             while let Some(cmd) = rx.recv().await {
-                if let Err(error) = this.execute(cmd, &tx, &mut Vec::new()).await {
+                if let Err(error) = this.execute(cmd, &tx).await {
                     tx.send(Err(error)).await.unwrap();
                 }
             }

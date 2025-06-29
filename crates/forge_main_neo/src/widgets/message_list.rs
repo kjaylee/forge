@@ -9,7 +9,7 @@ use crate::widgets::spinner::Spinner;
 #[derive(Default)]
 pub struct MessageList;
 
-fn messages_to_lines(messages: &Vec<Message>) -> Vec<Line<'_>> {
+fn messages_to_lines(messages: &[Message]) -> Vec<Line<'_>> {
     messages
         .iter()
         .map(|message| match message {

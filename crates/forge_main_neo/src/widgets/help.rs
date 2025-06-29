@@ -66,12 +66,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_help_creation() {
-        let _fixture = HelpWidget::new();
-        assert!(true); // Help creation successful if we reach this point
-    }
-
-    #[test]
     fn test_help_handle_event() {
         let mut fixture = HelpWidget::new();
 

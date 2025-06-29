@@ -55,12 +55,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_settings_creation() {
-        let _fixture = SettingsWidget::new();
-        assert!(true); // Settings creation successful if we reach this point
-    }
-
-    #[test]
     fn test_settings_handle_event() {
         let mut fixture = SettingsWidget::new();
 

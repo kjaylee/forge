@@ -20,7 +20,7 @@ impl StatefulWidget for RouterWidget {
         match state.current_route {
             Route::Chat => {
                 // Render the chat widget
-                ChatWidget::default().render(area, buf, state);
+                ChatWidget.render(area, buf, state);
             }
             Route::Settings => {
                 // Render the settings widget
