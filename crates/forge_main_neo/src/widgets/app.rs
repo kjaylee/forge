@@ -1,8 +1,4 @@
-use edtui::EditorMode;
-use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{Style, Stylize};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{StatefulWidget, Tabs, Widget};
+use ratatui::widgets::{StatefulWidget, Widget};
 
 use crate::domain::State;
 use crate::widgets::chat::ChatWidget;
@@ -20,6 +16,6 @@ impl StatefulWidget for App {
     ) where
         Self: Sized,
     {
-        ChatWidget::default().render(area, buf, state);
+        ChatWidget.render(area, buf, state);
     }
 }
