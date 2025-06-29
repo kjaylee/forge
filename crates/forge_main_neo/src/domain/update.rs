@@ -25,18 +25,17 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
                 // Handle EXIT events first
                 use ratatui::crossterm::event::{KeyCode, KeyModifiers};
                 let ctrl = key_event.modifiers.contains(KeyModifiers::CONTROL);
-                let shift = key_event.modifiers.contains(KeyModifiers::SHIFT);
                 let alt = key_event.modifiers.contains(KeyModifiers::ALT);
 
                 // macOS: Option + Left/Right for word navigation
                 if alt {
                     match key_event.code {
                         KeyCode::Char('b') => {
-                            MoveWordBackward(1).execute(&mut state.editor_state);
+                            MoveWordBackward(1).execute(&mut state.editor);
                             return Command::Empty;
                         }
                         KeyCode::Char('f') => {
-                            MoveWordForward(1).execute(&mut state.editor_state);
+                            MoveWordForward(1).execute(&mut state.editor);
                             return Command::Empty;
                         }
                         _ => {}
@@ -47,11 +46,11 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
                 if ctrl {
                     match key_event.code {
                         KeyCode::Char('a') => {
-                            MoveToStartOfLine().execute(&mut state.editor_state);
+                            MoveToStartOfLine().execute(&mut state.editor);
                             return Command::Empty;
                         }
                         KeyCode::Char('e') => {
-                            MoveToEndOfLine().execute(&mut state.editor_state);
+                            MoveToEndOfLine().execute(&mut state.editor);
                             return Command::Empty;
                         }
                         _ => {}
@@ -65,8 +64,7 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
                 }
 
                 // Submit
-                if key_event.code == KeyCode::Enter && state.editor_state.mode == EditorMode::Normal
-                {
+                if key_event.code == KeyCode::Enter && state.editor.mode == EditorMode::Normal {
                     let message = state.take_lines().join("\n");
                     state.add_user_message(message.clone());
                     if message.trim().is_empty() {
@@ -78,8 +76,18 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
                     }
                 }
 
+                // Show spotlight
+                if key_event.code == KeyCode::Char(':') && state.editor.mode == EditorMode::Normal {
+                    state.spotlight.is_visible = true;
+                }
+
+                // Hide spotlight
+                if key_event.code == KeyCode::Esc {
+                    state.spotlight.is_visible = false;
+                }
+
                 // Editor
-                EditorEventHandler::default().on_key_event(key_event, &mut state.editor_state);
+                EditorEventHandler::default().on_key_event(key_event, &mut state.editor);
 
                 Command::Empty
             }
@@ -126,17 +134,17 @@ mod tests {
     fn create_test_state_with_text() -> State {
         let mut state = State::default();
         // Set up some text content for testing cursor movement
-        state.editor_state =
+        state.editor =
             EditorState::new(Lines::from("hello world this is a test\nsecond line here"));
         // Position cursor in the middle of the first word for testing
-        state.editor_state.cursor = Index2::new(0, 6); // After "hello "
+        state.editor.cursor = Index2::new(0, 6); // After "hello "
         state
     }
 
     #[test]
     fn test_macos_option_left_moves_word_backward() {
         let mut state = create_test_state_with_text();
-        let initial_cursor = state.editor_state.cursor;
+        let initial_cursor = state.editor.cursor;
         let key_event = KeyEvent::new(KeyCode::Char('b'), KeyModifiers::ALT);
         let action = Action::CrossTerm(ratatui::crossterm::event::Event::Key(key_event));
 
@@ -145,13 +153,13 @@ mod tests {
 
         assert_eq!(actual_command, expected_command);
         // Cursor should have moved backward to the beginning of the previous word
-        assert!(state.editor_state.cursor.col < initial_cursor.col);
+        assert!(state.editor.cursor.col < initial_cursor.col);
     }
 
     #[test]
     fn test_macos_option_right_moves_word_forward() {
         let mut state = create_test_state_with_text();
-        let initial_cursor = state.editor_state.cursor;
+        let initial_cursor = state.editor.cursor;
         let key_event = KeyEvent::new(KeyCode::Char('f'), KeyModifiers::ALT);
         let action = Action::CrossTerm(ratatui::crossterm::event::Event::Key(key_event));
 
@@ -160,7 +168,7 @@ mod tests {
 
         assert_eq!(actual_command, expected_command);
         // Cursor should have moved forward to the beginning of the next word
-        assert!(state.editor_state.cursor.col > initial_cursor.col);
+        assert!(state.editor.cursor.col > initial_cursor.col);
     }
 
     #[test]
@@ -174,13 +182,13 @@ mod tests {
 
         assert_eq!(actual_command, expected_command);
         // Cursor should be at the beginning of the line
-        assert_eq!(state.editor_state.cursor.col, 0);
+        assert_eq!(state.editor.cursor.col, 0);
     }
 
     #[test]
     fn test_macos_cmd_right_moves_to_line_end() {
         let mut state = create_test_state_with_text();
-        let initial_row = state.editor_state.cursor.row;
+        let initial_row = state.editor.cursor.row;
         let key_event = KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL);
         let action = Action::CrossTerm(ratatui::crossterm::event::Event::Key(key_event));
 
@@ -191,14 +199,14 @@ mod tests {
         // Cursor should be at the end of the current line
         // The first line is "hello world this is a test" (25 characters, 0-indexed so
         // position 25)
-        assert_eq!(state.editor_state.cursor.row, initial_row);
-        assert_eq!(state.editor_state.cursor.col, 25);
+        assert_eq!(state.editor.cursor.row, initial_row);
+        assert_eq!(state.editor.cursor.col, 25);
     }
 
     #[test]
     fn test_regular_arrow_keys_still_work() {
         let mut state = create_test_state_with_text();
-        let _initial_cursor = state.editor_state.cursor;
+        let _initial_cursor = state.editor.cursor;
         let key_event = KeyEvent::new(KeyCode::Left, KeyModifiers::NONE);
         let action = Action::CrossTerm(ratatui::crossterm::event::Event::Key(key_event));
 

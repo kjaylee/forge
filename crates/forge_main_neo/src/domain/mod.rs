@@ -1,6 +1,7 @@
 mod action;
 mod command;
 mod message;
+mod spotlight;
 mod state;
 mod update;
 mod workspace;

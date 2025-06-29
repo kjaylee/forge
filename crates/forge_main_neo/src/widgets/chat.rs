@@ -6,6 +6,7 @@ use ratatui::widgets::{Block, Borders, Padding, StatefulWidget, Widget};
 
 use crate::domain::State;
 use crate::widgets::message_list::MessageList;
+use crate::widgets::spotlight::SpotlightWidget;
 use crate::widgets::status_bar::StatusBar;
 
 /// Chat widget that handles the chat interface with editor and message list
@@ -30,7 +31,7 @@ impl StatefulWidget for ChatWidget {
         let [messages_area, user_area] = chat_layout.areas(area);
 
         // Messages area block (now at top)
-        let content_block = Block::bordered()
+        let message_block = Block::bordered()
             .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT)
             .border_set(border::Set {
                 bottom_right: line::VERTICAL_LEFT,
@@ -41,7 +42,11 @@ impl StatefulWidget for ChatWidget {
             .title_style(Style::default().dark_gray());
 
         // Render message list
-        MessageList.render(content_block.inner(messages_area), buf, state);
+        MessageList.render(message_block.inner(messages_area), buf, state);
+
+        if state.spotlight.is_visible {
+            SpotlightWidget.render(messages_area, buf, state)
+        }
 
         // User input area block with status bar (now at bottom)
         let user_block = Block::bordered()
@@ -56,16 +61,11 @@ impl StatefulWidget for ChatWidget {
             .border_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(
                 "FORGE",
-                state.editor_state.mode.name(),
+                state.editor.mode.name(),
                 state.workspace.clone(),
             ));
 
-        // Note: EditorView needs mutable access to state, which we can't provide in
-        // Widget trait This will need to be addressed differently - perhaps by
-        // storing editor state separately For now, we'll create a temporary
-        // mutable copy for rendering
-        let mut temp_editor = state.editor_state.clone();
-        EditorView::new(&mut temp_editor)
+        EditorView::new(&mut state.editor)
             .theme(
                 EditorTheme::default()
                     .base(Style::reset())
@@ -76,7 +76,7 @@ impl StatefulWidget for ChatWidget {
             .render(user_block.inner(user_area), buf);
 
         // Render blocks
-        content_block.render(messages_area, buf);
+        message_block.render(messages_area, buf);
         user_block.render(user_area, buf);
     }
 }

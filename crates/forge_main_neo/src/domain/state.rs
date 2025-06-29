@@ -7,16 +7,18 @@ use forge_api::ChatResponse;
 use throbber_widgets_tui::ThrobberState;
 use tokio_util::sync::CancellationToken;
 
+use crate::domain::spotlight::SpotlightState;
 use crate::domain::{Message, Workspace};
 
 #[derive(Clone, Setters)]
 pub struct State {
     pub workspace: Workspace,
-    pub editor_state: EditorState,
+    pub editor: EditorState,
     pub messages: Vec<Message>,
     pub spinner: ThrobberState,
     pub timer: Option<Timer>,
     pub show_spinner: bool,
+    pub spotlight: SpotlightState,
 }
 
 impl Default for State {
@@ -25,11 +27,12 @@ impl Default for State {
         editor_state.mode = EditorMode::Insert;
         Self {
             workspace: Default::default(),
-            editor_state,
+            editor: editor_state,
             messages: Default::default(),
             spinner: Default::default(),
             timer: Default::default(),
             show_spinner: Default::default(),
+            spotlight: Default::default(),
         }
     }
 }
@@ -68,7 +71,7 @@ impl From<CancellationToken> for TimerId {
 impl State {
     /// Get editor lines as strings
     pub fn editor_lines(&self) -> Vec<String> {
-        self.editor_state
+        self.editor
             .lines
             .iter_row()
             .map(|row| row.iter().collect::<String>())
@@ -78,8 +81,8 @@ impl State {
     /// Take lines from editor and clear it
     pub fn take_lines(&mut self) -> Vec<String> {
         let text = self.editor_lines();
-        self.editor_state.lines.clear();
-        self.editor_state.cursor = Index2::default();
+        self.editor.lines.clear();
+        self.editor.cursor = Index2::default();
         text
     }
 

@@ -5,6 +5,7 @@ mod help;
 mod message_list;
 mod settings;
 mod spinner;
+mod spotlight;
 mod status_bar;
 
 pub use app::App;
