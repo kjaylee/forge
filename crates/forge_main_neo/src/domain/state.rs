@@ -3,6 +3,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use derive_setters::Setters;
 use edtui::{EditorMode, EditorState, Index2};
+use forge_api::ChatResponse;
 use throbber_widgets_tui::ThrobberState;
 
 use crate::domain::{Message, Route, Workspace};
@@ -15,6 +16,7 @@ pub struct State {
     pub messages: Vec<Message>,
     pub spinner: ThrobberState,
     pub timer: Option<Timer>,
+    pub show_spinner: bool,
 }
 
 impl Default for State {
@@ -28,6 +30,7 @@ impl Default for State {
             messages: Default::default(),
             spinner: Default::default(),
             timer: Default::default(),
+            show_spinner: Default::default(),
         }
     }
 }
@@ -74,7 +77,7 @@ impl State {
     }
 
     /// Add an assistant message to the chat
-    pub fn add_assistant_message(&mut self, message: String) {
+    pub fn add_assistant_message(&mut self, message: ChatResponse) {
         self.messages.push(Message::Assistant(message));
     }
 }

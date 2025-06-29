@@ -1,4 +1,4 @@
-use ratatui::layout::{Constraint, Layout};
+use forge_api::ChatResponse;
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, StatefulWidget, Widget, Wrap};
@@ -12,11 +12,23 @@ pub struct MessageList;
 fn messages_to_lines(messages: &[Message]) -> Vec<Line<'_>> {
     messages
         .iter()
-        .map(|message| match message {
-            Message::User(content) => {
-                Line::from(vec![Span::styled(content, Style::default().cyan().bold())])
-            }
-            Message::Assistant(content) => Line::from(Span::raw(content)),
+        .filter_map(|message| match message {
+            Message::User(content) => Some(Line::from(vec![
+                Span::styled("❯ ", Style::default().green()),
+                Span::styled(content, Style::default().cyan().bold()),
+            ])),
+            Message::Assistant(response) => match response {
+                ChatResponse::Text { text, is_complete, is_md: _, is_summary: _ } => {
+                    if *is_complete {
+                        Some(Line::raw(text))
+                    } else {
+                        None
+                    }
+                }
+                ChatResponse::ToolCallStart(_) => None,
+                ChatResponse::ToolCallEnd(_) => None,
+                ChatResponse::Usage(_) => None,
+            },
         })
         .collect()
 }
@@ -38,14 +50,14 @@ impl StatefulWidget for MessageList {
                 .wrap(Wrap { trim: false })
                 .render(area, buf);
         } else {
-            let [message_area, loader_area] =
-                Layout::vertical([Constraint::Fill(0), Constraint::Max(1)]).areas(area);
-
-            Paragraph::new(messages_to_lines(&state.messages))
+            let mut lines = messages_to_lines(&state.messages);
+            let s = Spinner::default();
+            if state.show_spinner {
+                lines.push(s.to_line(&state));
+            }
+            Paragraph::new(lines)
                 .wrap(Wrap { trim: false })
-                .render(message_area, buf);
-
-            Spinner::default().render(loader_area, buf, state);
+                .render(area, buf);
         };
     }
 }

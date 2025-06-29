@@ -1,17 +1,18 @@
 use std::time::Duration;
 
 use edtui::{EditorEventHandler, EditorMode};
+use forge_api::ChatResponse;
 
 use crate::domain::{Action, Command, State};
 
 pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
     let action = action.into();
-    match &action {
+    match action {
         Action::Initialize => Command::ReadWorkspace,
         Action::Workspace { current_dir, current_branch } => {
             // TODO: can simply get workspace object from the action
-            state.workspace.current_dir = current_dir.clone();
-            state.workspace.current_branch = current_branch.clone();
+            state.workspace.current_dir = current_dir;
+            state.workspace.current_branch = current_branch;
             Command::Empty
         }
         Action::CrossTerm(event) => match event {
@@ -50,13 +51,14 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
                     if message.trim().is_empty() {
                         return Command::Empty;
                     } else {
+                        state.show_spinner = true;
                         return Command::Interval { duration: Some(Duration::from_millis(100)) }
                             .and_then(Command::ChatMessage(message));
                     }
                 }
 
                 // Editor
-                EditorEventHandler::default().on_key_event(*key_event, &mut state.editor_state);
+                EditorEventHandler::default().on_key_event(key_event, &mut state.editor_state);
 
                 Command::Empty
             }
@@ -64,8 +66,21 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             ratatui::crossterm::event::Event::Paste(_) => Command::Empty,
             ratatui::crossterm::event::Event::Resize(_, _) => Command::Empty,
         },
-        Action::ChatResponse { message } => {
-            state.add_assistant_message(message.clone());
+        Action::ChatResponse(response) => {
+            match response {
+                ChatResponse::Text { ref text, is_complete, .. } => {
+                    if is_complete && !text.trim().is_empty() {
+                        state.show_spinner = false
+                    }
+                }
+                _ => {}
+            }
+            state.add_assistant_message(response);
+            if let Some(ref time) = state.timer {
+                if !state.show_spinner {
+                    return Command::CancelInterval { id: time.id }
+                }
+            }
             Command::Empty
         }
         Action::IntervalTick(timer) => {

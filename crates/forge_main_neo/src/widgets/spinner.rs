@@ -8,18 +8,8 @@ use crate::domain::State;
 #[derive(Clone, Default)]
 pub struct Spinner {}
 
-impl Spinner {}
-
-impl StatefulWidget for Spinner {
-    type State = State;
-    fn render(
-        self,
-        area: ratatui::prelude::Rect,
-        buf: &mut ratatui::prelude::Buffer,
-        state: &mut State,
-    ) where
-        Self: Sized,
-    {
+impl Spinner {
+    pub fn to_line(&self, state: & State) -> Line<'_> {
         let duration = state
             .timer
             .as_ref()
@@ -42,6 +32,20 @@ impl StatefulWidget for Spinner {
         ]);
 
         th_line.extend(lb_line);
-        th_line.render(area, buf);
+        th_line
+    }
+}
+
+impl StatefulWidget for Spinner {
+    type State = State;
+    fn render(
+        self,
+        area: ratatui::prelude::Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &mut State,
+    ) where
+        Self: Sized,
+    {
+        self.to_line(state).render(area, buf);
     }
 }

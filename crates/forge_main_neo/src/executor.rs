@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use ::futures::future::join_all;
-use forge_api::{API, AgentId, ChatRequest, ChatResponse, Event, Workflow};
+use forge_api::{API, AgentId, ChatRequest, Event, Workflow};
 use merge::Merge;
 use serde_json::Value;
 use tokio::sync::Mutex;
@@ -62,40 +62,15 @@ impl<T: API + 'static> Executor<T> {
         // Create chat request
         let chat_request = ChatRequest::new(event, conversation.id);
 
-        // Execute chat request and collect responses
-        let mut responses = Vec::new();
         match self.api.chat(chat_request).await {
             Ok(mut stream) => {
                 while let Some(response) = stream.next().await {
-                    match response {
-                        Ok(ChatResponse::Text { text, is_complete, .. }) => {
-                            if is_complete && !text.trim().is_empty() {
-                                responses.push(text);
-                            }
-                        }
-                        Ok(_) => {
-                            // Todo:// Handle other response types (tool calls,
-                            // usage, etc.)
-                            // For basic functionality, we'll ignore
-                            // these for now
-                        }
-                        Err(err) => return Err(err),
-                    }
+                    tx.send(response.map(Action::ChatResponse)).await?;
                 }
             }
             Err(err) => return Err(err),
         }
-
-        // Return aggregated response as action
-        let response_text = if responses.is_empty() {
-            "".to_string()
-        } else {
-            responses.join("\n")
-        };
-
-        Ok(tx
-            .send(Ok(Action::ChatResponse { message: response_text }))
-            .await?)
+        Ok(())
     }
 
     #[async_recursion::async_recursion]
