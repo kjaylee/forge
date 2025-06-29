@@ -1,35 +1,28 @@
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use forge_api::{API, AgentId, ChatRequest, Event, Workflow};
 use merge::Merge;
 use serde_json::Value;
-use tokio::sync::Mutex;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error};
+use tracing::error;
 
-use crate::domain::{Action, Command};
-use crate::execute_interval;
+use crate::domain::{Action, Command, TimerId};
 
 pub struct Executor<T> {
     api: Arc<T>,
-    intervals: Arc<Mutex<HashMap<u64, CancellationToken>>>,
 }
-
-static INTERVAL_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 impl<T> Clone for Executor<T> {
     fn clone(&self) -> Self {
-        Self { api: self.api.clone(), intervals: self.intervals.clone() }
+        Self { api: self.api.clone() }
     }
 }
 
 impl<T: API + 'static> Executor<T> {
     pub fn new(api: Arc<T>) -> Self {
-        Executor { api, intervals: Arc::new(Mutex::new(HashMap::new())) }
+        Executor { api }
     }
 
     async fn handle_chat(
@@ -86,6 +79,141 @@ impl<T: API + 'static> Executor<T> {
         });
     }
 
+    async fn execute_chat_message(
+        &self,
+        message: String,
+        tx: &Sender<anyhow::Result<Action>>,
+    ) -> anyhow::Result<()> {
+        self.handle_chat(message, tx).await
+    }
+
+    async fn execute_read_workspace(
+        &self,
+        tx: &Sender<anyhow::Result<Action>>,
+    ) -> anyhow::Result<()> {
+        // Get current directory
+        let current_dir = self
+            .api
+            .environment()
+            .cwd
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string());
+
+        // Get current git branch
+        let current_branch = match tokio::process::Command::new("git")
+            .args(["branch", "--show-current"])
+            .output()
+            .await
+        {
+            Ok(output) if output.status.success() => {
+                let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if branch.is_empty() {
+                    None
+                } else {
+                    Some(branch)
+                }
+            }
+            _ => None,
+        };
+
+        let action = Action::Workspace { current_dir, current_branch };
+        tx.send(Ok(action)).await.unwrap();
+        Ok(())
+    }
+
+    async fn execute_empty(&self) -> anyhow::Result<()> {
+        // Empty command doesn't send any action
+        Ok(())
+    }
+
+    async fn execute_exit(&self) -> anyhow::Result<()> {
+        // Exit command doesn't send any action
+        Ok(())
+    }
+
+    async fn execute_and(
+        &self,
+        commands: Vec<Command>,
+        tx: &Sender<anyhow::Result<Action>>,
+    ) -> anyhow::Result<()> {
+        // Execute all commands
+        for cmd in commands {
+            self.execute(cmd, tx.clone()).await;
+        }
+        Ok(())
+    }
+
+    async fn execute_interval(
+        &self,
+        duration: std::time::Duration,
+        tx: &Sender<anyhow::Result<Action>>,
+    ) -> anyhow::Result<()> {
+        let cancellation_token = CancellationToken::new();
+        self.execute_interval_internal(duration, tx.clone(), cancellation_token)
+            .await;
+        Ok(())
+    }
+
+    async fn execute_clear_interval(&self, id: TimerId) -> anyhow::Result<()> {
+        id.cancel();
+        Ok(())
+    }
+
+    /// Execute an interval command that emits IntervalTick actions at regular
+    /// intervals
+    ///
+    /// This function creates a background task that sends IntervalTick actions
+    /// at the specified duration. The task will continue until the sender
+    /// is dropped or the cancellation token is triggered, ensuring no
+    /// memory leaks.
+    ///
+    /// # Arguments
+    /// * `duration` - The interval duration between ticks
+    /// * `tx` - Channel sender for emitting actions
+    /// * `cancellation_token` - Token to cancel the interval
+    /// * `id` - The unique ID assigned to this interval
+    async fn execute_interval_internal(
+        &self,
+        duration: std::time::Duration,
+        tx: Sender<anyhow::Result<Action>>,
+        cancellation_token: CancellationToken,
+    ) {
+        use crate::domain::Timer;
+        use chrono::Utc;
+        use tokio::time::interval;
+
+        let start_time = Utc::now();
+        let id = TimerId::from(cancellation_token.clone());
+
+        // Create a tokio interval timer
+        let mut interval_timer = interval(duration);
+
+        // Skip the first tick which fires immediately
+        interval_timer.tick().await;
+
+        // Spawn a background task to handle the interval
+        loop {
+            tokio::select! {
+                _ = interval_timer.tick() => {
+                    tracing::debug!("Tick...");
+                    let current_time = Utc::now();
+                    let timer = Timer {start_time, current_time, duration, id: id.clone() };
+                    let action = Action::IntervalTick(timer);
+
+                    // Send the action, if the receiver is dropped, break the loop
+                    if tx.send(Ok(action)).await.is_err() {
+                        // Channel closed, exit the loop to prevent memory leaks
+                        break;
+                    }
+                }
+                _ = cancellation_token.cancelled() => {
+                    // Interval was cancelled, exit cleanly
+                    break;
+                }
+            }
+        }
+    }
+
     #[async_recursion::async_recursion]
     async fn execute_inner(
         &self,
@@ -94,76 +222,25 @@ impl<T: API + 'static> Executor<T> {
     ) -> anyhow::Result<()> {
         match cmd {
             Command::ChatMessage(message) => {
-                self.handle_chat(message, &tx).await?;
+                self.execute_chat_message(message, &tx).await?;
             }
             Command::ReadWorkspace => {
-                // Get current directory
-                let current_dir = self
-                    .api
-                    .environment()
-                    .cwd
-                    .file_name()
-                    .map(|name| name.to_string_lossy().to_string());
-
-                // Get current git branch
-                let current_branch = match tokio::process::Command::new("git")
-                    .args(["branch", "--show-current"])
-                    .output()
-                    .await
-                {
-                    Ok(output) if output.status.success() => {
-                        let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                        if branch.is_empty() {
-                            None
-                        } else {
-                            Some(branch)
-                        }
-                    }
-                    _ => None,
-                };
-
-                let action = Action::Workspace { current_dir, current_branch };
-                tx.send(Ok(action)).await.unwrap();
+                self.execute_read_workspace(&tx).await?;
             }
             Command::Empty => {
-                // Empty command doesn't send any action
+                self.execute_empty().await?;
             }
             Command::Exit => {
-                // Exit command doesn't send any action
+                self.execute_exit().await?;
             }
             Command::And(commands) => {
-                // Execute all commands
-                for cmd in commands {
-                    self.execute(cmd, tx.clone()).await;
-                }
+                self.execute_and(commands, &tx).await?;
             }
             Command::Interval { duration } => {
-                let cancellation_token = CancellationToken::new();
-                let id = INTERVAL_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-
-                // Store the cancellation token for this interval
-                self.intervals
-                    .lock()
-                    .await
-                    .insert(id, cancellation_token.clone());
-
-                execute_interval::execute_interval(
-                    duration,
-                    tx.clone(),
-                    cancellation_token.clone(),
-                    id,
-                )
-                .await;
+                self.execute_interval(duration, &tx).await?;
             }
             Command::ClearInterval { id } => {
-                debug!("Cancellation Initiated");
-                // Remove and cancel the interval if it exists
-                if let Some(cancellation_token) = self.intervals.lock().await.remove(&id) {
-                    debug!("Cancellation Lock Acquired");
-                    cancellation_token.cancel();
-                    debug!("Cancellation Completed");
-                }
-                // No action is sent for cancellation
+                self.execute_clear_interval(id).await?;
             }
         }
         Ok(())

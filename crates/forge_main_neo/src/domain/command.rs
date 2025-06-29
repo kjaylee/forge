@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use derive_more::From;
 
+use crate::domain::TimerId;
+
 /// Unified application commands
 #[derive(Default, Clone, From, PartialEq, Eq, Debug)]
 pub enum Command {
@@ -16,7 +18,7 @@ pub enum Command {
         duration: Duration,
     },
     ClearInterval {
-        id: u64,
+        id: TimerId,
     },
 }
 

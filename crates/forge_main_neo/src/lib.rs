@@ -1,6 +1,5 @@
 mod domain;
 mod event_reader;
-mod execute_interval;
 mod executor;
 mod run;
 mod widgets;

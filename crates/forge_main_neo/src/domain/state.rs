@@ -5,6 +5,7 @@ use derive_setters::Setters;
 use edtui::{EditorMode, EditorState, Index2};
 use forge_api::ChatResponse;
 use throbber_widgets_tui::ThrobberState;
+use tokio_util::sync::CancellationToken;
 
 use crate::domain::{Message, Route, Workspace};
 
@@ -35,12 +36,35 @@ impl Default for State {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Timer {
     pub start_time: DateTime<Utc>,
     pub current_time: DateTime<Utc>,
     pub duration: Duration,
-    pub id: u64,
+    pub id: TimerId,
+}
+
+#[derive(Clone, Debug)]
+pub struct TimerId(CancellationToken);
+
+impl TimerId {
+    pub fn cancel(&self) {
+        self.0.cancel()
+    }
+}
+
+impl PartialEq for TimerId {
+    fn eq(&self, _: &Self) -> bool {
+        unreachable!("Method have only been used in test")
+    }
+}
+
+impl Eq for TimerId {}
+
+impl From<CancellationToken> for TimerId {
+    fn from(value: CancellationToken) -> Self {
+        Self(value)
+    }
 }
 
 impl State {
