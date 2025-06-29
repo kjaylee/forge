@@ -7,7 +7,7 @@ use edtui::{EditorEventHandler, EditorMode};
 
 use crate::domain::{Command, State};
 
-pub fn handle_word_navigation(
+fn handle_word_navigation(
     state: &mut State,
     key_event: ratatui::crossterm::event::KeyEvent,
 ) -> Command {
@@ -30,7 +30,7 @@ pub fn handle_word_navigation(
     }
 }
 
-pub fn handle_line_navigation(
+fn handle_line_navigation(
     state: &mut State,
     key_event: ratatui::crossterm::event::KeyEvent,
 ) -> Command {
@@ -53,7 +53,7 @@ pub fn handle_line_navigation(
     }
 }
 
-pub fn handle_exit(_state: &mut State, key_event: ratatui::crossterm::event::KeyEvent) -> Command {
+fn handle_exit(_state: &mut State, key_event: ratatui::crossterm::event::KeyEvent) -> Command {
     use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 
     if key_event.code == KeyCode::Char('d') && key_event.modifiers.contains(KeyModifiers::CONTROL) {
@@ -63,7 +63,7 @@ pub fn handle_exit(_state: &mut State, key_event: ratatui::crossterm::event::Key
     }
 }
 
-pub fn handle_submit(state: &mut State, key_event: ratatui::crossterm::event::KeyEvent) -> Command {
+fn handle_submit(state: &mut State, key_event: ratatui::crossterm::event::KeyEvent) -> Command {
     use ratatui::crossterm::event::KeyCode;
 
     if key_event.code == KeyCode::Enter && state.editor.mode == EditorMode::Normal {
@@ -81,7 +81,7 @@ pub fn handle_submit(state: &mut State, key_event: ratatui::crossterm::event::Ke
     }
 }
 
-pub fn handle_spotlight_show(
+fn handle_spotlight_show(
     state: &mut State,
     key_event: ratatui::crossterm::event::KeyEvent,
 ) -> Command {
@@ -95,7 +95,7 @@ pub fn handle_spotlight_show(
     }
 }
 
-pub fn handle_spotlight_hide(
+fn handle_spotlight_hide(
     state: &mut State,
     key_event: ratatui::crossterm::event::KeyEvent,
 ) -> Command {
@@ -109,7 +109,7 @@ pub fn handle_spotlight_hide(
     }
 }
 
-pub fn handle_editor_default(
+fn handle_editor_default(
     state: &mut State,
     key_event: ratatui::crossterm::event::KeyEvent,
 ) -> Command {
@@ -121,39 +121,13 @@ pub fn handle_key_event(
     state: &mut State,
     key_event: ratatui::crossterm::event::KeyEvent,
 ) -> Command {
-    // Try each handler in order, return early if any handles the event
-    let cmd = handle_word_navigation(state, key_event);
-    if !matches!(cmd, Command::Empty) {
-        return cmd;
-    }
-
-    let cmd = handle_line_navigation(state, key_event);
-    if !matches!(cmd, Command::Empty) {
-        return cmd;
-    }
-
-    let cmd = handle_exit(state, key_event);
-    if !matches!(cmd, Command::Empty) {
-        return cmd;
-    }
-
-    let cmd = handle_submit(state, key_event);
-    if !matches!(cmd, Command::Empty) {
-        return cmd;
-    }
-
-    let cmd = handle_spotlight_show(state, key_event);
-    if !matches!(cmd, Command::Empty) {
-        return cmd;
-    }
-
-    let cmd = handle_spotlight_hide(state, key_event);
-    if !matches!(cmd, Command::Empty) {
-        return cmd;
-    }
-
-    // Always handle editor events last
-    handle_editor_default(state, key_event)
+    handle_exit(state, key_event)
+        .and(handle_line_navigation(state, key_event))
+        .and(handle_word_navigation(state, key_event))
+        .and(handle_submit(state, key_event))
+        .and(handle_spotlight_show(state, key_event))
+        .and(handle_spotlight_hide(state, key_event))
+        .and(handle_editor_default(state, key_event))
 }
 
 #[cfg(test)]

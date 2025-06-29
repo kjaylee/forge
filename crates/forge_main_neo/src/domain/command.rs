@@ -29,7 +29,15 @@ impl Command {
                 commands.push(other);
                 Command::And(commands)
             }
-            _ => Command::And(vec![self, other]),
+            Command::Empty => other,
+
+            _ => {
+                if matches!(other, Command::Empty) {
+                    self
+                } else {
+                    Command::And(vec![self, other])
+                }
+            }
         }
     }
 }
