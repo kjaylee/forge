@@ -1,4 +1,3 @@
-use color_eyre::owo_colors::OwoColorize;
 use edtui::{EditorTheme, EditorView};
 use ratatui::layout::{Constraint, Flex, Layout};
 use ratatui::style::{Color, Style, Stylize};

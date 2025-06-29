@@ -1,8 +1,7 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use derive_setters::Setters;
-use edtui::{EditorMode, EditorState, Index2};
+use edtui::{EditorState, Index2};
 use forge_api::ChatResponse;
 use throbber_widgets_tui::ThrobberState;
 use tokio_util::sync::CancellationToken;

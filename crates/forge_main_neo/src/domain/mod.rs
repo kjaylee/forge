@@ -4,6 +4,7 @@ mod message;
 mod spotlight;
 mod state;
 mod update;
+mod update_key_event;
 mod workspace;
 
 pub use action::*;

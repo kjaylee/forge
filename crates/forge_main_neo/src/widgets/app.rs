@@ -1,4 +1,4 @@
-use ratatui::widgets::{StatefulWidget, Widget};
+use ratatui::widgets::StatefulWidget;
 
 use crate::domain::State;
 use crate::widgets::chat::ChatWidget;
