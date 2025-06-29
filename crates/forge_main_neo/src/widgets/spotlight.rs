@@ -3,7 +3,7 @@ use edtui::{EditorTheme, EditorView};
 use ratatui::layout::{Constraint, Flex, Layout};
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::symbols::{border, line};
-use ratatui::widgets::{self, Block, Borders, Clear, Padding, Paragraph, StatefulWidget, Widget};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, StatefulWidget, Widget};
 
 use crate::domain::State;
 
