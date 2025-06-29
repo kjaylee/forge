@@ -1,6 +1,7 @@
+use edtui::EditorMode;
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Style, Stylize};
-use ratatui::text::Line;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{StatefulWidget, Tabs, Widget};
 
 use crate::domain::{Route, State};
@@ -26,10 +27,31 @@ impl StatefulWidget for App {
         );
         let [tabs_area, content_area] = main_layout.areas(area);
 
-        // Render tabs
+        // Render tabs with conditional underlining of shortcut characters
         let tab_titles: Vec<Line> = Route::all()
             .iter()
-            .map(|route| Line::from(route.display_name()))
+            .map(|route| {
+                if state.editor_state.mode == EditorMode::Normal {
+                    // Create styled spans with underlined shortcut characters
+                    match route {
+                        Route::Chat => Line::from(vec![
+                            Span::styled("C", Style::default().underlined()),
+                            Span::raw("HAT"),
+                        ]),
+                        Route::Settings => Line::from(vec![
+                            Span::styled("S", Style::default().underlined()),
+                            Span::raw("ETTINGS"),
+                        ]),
+                        Route::Help => Line::from(vec![
+                            Span::styled("H", Style::default().underlined()),
+                            Span::raw("ELP"),
+                        ]),
+                    }
+                } else {
+                    // In insert mode, show normal text without underlining
+                    Line::from(route.display_name())
+                }
+            })
             .collect();
 
         let current_tab_index = Route::all()

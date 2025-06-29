@@ -55,7 +55,7 @@ impl TimerId {
 
 impl PartialEq for TimerId {
     fn eq(&self, _: &Self) -> bool {
-        unreachable!("Method have only been used in test")
+        unimplemented!()
     }
 }
 
