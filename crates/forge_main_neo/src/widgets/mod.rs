@@ -1,5 +1,4 @@
 pub mod app;
-pub mod autocomplete;
 mod bordered_panel;
 pub mod chat;
 pub mod help;
@@ -10,4 +9,4 @@ pub mod spinner;
 mod status_bar;
 
 pub use app::App;
-pub use router::Router;
+pub use router::RouterWidget;

@@ -8,11 +8,11 @@ use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Settings widget that handles the settings interface
 #[derive(Clone)]
-pub struct Settings {
+pub struct SettingsWidget {
     // Future settings-specific state can be added here
 }
 
-impl Settings {
+impl SettingsWidget {
     /// Create a new Settings widget
     pub fn new() -> Self {
         Self {
@@ -27,13 +27,13 @@ impl Settings {
     }
 }
 
-impl Default for Settings {
+impl Default for SettingsWidget {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Widget for &Settings {
+impl Widget for &SettingsWidget {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -56,13 +56,13 @@ mod tests {
 
     #[test]
     fn test_settings_creation() {
-        let _fixture = Settings::new();
+        let _fixture = SettingsWidget::new();
         assert!(true); // Settings creation successful if we reach this point
     }
 
     #[test]
     fn test_settings_handle_event() {
-        let mut fixture = Settings::new();
+        let mut fixture = SettingsWidget::new();
 
         let key_event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
         let actual = fixture.update(Event::Key(key_event));

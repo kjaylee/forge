@@ -8,11 +8,11 @@ use crate::widgets::bordered_panel::BorderedPanel;
 
 /// Help widget that handles the help interface
 #[derive(Clone)]
-pub struct Help {
+pub struct HelpWidget {
     // Future help-specific state can be added here
 }
 
-impl Help {
+impl HelpWidget {
     /// Create a new Help widget
     pub fn new() -> Self {
         Self {
@@ -27,13 +27,13 @@ impl Help {
     }
 }
 
-impl Default for Help {
+impl Default for HelpWidget {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Widget for &Help {
+impl Widget for &HelpWidget {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -67,13 +67,13 @@ mod tests {
 
     #[test]
     fn test_help_creation() {
-        let _fixture = Help::new();
+        let _fixture = HelpWidget::new();
         assert!(true); // Help creation successful if we reach this point
     }
 
     #[test]
     fn test_help_handle_event() {
-        let mut fixture = Help::new();
+        let mut fixture = HelpWidget::new();
 
         let key_event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
         let actual = fixture.update(Event::Key(key_event));

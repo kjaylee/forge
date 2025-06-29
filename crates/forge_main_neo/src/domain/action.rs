@@ -15,7 +15,6 @@ pub enum Action {
     ChatResponse {
         message: String,
     },
-    Tagged(TaggedAction),
 }
 
 #[derive(Clone, From, Debug, PartialEq)]
@@ -28,11 +27,5 @@ impl TaggedAction {
         } else {
             Command::Empty
         }
-    }
-}
-
-impl Action {
-    pub fn tag(self, name: &'static str) -> Self {
-        Action::Tagged(TaggedAction(Box::new(self), name))
     }
 }
