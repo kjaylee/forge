@@ -1,13 +1,13 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use edtui::{EditorState, Index2};
+use edtui::EditorState;
 use forge_api::ChatResponse;
 use throbber_widgets_tui::ThrobberState;
 use tokio_util::sync::CancellationToken;
 
 use crate::domain::spotlight::SpotlightState;
-use crate::domain::{Message, Workspace};
+use crate::domain::{EditorStateExt, Message, Workspace};
 
 #[derive(Clone)]
 pub struct State {
@@ -70,18 +70,13 @@ impl From<CancellationToken> for TimerId {
 impl State {
     /// Get editor lines as strings
     pub fn editor_lines(&self) -> Vec<String> {
-        self.editor
-            .lines
-            .iter_row()
-            .map(|row| row.iter().collect::<String>())
-            .collect::<Vec<_>>()
+        self.editor.get_lines()
     }
 
     /// Take lines from editor and clear it
     pub fn take_lines(&mut self) -> Vec<String> {
         let text = self.editor_lines();
-        self.editor.lines.clear();
-        self.editor.cursor = Index2::default();
+        self.editor.clear();
         text
     }
 

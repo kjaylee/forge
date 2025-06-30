@@ -5,17 +5,7 @@ use ratatui::symbols::{border, line};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, StatefulWidget, Widget};
 
-use crate::domain::State;
-
-fn get_spotlight_input_text(editor: &edtui::EditorState) -> String {
-    editor
-        .lines
-        .iter_row()
-        .map(|row| row.iter().collect::<String>())
-        .collect::<Vec<_>>()
-        .join("\n")
-        .to_lowercase()
-}
+use crate::domain::{EditorStateExt, State};
 
 #[derive(Default)]
 pub struct SpotlightWidget;
@@ -66,7 +56,7 @@ impl StatefulWidget for SpotlightWidget {
         input_block.render(input_area, buf);
 
         // Get the current input text for filtering
-        let input_text = get_spotlight_input_text(&state.spotlight.editor);
+        let input_text = state.spotlight.editor.get_text().to_lowercase();
 
         // Filter commands that start with the input text
         let filtered_commands: Vec<&(String, String)> = state

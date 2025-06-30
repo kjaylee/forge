@@ -7,22 +7,12 @@ use edtui::{EditorEventHandler, EditorMode};
 use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::domain::spotlight::SpotlightState;
-use crate::domain::{Command, State};
-
-fn get_spotlight_input_text(editor: &edtui::EditorState) -> String {
-    editor
-        .lines
-        .iter_row()
-        .map(|row| row.iter().collect::<String>())
-        .collect::<Vec<_>>()
-        .join("\n")
-        .to_lowercase()
-}
+use crate::domain::{Command, EditorStateExt, State};
 
 fn handle_spotlight_input_change(state: &mut State) {
     // Reset selection index when input changes to ensure it's within bounds
     // of the filtered results
-    let input_text = get_spotlight_input_text(&state.spotlight.editor);
+    let input_text = state.spotlight.editor.get_text().to_lowercase();
     let filtered_count = state
         .spotlight
         .commands
@@ -46,7 +36,7 @@ fn handle_spotlight_navigation(
         return false;
     }
 
-    let input_text = get_spotlight_input_text(&state.spotlight.editor);
+    let input_text = state.spotlight.editor.get_text().to_lowercase();
 
     // Filter commands that start with the input text
     let filtered_commands: Vec<&(String, String)> = state
@@ -76,12 +66,10 @@ fn handle_spotlight_navigation(
             if !filtered_commands.is_empty() {
                 let first_match = &filtered_commands[0].0;
                 // Clear current input and set to the first match
-                state.spotlight.editor =
-                    edtui::EditorState::new(edtui::Lines::from(first_match.clone()));
-                state.spotlight.editor.mode = edtui::EditorMode::Insert;
-                // Move cursor to end of the completed text
-                let line_len = first_match.len();
-                state.spotlight.editor.cursor = edtui::Index2::new(0, line_len);
+                state
+                    .spotlight
+                    .editor
+                    .set_text_insert_mode(first_match.clone());
                 state.spotlight.selected_index = 0;
             }
             true
@@ -250,7 +238,7 @@ pub fn handle_key_event(
 
 #[cfg(test)]
 mod tests {
-    use edtui::{EditorState, Index2, Lines};
+    use edtui::Index2;
     use pretty_assertions::assert_eq;
     use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -260,8 +248,9 @@ mod tests {
     fn create_test_state_with_text() -> State {
         let mut state = State::default();
         // Set up some text content for testing cursor movement
-        state.editor =
-            EditorState::new(Lines::from("hello world this is a test\nsecond line here"));
+        state.editor.set_text_with_cursor_at_end(
+            "hello world this is a test\nsecond line here".to_string(),
+        );
         // Position cursor in the middle of the first word for testing
         state.editor.cursor = Index2::new(0, 6); // After "hello "
         // Ensure spotlight is not visible for main editor tests
@@ -404,7 +393,10 @@ mod tests {
         let mut state = create_test_state_with_text();
         state.spotlight.is_visible = true;
         // Set up some text in spotlight editor
-        state.spotlight.editor = EditorState::new(Lines::from("hello world test"));
+        state
+            .spotlight
+            .editor
+            .set_text_with_cursor_at_end("hello world test".to_string());
         state.spotlight.editor.cursor = Index2::new(0, 6); // After "hello "
         let initial_cursor = state.spotlight.editor.cursor;
         let key_event = KeyEvent::new(KeyCode::Char('f'), KeyModifiers::ALT);
