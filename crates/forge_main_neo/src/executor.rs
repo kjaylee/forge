@@ -43,7 +43,7 @@ impl<T: API + 'static> Executor<T> {
                 .ok_or_else(|| anyhow::anyhow!("Conversation not found: {}", conv_id))?
         } else {
             // Initialize a default workflow for conversation creation
-            let workflow =  self.api.read_merged(None).await?;
+            let workflow = self.api.read_merged(None).await?;
 
             // Initialize new conversation
             let new_conversation = self.api.init_conversation(workflow).await?;
