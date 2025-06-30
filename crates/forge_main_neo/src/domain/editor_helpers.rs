@@ -16,9 +16,6 @@ pub trait EditorStateExt {
 
     /// Clear the editor content and reset cursor
     fn clear(&mut self);
-
-    /// Check if the editor is empty
-    fn is_empty(&self) -> bool;
 }
 
 impl EditorStateExt for EditorState {
@@ -57,10 +54,6 @@ impl EditorStateExt for EditorState {
     fn clear(&mut self) {
         self.lines.clear();
         self.cursor = Index2::default();
-    }
-
-    fn is_empty(&self) -> bool {
-        self.get_text().trim().is_empty()
     }
 }
 
@@ -132,17 +125,6 @@ mod tests {
 
         assert_eq!(actual_text, expected_text);
         assert_eq!(actual_cursor, expected_cursor);
-    }
-
-    #[test]
-    fn test_is_empty() {
-        let fixture_empty = EditorState::default();
-        let fixture_whitespace = EditorState::new(Lines::from("   \n  \t  "));
-        let fixture_content = EditorState::new(Lines::from("hello"));
-
-        assert!(fixture_empty.is_empty());
-        assert!(fixture_whitespace.is_empty());
-        assert!(!fixture_content.is_empty());
     }
 
     #[test]
