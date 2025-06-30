@@ -9,6 +9,87 @@ use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 use crate::domain::spotlight::SpotlightState;
 use crate::domain::{Command, State};
 
+fn get_spotlight_input_text(editor: &edtui::EditorState) -> String {
+    editor
+        .lines
+        .iter_row()
+        .map(|row| row.iter().collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n")
+        .to_lowercase()
+}
+
+fn handle_spotlight_input_change(state: &mut State) {
+    // Reset selection index when input changes to ensure it's within bounds
+    // of the filtered results
+    let input_text = get_spotlight_input_text(&state.spotlight.editor);
+    let filtered_count = state
+        .spotlight
+        .commands
+        .iter()
+        .filter(|(name, _)| name.to_lowercase().starts_with(&input_text))
+        .count();
+
+    // Reset selection to 0 if current selection is out of bounds
+    if state.spotlight.selected_index >= filtered_count {
+        state.spotlight.selected_index = 0;
+    }
+}
+
+fn handle_spotlight_navigation(
+    state: &mut State,
+    key_event: ratatui::crossterm::event::KeyEvent,
+) -> bool {
+    use ratatui::crossterm::event::KeyCode;
+
+    if !state.spotlight.is_visible {
+        return false;
+    }
+
+    let input_text = get_spotlight_input_text(&state.spotlight.editor);
+
+    // Filter commands that start with the input text
+    let filtered_commands: Vec<&(String, String)> = state
+        .spotlight
+        .commands
+        .iter()
+        .filter(|(name, _)| name.to_lowercase().starts_with(&input_text))
+        .collect();
+
+    match key_event.code {
+        KeyCode::Up => {
+            if state.spotlight.selected_index > 0 {
+                state.spotlight.selected_index -= 1;
+            }
+            true
+        }
+        KeyCode::Down => {
+            // Use filtered commands count for navigation
+            let max_commands = filtered_commands.len();
+            if max_commands > 0 && state.spotlight.selected_index < max_commands - 1 {
+                state.spotlight.selected_index += 1;
+            }
+            true
+        }
+        KeyCode::Tab => {
+            // Auto-complete with the first matching command
+            if !filtered_commands.is_empty() {
+                let first_match = &filtered_commands[0].0;
+                // Clear current input and set to the first match
+                state.spotlight.editor =
+                    edtui::EditorState::new(edtui::Lines::from(first_match.clone()));
+                state.spotlight.editor.mode = edtui::EditorMode::Insert;
+                // Move cursor to end of the completed text
+                let line_len = first_match.len();
+                state.spotlight.editor.cursor = edtui::Index2::new(0, line_len);
+                state.spotlight.selected_index = 0;
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
 fn handle_word_navigation(
     editor: &mut edtui::EditorState,
     key_event: ratatui::crossterm::event::KeyEvent,
@@ -125,22 +206,31 @@ pub fn handle_key_event(
         // When spotlight is visible, route events to spotlight editor
         let cmd = handle_spotlight_hide(state, key_event);
 
-        // Check if navigation was handled first
-        let line_nav_handled = handle_line_navigation(&mut state.spotlight.editor, key_event);
-        let word_nav_handled = handle_word_navigation(&mut state.spotlight.editor, key_event);
+        // Check spotlight navigation first
+        let spotlight_nav_handled = handle_spotlight_navigation(state, key_event);
 
-        // Only call editor default if no navigation was handled
-        let result_cmd = if !line_nav_handled && !word_nav_handled {
-            let editor_cmd = handle_editor_default(&mut state.spotlight.editor, key_event);
-            cmd.and(editor_cmd)
+        if !spotlight_nav_handled {
+            // Check if navigation was handled
+            let line_nav_handled = handle_line_navigation(&mut state.spotlight.editor, key_event);
+            let word_nav_handled = handle_word_navigation(&mut state.spotlight.editor, key_event);
+
+            // Only call editor default if no navigation was handled
+            let result_cmd = if !line_nav_handled && !word_nav_handled {
+                let editor_cmd = handle_editor_default(&mut state.spotlight.editor, key_event);
+                // Reset selection index when input changes
+                handle_spotlight_input_change(state);
+                cmd.and(editor_cmd)
+            } else {
+                cmd
+            };
+
+            // Always keep spotlight in "insert" mode
+            state.spotlight.editor.mode = EditorMode::Insert;
+
+            result_cmd
         } else {
             cmd
-        };
-
-        // Always keep spotlight in "insert" mode
-        state.spotlight.editor.mode = EditorMode::Insert;
-
-        result_cmd
+        }
     } else {
         // When spotlight is not visible, route events to main editor
         // Check if navigation was handled first
@@ -361,5 +451,69 @@ mod tests {
         assert!(state.editor.cursor.col > 6); // Started at position 6
         // Spotlight should remain hidden (spotlight_show was not called)
         assert!(!state.spotlight.is_visible);
+    }
+
+    #[test]
+    fn test_spotlight_navigation_up_down() {
+        let mut state = create_test_state_with_text();
+        state.spotlight.is_visible = true;
+        state.spotlight.selected_index = 2;
+
+        // Test down navigation
+        let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert_eq!(state.spotlight.selected_index, 3);
+
+        // Test up navigation
+        let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert_eq!(state.spotlight.selected_index, 2);
+    }
+
+    #[test]
+    fn test_spotlight_navigation_boundaries() {
+        let mut state = create_test_state_with_text();
+        state.spotlight.is_visible = true;
+        state.spotlight.selected_index = 0;
+
+        // Test up navigation at top boundary
+        let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert_eq!(state.spotlight.selected_index, 0); // Should stay at 0
+
+        // Move to bottom
+        state.spotlight.selected_index = 5; // Max index for 6 commands
+
+        // Test down navigation at bottom boundary
+        let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert_eq!(state.spotlight.selected_index, 5); // Should stay at 5
+    }
+
+    #[test]
+    fn test_spotlight_navigation_when_not_visible() {
+        let mut state = create_test_state_with_text();
+        state.spotlight.is_visible = false;
+        state.spotlight.selected_index = 2;
+
+        // Test that navigation doesn't work when spotlight is not visible
+        let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert_eq!(state.spotlight.selected_index, 2); // Should not change
     }
 }

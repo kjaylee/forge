@@ -2,12 +2,25 @@ use edtui::{EditorTheme, EditorView};
 use ratatui::layout::{Constraint, Flex, Layout};
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::symbols::{border, line};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, StatefulWidget, Widget};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, StatefulWidget, Widget};
 
 use crate::domain::State;
 
+fn get_spotlight_input_text(editor: &edtui::EditorState) -> String {
+    editor
+        .lines
+        .iter_row()
+        .map(|row| row.iter().collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n")
+        .to_lowercase()
+}
+
 #[derive(Default)]
 pub struct SpotlightWidget;
+
+impl SpotlightWidget {}
 
 impl StatefulWidget for SpotlightWidget {
     type State = State;
@@ -28,7 +41,7 @@ impl StatefulWidget for SpotlightWidget {
 
         Clear.render(area, buf);
 
-        let [input_area, suggestion_area] =
+        let [input_area, content_area] =
             Layout::vertical([Constraint::Length(3), Constraint::Fill(0)]).areas(area);
 
         let input_block = Block::bordered()
@@ -52,12 +65,54 @@ impl StatefulWidget for SpotlightWidget {
 
         input_block.render(input_area, buf);
 
-        let content_block = Block::bordered()
-            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
-            .title_style(Style::default().bold())
-            .border_style(Style::default().fg(Color::Blue));
-        let content = Paragraph::new("[Coming Soon]").block(content_block);
+        // Get the current input text for filtering
+        let input_text = get_spotlight_input_text(&state.spotlight.editor);
 
-        content.render(suggestion_area, buf);
+        // Filter commands that start with the input text
+        let filtered_commands: Vec<&(String, String)> = state
+            .spotlight
+            .commands
+            .iter()
+            .filter(|(name, _)| name.to_lowercase().starts_with(&input_text))
+            .collect();
+
+        // Calculate the maximum width of filtered command names for consistent
+        // alignment
+        let max_name_width = filtered_commands
+            .iter()
+            .map(|(name, _)| name.len())
+            .max()
+            .unwrap_or(0);
+
+        // Create list items with padded command names for aligned descriptions
+        let items: Vec<ListItem> = filtered_commands
+            .iter()
+            .enumerate()
+            .map(|(i, (name, desc))| {
+                let style = if i == state.spotlight.selected_index {
+                    Style::default().bg(Color::White).fg(Color::Black)
+                } else {
+                    Style::default()
+                };
+
+                // Pad the name to the maximum width and add a separator
+                let padded_name = format!("{name:<max_name_width$} ");
+
+                let line = Line::from(vec![
+                    Span::styled(padded_name, Style::default().bold().fg(Color::Cyan)),
+                    Span::styled(desc, Style::default().fg(Color::Green)),
+                ]);
+
+                ListItem::new(line).style(style)
+            })
+            .collect();
+
+        let commands_list = List::new(items).block(
+            Block::bordered()
+                .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
+                .border_style(Style::default().fg(Color::Blue)),
+        );
+
+        Widget::render(commands_list, content_area, buf);
     }
 }
