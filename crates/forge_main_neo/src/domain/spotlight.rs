@@ -1,40 +1,44 @@
 use edtui::{EditorMode, EditorState};
+use strum::IntoEnumIterator;
+
+use crate::domain::editor_helpers::EditorStateExt;
+use crate::domain::slash_command::SlashCommand;
 
 #[derive(Clone)]
 pub struct SpotlightState {
     pub is_visible: bool,
     pub editor: EditorState,
     pub selected_index: usize,
-    pub commands: Vec<(String, String)>,
 }
 
 impl Default for SpotlightState {
     fn default() -> Self {
         let mut editor = EditorState::default();
         editor.mode = EditorMode::Insert;
-        let commands = vec![
-            ("exit".to_string(), "Exit the application".to_string()),
-            (
-                "workspace".to_string(),
-                "Read and analyze the current workspace".to_string(),
-            ),
-            (
-                "chat".to_string(),
-                "Send a message to the AI assistant".to_string(),
-            ),
-            (
-                "clear".to_string(),
-                "Clear a running timer interval".to_string(),
-            ),
-            (
-                "model".to_string(),
-                "Select an AI model for the spotlight".to_string(),
-            ),
-            (
-                "agent".to_string(),
-                "Select an AI agent for the spotlight".to_string(),
-            ),
-        ];
-        Self { is_visible: false, editor, selected_index: 0, commands }
+
+        Self { is_visible: false, editor, selected_index: 0 }
+    }
+}
+
+impl SpotlightState {
+    /// Get the currently selected command as a SlashCommand enum
+    pub fn selected_command(&self) -> Option<SlashCommand> {
+        let input_text = self.editor.get_text().to_lowercase();
+
+        // Filter commands that start with the input text
+        let filtered_commands: Vec<SlashCommand> = SlashCommand::iter()
+            .filter(|cmd| cmd.to_string().to_lowercase().starts_with(&input_text))
+            .collect();
+
+        filtered_commands.get(self.selected_index).cloned()
+    }
+
+    /// Get all commands that match the current input filter
+    pub fn filtered_commands(&self) -> Vec<SlashCommand> {
+        let input_text = self.editor.get_text().to_lowercase();
+
+        SlashCommand::iter()
+            .filter(|cmd| cmd.to_string().to_lowercase().starts_with(&input_text))
+            .collect()
     }
 }

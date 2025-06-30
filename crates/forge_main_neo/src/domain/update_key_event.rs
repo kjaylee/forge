@@ -12,13 +12,7 @@ use crate::domain::{Command, EditorStateExt, State};
 fn handle_spotlight_input_change(state: &mut State) {
     // Reset selection index when input changes to ensure it's within bounds
     // of the filtered results
-    let input_text = state.spotlight.editor.get_text().to_lowercase();
-    let filtered_count = state
-        .spotlight
-        .commands
-        .iter()
-        .filter(|(name, _)| name.to_lowercase().starts_with(&input_text))
-        .count();
+    let filtered_count = state.spotlight.filtered_commands().len();
 
     // Reset selection to 0 if current selection is out of bounds
     if state.spotlight.selected_index >= filtered_count {
@@ -29,29 +23,21 @@ fn handle_spotlight_input_change(state: &mut State) {
 fn handle_spotlight_navigation(
     state: &mut State,
     key_event: ratatui::crossterm::event::KeyEvent,
-) -> bool {
+) -> Option<Command> {
     use ratatui::crossterm::event::KeyCode;
 
     if !state.spotlight.is_visible {
-        return false;
+        return None;
     }
 
-    let input_text = state.spotlight.editor.get_text().to_lowercase();
-
-    // Filter commands that start with the input text
-    let filtered_commands: Vec<&(String, String)> = state
-        .spotlight
-        .commands
-        .iter()
-        .filter(|(name, _)| name.to_lowercase().starts_with(&input_text))
-        .collect();
+    let filtered_commands = state.spotlight.filtered_commands();
 
     match key_event.code {
         KeyCode::Up => {
             if state.spotlight.selected_index > 0 {
                 state.spotlight.selected_index -= 1;
             }
-            true
+            Some(Command::Empty)
         }
         KeyCode::Down => {
             // Use filtered commands count for navigation
@@ -59,22 +45,45 @@ fn handle_spotlight_navigation(
             if max_commands > 0 && state.spotlight.selected_index < max_commands - 1 {
                 state.spotlight.selected_index += 1;
             }
-            true
+            Some(Command::Empty)
         }
         KeyCode::Tab => {
             // Auto-complete with the first matching command
             if !filtered_commands.is_empty() {
-                let first_match = &filtered_commands[0].0;
+                let first_match = filtered_commands[0].to_string();
                 // Clear current input and set to the first match
-                state
-                    .spotlight
-                    .editor
-                    .set_text_insert_mode(first_match.clone());
+                state.spotlight.editor.set_text_insert_mode(first_match);
                 state.spotlight.selected_index = 0;
             }
-            true
+            Some(Command::Empty)
         }
-        _ => false,
+        KeyCode::Enter => {
+            // Execute the selected command
+            if let Some(selected_cmd) = state.spotlight.selected_command() {
+                // Convert SlashCommand to appropriate Command
+                let command = match selected_cmd {
+                    crate::domain::slash_command::SlashCommand::Exit => Command::Exit,
+                    crate::domain::slash_command::SlashCommand::Agent => {
+                        // For now, just hide spotlight - proper agent selection would need more UI
+                        Command::Empty
+                    }
+                    crate::domain::slash_command::SlashCommand::Model => {
+                        // For now, just hide spotlight - proper model selection would need more UI
+                        Command::Empty
+                    }
+                    _ => {
+                        // For other commands, just hide spotlight for now
+                        Command::Empty
+                    }
+                };
+
+                // Hide spotlight and return the command
+                state.spotlight = SpotlightState::default();
+                return Some(command);
+            }
+            Some(Command::Empty)
+        }
+        _ => None,
     }
 }
 
@@ -163,14 +172,21 @@ fn handle_spotlight_show(
     }
 }
 
-fn handle_spotlight_hide(
+fn handle_spotlight_toggle(
     state: &mut State,
     key_event: ratatui::crossterm::event::KeyEvent,
+    original_editor_mode: EditorMode,
 ) -> Command {
     use ratatui::crossterm::event::KeyCode;
 
     if key_event.code == KeyCode::Esc {
-        state.spotlight = SpotlightState::default();
+        if !state.spotlight.is_visible && original_editor_mode == EditorMode::Normal {
+            // Open spotlight when it's closed and editor was originally in normal mode
+            state.spotlight.is_visible = true;
+        } else {
+            // Hide spotlight in all other cases
+            state.spotlight = SpotlightState::default();
+        }
         Command::Empty
     } else {
         Command::Empty
@@ -196,12 +212,12 @@ pub fn handle_key_event(
 
     if state.spotlight.is_visible {
         // When spotlight is visible, route events to spotlight editor
-        let cmd = handle_spotlight_hide(state, key_event);
+        let cmd = handle_spotlight_toggle(state, key_event, state.editor.mode);
 
         // Check spotlight navigation first
-        let spotlight_nav_handled = handle_spotlight_navigation(state, key_event);
+        let spotlight_nav_cmd = handle_spotlight_navigation(state, key_event);
 
-        if !spotlight_nav_handled {
+        if spotlight_nav_cmd.is_none() {
             // Check if navigation was handled
             let line_nav_handled = handle_line_navigation(&mut state.spotlight.editor, key_event);
             let word_nav_handled = handle_word_navigation(&mut state.spotlight.editor, key_event);
@@ -218,13 +234,16 @@ pub fn handle_key_event(
 
             // Always keep spotlight in "insert" mode
             state.spotlight.editor.mode = EditorMode::Insert;
-
             result_cmd
         } else {
-            cmd
+            // Spotlight navigation handled, return the command from navigation
+            cmd.and(spotlight_nav_cmd.unwrap_or(Command::Empty))
         }
     } else {
         // When spotlight is not visible, route events to main editor
+        // Capture original editor mode before any modifications
+        let original_editor_mode = state.editor.mode;
+        
         // Check if navigation was handled first
         let line_nav_handled = handle_line_navigation(&mut state.editor, key_event);
         let word_nav_handled = handle_word_navigation(&mut state.editor, key_event);
@@ -233,6 +252,7 @@ pub fn handle_key_event(
         if !line_nav_handled && !word_nav_handled {
             handle_editor_default(&mut state.editor, key_event)
                 .and(handle_spotlight_show(state, key_event))
+                .and(handle_spotlight_toggle(state, key_event, original_editor_mode))
                 .and(handle_prompt_submit(state, key_event))
         } else {
             Command::Empty
@@ -248,6 +268,7 @@ mod tests {
 
     use super::*;
     use crate::domain::State;
+    use crate::domain::slash_command::SlashCommand;
 
     fn create_test_state_with_text() -> State {
         let mut state = State::default();
@@ -368,9 +389,37 @@ mod tests {
     }
 
     #[test]
-    fn test_escape_hides_spotlight_regardless_of_visibility() {
+    fn test_escape_opens_spotlight_when_closed_and_in_normal_mode() {
+        let mut state = create_test_state_with_text();
+        state.spotlight.is_visible = false;
+        state.editor.mode = EditorMode::Normal;
+        let key_event = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
+
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert!(state.spotlight.is_visible);
+    }
+
+    #[test]
+    fn test_escape_hides_spotlight_when_visible() {
         let mut state = create_test_state_with_text();
         state.spotlight.is_visible = true;
+        let key_event = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
+
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert!(!state.spotlight.is_visible);
+    }
+
+    #[test]
+    fn test_escape_does_not_open_spotlight_when_editor_in_insert_mode() {
+        let mut state = create_test_state_with_text();
+        state.spotlight.is_visible = false;
+        state.editor.mode = EditorMode::Insert;
         let key_event = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
 
         let actual_command = handle_key_event(&mut state, key_event);
@@ -487,7 +536,7 @@ mod tests {
         assert_eq!(state.spotlight.selected_index, 0); // Should stay at 0
 
         // Move to bottom
-        state.spotlight.selected_index = 5; // Max index for 6 commands
+        state.spotlight.selected_index = 14; // Max index for 15 commands
 
         // Test down navigation at bottom boundary
         let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
@@ -495,7 +544,7 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        assert_eq!(state.spotlight.selected_index, 5); // Should stay at 5
+        assert_eq!(state.spotlight.selected_index, 14); // Should stay at 14
     }
 
     #[test]
@@ -511,5 +560,50 @@ mod tests {
 
         assert_eq!(actual_command, expected_command);
         assert_eq!(state.spotlight.selected_index, 2); // Should not change
+    }
+
+    #[test]
+    fn test_spotlight_shows_slash_commands() {
+        let mut state = State::default();
+        state.spotlight.is_visible = true;
+
+        // Test that spotlight shows all slash commands
+        let filtered_commands = state.spotlight.filtered_commands();
+        assert_eq!(filtered_commands.len(), 15); // All 15 slash commands
+
+        // Test that filtering works
+        state
+            .spotlight
+            .editor
+            .set_text_insert_mode("ex".to_string());
+        let filtered_commands = state.spotlight.filtered_commands();
+        assert_eq!(filtered_commands.len(), 1); // Only "exit" command
+        assert_eq!(filtered_commands[0], SlashCommand::Exit);
+
+        // Test selected command
+        let selected = state.spotlight.selected_command();
+        assert_eq!(selected, Some(SlashCommand::Exit));
+    }
+
+    #[test]
+    fn test_spotlight_command_execution() {
+        let mut state = State::default();
+        state.spotlight.is_visible = true;
+
+        // Set up to select the exit command
+        state
+            .spotlight
+            .editor
+            .set_text_insert_mode("exit".to_string());
+        state.spotlight.selected_index = 0;
+
+        // Test Enter key executes the command
+        let key_event = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Exit;
+
+        assert_eq!(actual_command, expected_command);
+        // Spotlight should be hidden after command execution
+        assert!(!state.spotlight.is_visible);
     }
 }

@@ -1378,6 +1378,8 @@ dependencies = [
  "pretty_assertions",
  "ratatui",
  "serde_json",
+ "strum 0.27.1",
+ "strum_macros 0.27.1",
  "throbber-widgets-tui",
  "tokio",
  "tokio-stream",

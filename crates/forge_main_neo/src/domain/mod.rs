@@ -2,6 +2,7 @@ mod action;
 mod command;
 mod editor_helpers;
 mod message;
+mod slash_command;
 mod spotlight;
 mod state;
 mod update;

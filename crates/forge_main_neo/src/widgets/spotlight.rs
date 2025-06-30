@@ -5,7 +5,7 @@ use ratatui::symbols::{border, line};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, StatefulWidget, Widget};
 
-use crate::domain::{EditorStateExt, State};
+use crate::domain::State;
 
 #[derive(Default)]
 pub struct SpotlightWidget;
@@ -56,21 +56,13 @@ impl StatefulWidget for SpotlightWidget {
         input_block.render(input_area, buf);
 
         // Get the current input text for filtering
-        let input_text = state.spotlight.editor.get_text().to_lowercase();
-
-        // Filter commands that start with the input text
-        let filtered_commands: Vec<&(String, String)> = state
-            .spotlight
-            .commands
-            .iter()
-            .filter(|(name, _)| name.to_lowercase().starts_with(&input_text))
-            .collect();
+        let filtered_commands = state.spotlight.filtered_commands();
 
         // Calculate the maximum width of filtered command names for consistent
         // alignment
         let max_name_width = filtered_commands
             .iter()
-            .map(|(name, _)| name.len())
+            .map(|cmd| cmd.to_string().len())
             .max()
             .unwrap_or(0);
 
@@ -78,12 +70,15 @@ impl StatefulWidget for SpotlightWidget {
         let items: Vec<ListItem> = filtered_commands
             .iter()
             .enumerate()
-            .map(|(i, (name, desc))| {
+            .map(|(i, cmd)| {
                 let style = if i == state.spotlight.selected_index {
                     Style::default().bg(Color::White).fg(Color::Black)
                 } else {
                     Style::default()
                 };
+
+                let name = cmd.to_string();
+                let desc = cmd.description();
 
                 // Pad the name to the maximum width and add a separator
                 let padded_name = format!("{name:<max_name_width$} ");
