@@ -89,6 +89,9 @@ fn apply_replacement(
                 &haystack[patch.start..]
             )),
 
+            // Replace all occurrences of the matched text with new content
+            PatchOperation::ReplaceAll => Ok(haystack.replace(needle.as_str(), content)),
+
             // Append content after the matched text
             PatchOperation::Append => Ok(format!(
                 "{}{}{}",
@@ -155,7 +158,7 @@ fn apply_replacement(
             // Prepend to the beginning of the file
             PatchOperation::Prepend => Ok(format!("{content}{haystack}")),
             // Replace is equivalent to completely replacing the file
-            PatchOperation::Replace => Ok(content.to_string()),
+            PatchOperation::Replace | PatchOperation::ReplaceAll => Ok(content.to_string()),
             // Swap doesn't make sense with empty search - keep source unchanged
             PatchOperation::Swap => Ok(haystack),
         }
