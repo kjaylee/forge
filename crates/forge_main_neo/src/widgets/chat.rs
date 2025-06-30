@@ -1,8 +1,7 @@
 use edtui::{EditorTheme, EditorView};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style, Stylize};
-use ratatui::symbols::{border, line};
-use ratatui::widgets::{Block, Borders, Padding, StatefulWidget, Widget};
+use ratatui::widgets::{Block, Padding, StatefulWidget, Widget};
 
 use crate::domain::State;
 use crate::widgets::message_list::MessageList;
@@ -31,15 +30,7 @@ impl StatefulWidget for ChatWidget {
         let [messages_area, user_area] = chat_layout.areas(area);
 
         // Messages area block (now at top)
-        let message_block = Block::bordered()
-            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT)
-            .border_set(border::Set {
-                bottom_right: line::VERTICAL_LEFT,
-                bottom_left: line::VERTICAL_RIGHT,
-                ..border::PLAIN
-            })
-            .border_style(Style::default().dark_gray())
-            .title_style(Style::default().dark_gray());
+        let message_block = Block::new();
 
         // Render message list
         MessageList.render(message_block.inner(messages_area), buf, state);
@@ -51,13 +42,6 @@ impl StatefulWidget for ChatWidget {
         // User input area block with status bar (now at bottom)
         let user_block = Block::bordered()
             .padding(Padding::new(0, 0, 0, 1))
-            .border_set(border::Set {
-                top_left: line::VERTICAL_RIGHT,
-                top_right: line::VERTICAL_LEFT,
-                ..border::PLAIN
-            })
-            // .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
-            .title_style(Style::default().dark_gray())
             .border_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(
                 "FORGE",
