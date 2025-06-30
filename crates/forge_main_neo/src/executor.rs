@@ -242,6 +242,7 @@ impl<T: API + 'static> Executor<T> {
             Command::ClearInterval { id } => {
                 self.execute_clear_interval(id).await?;
             }
+            Command::Spotlight(_) => todo!(),
         }
         Ok(())
     }

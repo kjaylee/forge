@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use derive_more::From;
+use forge_api::{AgentId, ModelId};
 
 use crate::domain::TimerId;
 
@@ -14,12 +15,19 @@ pub enum Command {
     Exit,
     And(Vec<Command>),
     ChatMessage(String),
+    Spotlight(SpotlightCommand),
     Interval {
         duration: Duration,
     },
     ClearInterval {
         id: TimerId,
     },
+}
+
+#[derive(Clone, From, PartialEq, Eq, Debug)]
+pub enum SpotlightCommand {
+    Model(ModelId),
+    Agent(AgentId),
 }
 
 impl Command {

@@ -10,6 +10,6 @@ impl Default for SpotlightState {
     fn default() -> Self {
         let mut editor = EditorState::default();
         editor.mode = EditorMode::Insert;
-        Self { is_visible: true, editor }
+        Self { is_visible: false, editor }
     }
 }

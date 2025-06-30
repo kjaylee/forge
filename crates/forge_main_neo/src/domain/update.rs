@@ -1,3 +1,4 @@
+use edtui::EditorEventHandler;
 use forge_api::ChatResponse;
 
 use crate::domain::update_key_event::handle_key_event;
@@ -17,7 +18,10 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             ratatui::crossterm::event::Event::FocusGained => Command::Empty,
             ratatui::crossterm::event::Event::FocusLost => Command::Empty,
             ratatui::crossterm::event::Event::Key(key_event) => handle_key_event(state, key_event),
-            ratatui::crossterm::event::Event::Mouse(_) => Command::Empty,
+            ratatui::crossterm::event::Event::Mouse(event) => {
+                EditorEventHandler::default().on_mouse_event(event, &mut state.editor);
+                Command::Empty
+            }
             ratatui::crossterm::event::Event::Paste(_) => Command::Empty,
             ratatui::crossterm::event::Event::Resize(_, _) => Command::Empty,
         },
