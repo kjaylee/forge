@@ -16,4 +16,8 @@ pub enum ChatResponse {
     ToolCallStart(ToolCallFull),
     ToolCallEnd(ToolResult),
     Usage(Usage),
+    Retry {
+        error: String,
+        delay_ms: u64,
+    },
 }

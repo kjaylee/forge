@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_recursion::async_recursion;
 use derive_setters::Setters;
@@ -10,6 +11,16 @@ use tracing::{debug, info, warn};
 
 use crate::agent::AgentService;
 use crate::compact::Compactor;
+
+fn format_error_chain(error: &anyhow::Error) -> String {
+    let mut result = error.to_string();
+    let mut current = error.source();
+    while let Some(cause) = current {
+        result.push_str(&format!("\nCaused by: {cause}"));
+        current = cause.source();
+    }
+    result
+}
 
 pub type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<ChatResponse>>>;
 
@@ -331,9 +342,20 @@ impl<S: AgentService> Orchestrator<S> {
             self.services.update(self.conversation.clone()).await?;
 
             let ChatCompletionMessageFull { tool_calls, content, mut usage } =
-                crate::retry::retry_with_config(&self.environment.retry_config, || {
-                    self.execute_chat_turn(&model_id, context.clone(), is_tool_supported)
-                })
+                crate::retry::retry_with_config(
+                    &self.environment.retry_config,
+                    || self.execute_chat_turn(&model_id, context.clone(), is_tool_supported),
+                    self.sender.as_ref().map(|sender| {
+                        let sender = sender.clone();
+                        move |_error: &anyhow::Error, _duration: Duration| {
+                            let retry_event = ChatResponse::Retry {
+                                error: format_error_chain(_error),
+                                delay_ms: _duration.as_millis() as u64,
+                            };
+                            let _ = sender.try_send(Ok(retry_event));
+                        }
+                    }),
+                )
                 .await?;
 
             // Set estimated tokens
