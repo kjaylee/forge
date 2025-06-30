@@ -452,4 +452,52 @@ mod tests {
         let result = super::apply_replacement(source.to_string(), search, &operation, content);
         assert_eq!(result.unwrap(), "héllo univérse 🌍");
     }
+
+    #[test]
+    fn test_apply_replacement_replace_all_multiple_occurrences() {
+        let source = "test test test";
+        let search = Some("test".to_string());
+        let operation = PatchOperation::ReplaceAll;
+        let content = "replaced";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "replaced replaced replaced");
+    }
+
+    #[test]
+    fn test_apply_replacement_replace_all_no_search() {
+        let source = "hello world";
+        let search = None;
+        let operation = PatchOperation::ReplaceAll;
+        let content = "new content";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "new content");
+    }
+
+    #[test]
+    fn test_apply_replacement_replace_all_empty_search() {
+        let source = "hello world";
+        let search = Some("".to_string());
+        let operation = PatchOperation::ReplaceAll;
+        let content = "new content";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "new content");
+    }
+
+    #[test]
+    fn test_apply_replacement_replace_all_no_match() {
+        let source = "hello world";
+        let search = Some("missing".to_string());
+        let operation = PatchOperation::ReplaceAll;
+        let content = "replacement";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find match for search text: missing"));
+    }
 }
