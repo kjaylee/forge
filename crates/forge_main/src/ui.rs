@@ -695,8 +695,11 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
             }
             ChatResponse::RetryableError { error, duration } => {
                 self.writeln(
-                    TitleFormat::error(format!("🔄 Retry in {:.2} seconds\n", duration.as_secs_f32()))
-                        .sub_title(error),
+                    TitleFormat::error(format!(
+                        "🔄 Retry in {:.2} seconds\n",
+                        duration.as_secs_f32()
+                    ))
+                    .sub_title(error),
                 )?;
             }
         }
