@@ -246,12 +246,13 @@ pub struct FSPatch {
     /// The operation to perform on the matched text. Possible options are:
     /// - 'prepend': Add content before the matched text
     /// - 'append': Add content after the matched text
-    /// - 'replace': Replace the first occurrence of matched text with new content.
-    ///   Only use this when you're certain there's exactly one occurrence to replace.
-    /// - 'replace_all': Replace all occurrences of matched text with new content.
-    ///   ALWAYS use this for variable renames, function renames, or any operation
-    ///   where the text might appear multiple times in the file. This is the safer
-    ///   option in most cases.
+    /// - 'replace': Replace the first occurrence of matched text with new
+    ///   content. Only use this when you're certain there's exactly one
+    ///   occurrence to replace.
+    /// - 'replace_all': Replace all occurrences of matched text with new
+    ///   content. ALWAYS use this for variable renames, function renames, or
+    ///   any operation where the text might appear multiple times in the file.
+    ///   This is the safer option in most cases.
     /// - 'swap': Replace the matched text with another text (search for the
     ///   second text and swap them)
     pub operation: PatchOperation,
