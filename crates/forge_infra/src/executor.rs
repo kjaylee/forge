@@ -1,9 +1,10 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use strum::IntoEnumIterator;
 
 use forge_domain::{CommandOutput, Environment};
-use forge_services::{CommandInfra, UserInfra};
+use forge_services::{ChangesPrompt, CommandInfra, UserInfra};
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 use tokio::sync::Mutex;
@@ -85,16 +86,13 @@ impl<U: UserInfra> ForgeCommandExecutorService<U> {
     ) -> anyhow::Result<CommandOutput> {
         // Ask for user confirmation before executing the command
         let confirmation_message = format!("Execute shell command: '{command}'?");
-        let options = vec!["Yes".to_string(), "No".to_string()];
 
         match self
             .user_infra
-            .select_one(&confirmation_message, options)
+            .select_one(&confirmation_message, ChangesPrompt::iter().collect())
             .await?
         {
-            Some(choice) if choice == "Yes" => {
-                // User confirmed, proceed with execution
-            }
+            Some(choice) if choice == ChangesPrompt::Accept => {}
             _ => {
                 // User rejected or cancelled, return an error
                 return Err(anyhow::anyhow!("Shell command execution cancelled by user"));
@@ -168,18 +166,27 @@ impl<U: UserInfra> CommandInfra for ForgeCommandExecutorService<U> {
     async fn execute_command_raw(&self, command: &str) -> anyhow::Result<std::process::ExitStatus> {
         // Ask for user confirmation before executing the command
         let confirmation_message = format!("Execute shell command: '{command}'?");
-        let options = vec!["Yes".to_string(), "No".to_string()];
 
         match self
             .user_infra
-            .select_one(&confirmation_message, options)
+            .select_one(&confirmation_message, ChangesPrompt::iter().collect())
             .await?
         {
-            Some(choice) if choice == "Yes" => {
+            Some(c) if c.is_accept() => {
+                if c.is_remember() {
+                    todo!()
+                }
                 // User confirmed, proceed with execution
             }
-            _ => {
+            Some(c) => {
+                if c.is_remember() {
+                    todo!()
+                }
                 // User rejected or cancelled, return an error
+                return Err(anyhow::anyhow!("Shell command execution cancelled by user"));
+            }
+            None => {
+                // User cancelled the prompt, return an error
                 return Err(anyhow::anyhow!("Shell command execution cancelled by user"));
             }
         }
@@ -200,6 +207,7 @@ impl<U: UserInfra> CommandInfra for ForgeCommandExecutorService<U> {
 mod tests {
     use forge_domain::Provider;
     use pretty_assertions::assert_eq;
+    use std::fmt::Display;
 
     use super::*;
 
@@ -239,20 +247,20 @@ mod tests {
                 Ok(Some("yes".to_string()))
             }
 
-            async fn select_one(
+            async fn select_one<T: Display + Send + Clone + 'static>(
                 &self,
                 _message: &str,
-                options: Vec<String>,
-            ) -> anyhow::Result<Option<String>> {
+                options: Vec<T>,
+            ) -> anyhow::Result<Option<T>> {
                 // Always select the first option (which should be "Yes")
                 Ok(options.first().cloned())
             }
 
-            async fn select_many(
+            async fn select_many<T: Display + Send + Clone + 'static>(
                 &self,
                 _message: &str,
-                options: Vec<String>,
-            ) -> anyhow::Result<Option<Vec<String>>> {
+                options: Vec<T>,
+            ) -> anyhow::Result<Option<Vec<T>>> {
                 Ok(Some(options))
             }
         }

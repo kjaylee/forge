@@ -1109,6 +1109,7 @@ dependencies = [
  "rmcp",
  "serde",
  "serde_json",
+ "strum 0.27.1",
  "tempfile",
  "thiserror 2.0.12",
  "tokio",

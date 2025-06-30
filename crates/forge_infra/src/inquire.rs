@@ -2,6 +2,7 @@ use anyhow::Result;
 use forge_services::UserInfra;
 use inquire::ui::{RenderConfig, Styled};
 use inquire::{InquireError, MultiSelect, Select, Text};
+use std::fmt::Display;
 
 pub struct ForgeInquire;
 
@@ -51,7 +52,11 @@ impl UserInfra for ForgeInquire {
         .await
     }
 
-    async fn select_one(&self, message: &str, options: Vec<String>) -> Result<Option<String>> {
+    async fn select_one<T: Display + Send + Clone + 'static>(
+        &self,
+        message: &str,
+        options: Vec<T>,
+    ) -> Result<Option<T>> {
         let message = message.to_string();
         self.prompt(move || {
             Select::new(&message, options)
@@ -62,11 +67,11 @@ impl UserInfra for ForgeInquire {
         .await
     }
 
-    async fn select_many(
+    async fn select_many<T: Display + Send + Clone + 'static>(
         &self,
         message: &str,
-        options: Vec<String>,
-    ) -> Result<Option<Vec<String>>> {
+        options: Vec<T>,
+    ) -> Result<Option<Vec<T>>> {
         let message = message.to_string();
         self.prompt(move || {
             MultiSelect::new(&message, options)

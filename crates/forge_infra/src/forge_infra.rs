@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::sync::Arc;
@@ -179,19 +180,19 @@ impl UserInfra for ForgeInfra {
         self.inquire_service.prompt_question(question).await
     }
 
-    async fn select_one(
+    async fn select_one<T: Display + Send + Clone + 'static>(
         &self,
         message: &str,
-        options: Vec<String>,
-    ) -> anyhow::Result<Option<String>> {
+        options: Vec<T>,
+    ) -> anyhow::Result<Option<T>> {
         self.inquire_service.select_one(message, options).await
     }
 
-    async fn select_many(
+    async fn select_many<T: Display + Send + Clone + 'static>(
         &self,
         message: &str,
-        options: Vec<String>,
-    ) -> anyhow::Result<Option<Vec<String>>> {
+        options: Vec<T>,
+    ) -> anyhow::Result<Option<Vec<T>>> {
         self.inquire_service.select_many(message, options).await
     }
 }

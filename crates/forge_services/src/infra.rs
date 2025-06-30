@@ -1,12 +1,42 @@
+use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use bytes::Bytes;
+use derive_more::Display;
 use forge_app::{WalkedFile, Walker};
 use forge_domain::{
     CommandOutput, Environment, McpServerConfig, ToolDefinition, ToolName, ToolOutput,
 };
 use forge_snaps::Snapshot;
+use strum_macros::EnumIter;
+
+#[derive(Debug, Clone, PartialEq, Display, EnumIter)]
+pub enum ChangesPrompt {
+    #[display("Accept changes")]
+    Accept,
+    #[display("Reject changes")]
+    Reject,
+    #[display("Accept changes and remember my choice")]
+    AcceptAndRemember,
+    #[display("Reject changes and remember my choice")]
+    RejectAndRemember,
+}
+
+impl ChangesPrompt {
+    pub fn is_accept(&self) -> bool {
+        matches!(
+            self,
+            ChangesPrompt::Accept | ChangesPrompt::AcceptAndRemember
+        )
+    }
+    pub fn is_remember(&self) -> bool {
+        matches!(
+            self,
+            ChangesPrompt::AcceptAndRemember | ChangesPrompt::RejectAndRemember
+        )
+    }
+}
 
 pub trait EnvironmentInfra: Send + Sync {
     fn get_environment(&self) -> Environment;
@@ -121,19 +151,19 @@ pub trait UserInfra: Send + Sync {
 
     /// Prompts the user to select a single option from a list
     /// Returns None if the user interrupts the selection
-    async fn select_one(
+    async fn select_one<T: Display + Send + Clone + 'static>(
         &self,
         message: &str,
-        options: Vec<String>,
-    ) -> anyhow::Result<Option<String>>;
+        options: Vec<T>,
+    ) -> anyhow::Result<Option<T>>;
 
     /// Prompts the user to select multiple options from a list
     /// Returns None if the user interrupts the selection
-    async fn select_many(
+    async fn select_many<T: Display + Send + Clone + 'static>(
         &self,
         message: &str,
-        options: Vec<String>,
-    ) -> anyhow::Result<Option<Vec<String>>>;
+        options: Vec<T>,
+    ) -> anyhow::Result<Option<Vec<T>>>;
 }
 
 #[async_trait::async_trait]
