@@ -12,28 +12,28 @@ use forge_snaps::Snapshot;
 use strum_macros::EnumIter;
 
 #[derive(Debug, Clone, PartialEq, Display, EnumIter)]
-pub enum ChangesPrompt {
-    #[display("Accept changes")]
+pub enum CommandExecutionPrompt {
+    #[display("Accept command")]
     Accept,
-    #[display("Reject changes")]
+    #[display("Reject command")]
     Reject,
-    #[display("Accept changes and remember my choice")]
+    #[display("Accept command (remember)")]
     AcceptAndRemember,
-    #[display("Reject changes and remember my choice")]
+    #[display("Reject command (remember)")]
     RejectAndRemember,
 }
 
-impl ChangesPrompt {
+impl CommandExecutionPrompt {
     pub fn is_accept(&self) -> bool {
         matches!(
             self,
-            ChangesPrompt::Accept | ChangesPrompt::AcceptAndRemember
+            CommandExecutionPrompt::Accept | CommandExecutionPrompt::AcceptAndRemember
         )
     }
     pub fn is_remember(&self) -> bool {
         matches!(
             self,
-            ChangesPrompt::AcceptAndRemember | ChangesPrompt::RejectAndRemember
+            CommandExecutionPrompt::AcceptAndRemember | CommandExecutionPrompt::RejectAndRemember
         )
     }
 }

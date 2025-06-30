@@ -1,8 +1,9 @@
+use std::fmt::Display;
+
 use anyhow::Result;
 use forge_services::UserInfra;
 use inquire::ui::{RenderConfig, Styled};
 use inquire::{InquireError, MultiSelect, Select, Text};
-use std::fmt::Display;
 
 pub struct ForgeInquire;
 

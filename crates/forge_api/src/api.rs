@@ -90,4 +90,9 @@ pub trait API: Sync + Send {
     /// user's home directory Local configuration is stored in the current
     /// project directory
     async fn write_mcp_config(&self, scope: &Scope, config: &McpConfig) -> Result<()>;
+
+    /// Allows modification of the ForgeConfig
+    async fn modify_config<Fn>(&self, f: Fn) -> Result<()>
+    where
+        Fn: FnOnce(&mut ForgeConfig) + Send + Sync;
 }

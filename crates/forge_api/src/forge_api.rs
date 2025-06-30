@@ -136,4 +136,11 @@ impl<A: Services, F: CommandInfra> API for ForgeAPI<A, F> {
     ) -> anyhow::Result<std::process::ExitStatus> {
         self.infra.execute_command_raw(command).await
     }
+
+    async fn modify_config<Fn>(&self, _f: Fn) -> Result<()>
+    where
+        Fn: FnOnce(&mut ForgeConfig) + Send + Sync,
+    {
+        todo!()
+    }
 }

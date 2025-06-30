@@ -75,4 +75,7 @@ impl Environment {
     pub fn version(&self) -> String {
         VERSION.to_string()
     }
+    pub fn global_config(&self) -> PathBuf {
+        self.base_path.join(".config.json")
+    }
 }
