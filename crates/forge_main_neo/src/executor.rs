@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use forge_api::{API, AgentId, ChatRequest, ConversationId, Event, Workflow};
-use merge::Merge;
+use forge_api::{API, AgentId, ChatRequest, ConversationId, Event};
 use serde_json::Value;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::StreamExt;
@@ -44,15 +43,7 @@ impl<T: API + 'static> Executor<T> {
                 .ok_or_else(|| anyhow::anyhow!("Conversation not found: {}", conv_id))?
         } else {
             // Initialize a default workflow for conversation creation
-            let workflow = match self.api.read_workflow(None).await {
-                Ok(workflow) => {
-                    // Ensure we have a default workflow
-                    let mut base_workflow = Workflow::default();
-                    base_workflow.merge(workflow);
-                    base_workflow
-                }
-                Err(_) => Workflow::default(),
-            };
+            let workflow =  self.api.read_merged(None).await?;
 
             // Initialize new conversation
             let new_conversation = self.api.init_conversation(workflow).await?;
