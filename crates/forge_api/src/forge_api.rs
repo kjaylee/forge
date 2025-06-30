@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_app::{
     ConversationService, EnvironmentService, FileDiscoveryService, ForgeApp, McpConfigManager,
-    ProviderService, Services, WorkflowService,
+    ProviderService, Services, Walker, WorkflowService,
 };
 use forge_domain::*;
 use forge_infra::ForgeInfra;
@@ -35,7 +35,9 @@ impl ForgeAPI<ForgeServices<ForgeInfra>, ForgeInfra> {
 #[async_trait::async_trait]
 impl<A: Services, F: CommandInfra> API for ForgeAPI<A, F> {
     async fn discover(&self) -> Result<Vec<File>> {
-        self.app.collect(None).await
+        let environment = self.app.get_environment();
+        let config = Walker::unlimited().cwd(environment.cwd);
+        self.app.collect_files(config).await
     }
 
     async fn tools(&self) -> anyhow::Result<Vec<ToolDefinition>> {
@@ -81,6 +83,10 @@ impl<A: Services, F: CommandInfra> API for ForgeAPI<A, F> {
 
     async fn read_workflow(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         self.app.read_workflow(path).await
+    }
+
+    async fn read_merged(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+        self.app.read_merged(path).await
     }
 
     async fn write_workflow(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()> {

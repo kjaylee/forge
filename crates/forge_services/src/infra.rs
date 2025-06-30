@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use bytes::Bytes;
+use forge_app::{WalkedFile, Walker};
 use forge_domain::{
     CommandOutput, Environment, McpServerConfig, ToolDefinition, ToolName, ToolOutput,
 };
@@ -149,4 +150,11 @@ pub trait McpClientInfra: Clone + Send + Sync + 'static {
 pub trait McpServerInfra: Send + Sync + 'static {
     type Client: McpClientInfra;
     async fn connect(&self, config: McpServerConfig) -> anyhow::Result<Self::Client>;
+}
+/// Service for walking filesystem directories
+#[async_trait::async_trait]
+pub trait WalkerInfra: Send + Sync {
+    /// Walks the filesystem starting from the given directory with the
+    /// specified configuration
+    async fn walk(&self, config: Walker) -> anyhow::Result<Vec<WalkedFile>>;
 }
