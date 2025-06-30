@@ -347,11 +347,9 @@ impl<S: AgentService> Orchestrator<S> {
                     || self.execute_chat_turn(&model_id, context.clone(), is_tool_supported),
                     self.sender.as_ref().map(|sender| {
                         let sender = sender.clone();
-                        move |_error: &anyhow::Error, _duration: Duration| {
-                            let retry_event = ChatResponse::Retry {
-                                error: format_error_chain(_error),
-                                delay_ms: _duration.as_millis() as u64,
-                            };
+                        move |error: &anyhow::Error, duration: Duration| {
+                            let retry_event =
+                                ChatResponse::RetryableError { error: format_error_chain(error), duration };
                             let _ = sender.try_send(Ok(retry_event));
                         }
                     }),

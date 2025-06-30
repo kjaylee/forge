@@ -693,10 +693,11 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                     .map(|cost| cost + self.state.usage.cost.as_ref().map_or(0.0, |c| *c));
                 self.state.usage = usage;
             }
-            ChatResponse::Retry { error, delay_ms } => {
-                self.writeln(TitleFormat::error(format!(
-                    "🔄  Retry (delay: {delay_ms}ms): {error}"
-                )))?;
+            ChatResponse::RetryableError { error, duration } => {
+                self.writeln(
+                    TitleFormat::error(format!("🔄 Retry in {:.2} seconds\n", duration.as_secs_f32()))
+                        .sub_title(error),
+                )?;
             }
         }
         Ok(())

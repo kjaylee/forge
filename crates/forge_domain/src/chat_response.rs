@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use serde::Serialize;
 
 use crate::{ToolCallFull, ToolResult, Usage};
@@ -16,8 +18,8 @@ pub enum ChatResponse {
     ToolCallStart(ToolCallFull),
     ToolCallEnd(ToolResult),
     Usage(Usage),
-    Retry {
+    RetryableError {
         error: String,
-        delay_ms: u64,
+        duration: Duration,
     },
 }
