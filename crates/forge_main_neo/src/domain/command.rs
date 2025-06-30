@@ -95,7 +95,7 @@ mod tests {
     fn test_command_and_with_existing_and() {
         let fixture = Command::And(vec![Command::Empty]).and(Command::Exit);
         let actual = fixture;
-        let expected = Command::And(vec![Command::Empty, Command::Exit]);
+        let expected = Command::Exit;
         assert_eq!(actual, expected);
     }
 
@@ -109,7 +109,6 @@ mod tests {
         let expected = Command::And(vec![
             Command::ChatMessage("hello".to_string()),
             Command::ReadWorkspace,
-            Command::Empty,
             Command::Exit,
         ]);
         assert_eq!(actual, expected);
