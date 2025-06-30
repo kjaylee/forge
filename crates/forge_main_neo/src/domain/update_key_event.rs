@@ -12,46 +12,46 @@ use crate::domain::{Command, State};
 fn handle_word_navigation(
     editor: &mut edtui::EditorState,
     key_event: ratatui::crossterm::event::KeyEvent,
-) -> Command {
+) -> bool {
     use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 
     if key_event.modifiers.contains(KeyModifiers::ALT) {
         match key_event.code {
             KeyCode::Char('b') => {
                 MoveWordBackward(1).execute(editor);
-                Command::Empty
+                true
             }
             KeyCode::Char('f') => {
                 MoveWordForward(1).execute(editor);
-                Command::Empty
+                true
             }
-            _ => Command::Empty,
+            _ => false,
         }
     } else {
-        Command::Empty
+        false
     }
 }
 
 fn handle_line_navigation(
     editor: &mut edtui::EditorState,
     key_event: ratatui::crossterm::event::KeyEvent,
-) -> Command {
+) -> bool {
     use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 
     if key_event.modifiers.contains(KeyModifiers::CONTROL) {
         match key_event.code {
             KeyCode::Char('a') => {
                 MoveToStartOfLine().execute(editor);
-                Command::Empty
+                true
             }
             KeyCode::Char('e') => {
                 MoveToEndOfLine().execute(editor);
-                Command::Empty
+                true
             }
-            _ => Command::Empty,
+            _ => false,
         }
     } else {
-        Command::Empty
+        false
     }
 }
 
@@ -123,31 +123,38 @@ pub fn handle_key_event(
 
     if state.spotlight.is_visible {
         // When spotlight is visible, route events to spotlight editor
-        let cmd = handle_spotlight_hide(state, key_event)
-            .and(handle_line_navigation(
-                &mut state.spotlight.editor,
-                key_event,
-            ))
-            .and(handle_word_navigation(
-                &mut state.spotlight.editor,
-                key_event,
-            ))
-            .and(handle_editor_default(
-                &mut state.spotlight.editor,
-                key_event,
-            ));
+        let cmd = handle_spotlight_hide(state, key_event);
+
+        // Check if navigation was handled first
+        let line_nav_handled = handle_line_navigation(&mut state.spotlight.editor, key_event);
+        let word_nav_handled = handle_word_navigation(&mut state.spotlight.editor, key_event);
+
+        // Only call editor default if no navigation was handled
+        let result_cmd = if !line_nav_handled && !word_nav_handled {
+            let editor_cmd = handle_editor_default(&mut state.spotlight.editor, key_event);
+            cmd.and(editor_cmd)
+        } else {
+            cmd
+        };
 
         // Always keep spotlight in "insert" mode
         state.spotlight.editor.mode = EditorMode::Insert;
 
-        cmd
+        result_cmd
     } else {
         // When spotlight is not visible, route events to main editor
-        handle_line_navigation(&mut state.editor, key_event)
-            .and(handle_word_navigation(&mut state.editor, key_event))
-            .and(handle_editor_default(&mut state.editor, key_event))
-            .and(handle_prompt_submit(state, key_event))
-            .and(handle_spotlight_show(state, key_event))
+        // Check if navigation was handled first
+        let line_nav_handled = handle_line_navigation(&mut state.editor, key_event);
+        let word_nav_handled = handle_word_navigation(&mut state.editor, key_event);
+
+        // Only call editor default and spotlight show if no navigation was handled
+        if !line_nav_handled && !word_nav_handled {
+            handle_editor_default(&mut state.editor, key_event)
+                .and(handle_spotlight_show(state, key_event))
+                .and(handle_prompt_submit(state, key_event))
+        } else {
+            Command::Empty
+        }
     }
 }
 
@@ -318,5 +325,41 @@ mod tests {
         assert_eq!(actual_command, expected_command);
         // Cursor should have moved forward in spotlight editor
         assert!(state.spotlight.editor.cursor.col > initial_cursor.col);
+    }
+
+    #[test]
+    fn test_navigation_prevents_editor_default_and_spotlight_show() {
+        let mut state = create_test_state_with_text();
+        let key_event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::CONTROL);
+
+        // Before the fix, this would have called editor_default and potentially
+        // spotlight_show After the fix, navigation handling should
+        // short-circuit these calls
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        // Cursor should have moved to line start (navigation was handled)
+        assert_eq!(state.editor.cursor.col, 0);
+        // Spotlight should remain hidden (spotlight_show was not called)
+        assert!(!state.spotlight.is_visible);
+    }
+
+    #[test]
+    fn test_word_navigation_prevents_editor_default_and_spotlight_show() {
+        let mut state = create_test_state_with_text();
+        let key_event = KeyEvent::new(KeyCode::Char('f'), KeyModifiers::ALT);
+
+        // Before the fix, this would have called editor_default and potentially
+        // spotlight_show After the fix, word navigation handling should
+        // short-circuit these calls
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        // Cursor should have moved forward (navigation was handled)
+        assert!(state.editor.cursor.col > 6); // Started at position 6
+        // Spotlight should remain hidden (spotlight_show was not called)
+        assert!(!state.spotlight.is_visible);
     }
 }
