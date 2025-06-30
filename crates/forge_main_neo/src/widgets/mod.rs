@@ -7,5 +7,6 @@ mod settings;
 mod spinner;
 mod spotlight;
 mod status_bar;
+mod welcome;
 
 pub use app::App;

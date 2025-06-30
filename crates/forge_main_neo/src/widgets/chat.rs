@@ -7,6 +7,7 @@ use crate::domain::State;
 use crate::widgets::message_list::MessageList;
 use crate::widgets::spotlight::SpotlightWidget;
 use crate::widgets::status_bar::StatusBar;
+use crate::widgets::welcome::WelcomeWidget;
 
 /// Chat widget that handles the chat interface with editor and message list
 #[derive(Clone, Default)]
@@ -32,8 +33,12 @@ impl StatefulWidget for ChatWidget {
         // Messages area block (now at top)
         let message_block = Block::new();
 
-        // Render message list
-        MessageList.render(message_block.inner(messages_area), buf, state);
+        // Render welcome widget if no messages, otherwise render message list
+        if state.messages.is_empty() {
+            WelcomeWidget.render(message_block.inner(messages_area), buf, state);
+        } else {
+            MessageList.render(message_block.inner(messages_area), buf, state);
+        }
 
         if state.spotlight.is_visible {
             SpotlightWidget.render(messages_area, buf, state)
