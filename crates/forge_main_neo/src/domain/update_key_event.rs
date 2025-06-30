@@ -243,7 +243,7 @@ pub fn handle_key_event(
         // When spotlight is not visible, route events to main editor
         // Capture original editor mode before any modifications
         let original_editor_mode = state.editor.mode;
-        
+
         // Check if navigation was handled first
         let line_nav_handled = handle_line_navigation(&mut state.editor, key_event);
         let word_nav_handled = handle_word_navigation(&mut state.editor, key_event);
@@ -252,7 +252,11 @@ pub fn handle_key_event(
         if !line_nav_handled && !word_nav_handled {
             handle_editor_default(&mut state.editor, key_event)
                 .and(handle_spotlight_show(state, key_event))
-                .and(handle_spotlight_toggle(state, key_event, original_editor_mode))
+                .and(handle_spotlight_toggle(
+                    state,
+                    key_event,
+                    original_editor_mode,
+                ))
                 .and(handle_prompt_submit(state, key_event))
         } else {
             Command::Empty
