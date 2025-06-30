@@ -122,10 +122,8 @@ pub fn handle_key_event(
     }
 
     if state.spotlight.is_visible {
-        // Always keep spotlight in "insert" mode
-        state.spotlight.editor.mode = EditorMode::Insert;
         // When spotlight is visible, route events to spotlight editor
-        handle_spotlight_hide(state, key_event)
+        let cmd = handle_spotlight_hide(state, key_event)
             .and(handle_line_navigation(
                 &mut state.spotlight.editor,
                 key_event,
@@ -137,7 +135,12 @@ pub fn handle_key_event(
             .and(handle_editor_default(
                 &mut state.spotlight.editor,
                 key_event,
-            ))
+            ));
+
+        // Always keep spotlight in "insert" mode
+        state.spotlight.editor.mode = EditorMode::Insert;
+
+        cmd
     } else {
         // When spotlight is not visible, route events to main editor
         handle_line_navigation(&mut state.editor, key_event)
