@@ -114,10 +114,7 @@ impl Walker {
 
         // TODO: Convert to async and return a stream
         let walk = WalkBuilder::new(&self.cwd)
-            .hidden(true) // Skip hidden files
-            .git_global(true) // Use global gitignore
-            .git_ignore(true) // Use local .gitignore
-            .ignore(true) // Use .ignore files
+            .standard_filters(true) // use standard ignore filters.
             .max_depth(Some(self.max_depth))
             // TODO: use build_parallel() for better performance
             .build();
@@ -260,6 +257,27 @@ mod tests {
             }
             Ok((dir, files_dir))
         }
+
+        /// Creates a directory with files and a .ignore file that excludes some
+        /// of them Returns a TempDir containing test files and .ignore
+        /// file
+        pub fn create_files_with_ignore(
+            files: &[&str],
+            ignore_patterns: &[&str],
+        ) -> Result<TempDir> {
+            let dir = tempdir()?;
+
+            // Create test files
+            for file_name in files {
+                File::create(dir.path().join(file_name))?.write_all(b"test content")?;
+            }
+
+            // Create .ignore file with patterns
+            let ignore_content = ignore_patterns.join("\n");
+            File::create(dir.path().join(".ignore"))?.write_all(ignore_content.as_bytes())?;
+
+            Ok(dir)
+        }
     }
 
     #[tokio::test]
@@ -382,5 +400,39 @@ mod tests {
 
         assert!(dir.is_dir());
         assert!(dir.path.ends_with('/'));
+    }
+
+    #[tokio::test]
+    async fn test_walker_respects_ignore_file() {
+        let fixture = fixtures::create_files_with_ignore(
+            &[
+                "included.txt",
+                "excluded.txt",
+                "temp.log",
+                "test.log",
+                "config.json",
+            ],
+            &["excluded.txt", "*.log"],
+        )
+        .unwrap();
+
+        let actual = Walker::max_all()
+            .cwd(fixture.path().to_path_buf())
+            .get()
+            .await
+            .unwrap();
+
+        let expected = vec!["config.json", "included.txt"];
+        let mut actual_files: Vec<_> = actual
+            .iter()
+            .filter(|f| !f.is_dir())
+            .map(|f| f.path.as_str())
+            .collect();
+        actual_files.sort();
+
+        assert_eq!(
+            actual_files, expected,
+            "Walker should exclude files listed in .ignore file"
+        );
     }
 }
