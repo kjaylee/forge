@@ -42,6 +42,10 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             }
             Command::Empty
         }
+        Action::ConversationInitialized(conversation_id) => {
+            state.conversation.init_conversation(conversation_id);
+            Command::Empty
+        }
         Action::IntervalTick(timer) => {
             state.spinner.calc_next();
             // For now, interval ticks don't trigger any state changes or commands

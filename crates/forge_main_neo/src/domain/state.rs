@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use edtui::EditorState;
-use forge_api::ChatResponse;
+use forge_api::{ChatResponse, ConversationId};
 use throbber_widgets_tui::ThrobberState;
 use tokio_util::sync::CancellationToken;
 
@@ -18,6 +18,7 @@ pub struct State {
     pub timer: Option<Timer>,
     pub show_spinner: bool,
     pub spotlight: SpotlightState,
+    pub conversation: ConversationState,
 }
 
 impl Default for State {
@@ -32,6 +33,7 @@ impl Default for State {
             timer: Default::default(),
             show_spinner: Default::default(),
             spotlight: Default::default(),
+            conversation: Default::default(),
         }
     }
 }
@@ -88,5 +90,18 @@ impl State {
     /// Add an assistant message to the chat
     pub fn add_assistant_message(&mut self, message: ChatResponse) {
         self.messages.push(Message::Assistant(message));
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ConversationState {
+    pub conversation_id: Option<ConversationId>,
+    pub is_first: bool,
+}
+
+impl ConversationState {
+    pub fn init_conversation(&mut self, conversation_id: ConversationId) {
+        self.conversation_id = Some(conversation_id);
+        self.is_first = false;
     }
 }

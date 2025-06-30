@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_api::{API, AgentId, ChatRequest, Event, Workflow};
+use forge_api::{API, AgentId, ChatRequest, ConversationId, Event, Workflow};
 use merge::Merge;
 use serde_json::Value;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -9,6 +9,10 @@ use tokio_util::sync::CancellationToken;
 use tracing::error;
 
 use crate::domain::{Action, Command, TimerId};
+
+// Event type constants
+pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
+pub const EVENT_USER_TASK_UPDATE: &str = "user_task_update";
 
 pub struct Executor<T> {
     api: Arc<T>,
@@ -28,26 +32,49 @@ impl<T: API + 'static> Executor<T> {
     async fn handle_chat(
         &self,
         message: String,
+        conversation_id: Option<ConversationId>,
+        is_first: bool,
         tx: &Sender<anyhow::Result<Action>>,
     ) -> anyhow::Result<()> {
-        // Initialize a default workflow for conversation creation
-        let workflow = match self.api.read_workflow(None).await {
-            Ok(workflow) => {
-                // Ensure we have a default workflow
-                let mut base_workflow = Workflow::default();
-                base_workflow.merge(workflow);
-                base_workflow
-            }
-            Err(_) => Workflow::default(),
+        let conversation = if let Some(conv_id) = conversation_id {
+            // Use existing conversation - more graceful retrieval
+            self.api
+                .conversation(&conv_id)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("Conversation not found: {}", conv_id))?
+        } else {
+            // Initialize a default workflow for conversation creation
+            let workflow = match self.api.read_workflow(None).await {
+                Ok(workflow) => {
+                    // Ensure we have a default workflow
+                    let mut base_workflow = Workflow::default();
+                    base_workflow.merge(workflow);
+                    base_workflow
+                }
+                Err(_) => Workflow::default(),
+            };
+
+            // Initialize new conversation
+            let new_conversation = self.api.init_conversation(workflow).await?;
+
+            // Send action to update conversation state
+            tx.send(Ok(Action::ConversationInitialized(
+                new_conversation.id.clone(),
+            )))
+            .await?;
+
+            new_conversation
         };
 
-        // Initialize conversation if needed
-        let conversation = self.api.init_conversation(workflow).await?;
+        // Create event for the chat message with appropriate event type
+        let event_type = if is_first {
+            EVENT_USER_TASK_INIT
+        } else {
+            EVENT_USER_TASK_UPDATE
+        };
 
-        // Create event for the chat message
-        // Todo:// use actual agent ID from the API
         let event = Event::new(
-            format!("{}/user_task_init", AgentId::FORGE.as_str()),
+            format!("{}/{}", AgentId::FORGE.as_str(), event_type),
             Value::String(message.clone()),
         );
 
@@ -82,9 +109,12 @@ impl<T: API + 'static> Executor<T> {
     async fn execute_chat_message(
         &self,
         message: String,
+        conversation_id: Option<ConversationId>,
+        is_first: bool,
         tx: &Sender<anyhow::Result<Action>>,
     ) -> anyhow::Result<()> {
-        self.handle_chat(message, tx).await
+        self.handle_chat(message, conversation_id, is_first, tx)
+            .await
     }
 
     async fn execute_read_workspace(
@@ -221,8 +251,9 @@ impl<T: API + 'static> Executor<T> {
         tx: Sender<anyhow::Result<Action>>,
     ) -> anyhow::Result<()> {
         match cmd {
-            Command::ChatMessage(message) => {
-                self.execute_chat_message(message, &tx).await?;
+            Command::ChatMessage { message, conversation_id, is_first } => {
+                self.execute_chat_message(message, conversation_id, is_first, &tx)
+                    .await?;
             }
             Command::ReadWorkspace => {
                 self.execute_read_workspace(&tx).await?;

@@ -1,5 +1,5 @@
 use derive_more::From;
-use forge_api::ChatResponse;
+use forge_api::{ChatResponse, ConversationId};
 use ratatui::crossterm::event::Event;
 
 use crate::domain::Timer;
@@ -14,5 +14,6 @@ pub enum Action {
         current_branch: Option<String>,
     },
     ChatResponse(ChatResponse),
+    ConversationInitialized(ConversationId),
     IntervalTick(Timer),
 }

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use derive_more::From;
-use forge_api::{AgentId, ModelId};
+use forge_api::{AgentId, ConversationId, ModelId};
 
 use crate::domain::TimerId;
 
@@ -14,7 +14,11 @@ pub enum Command {
     Empty,
     Exit,
     And(Vec<Command>),
-    ChatMessage(String),
+    ChatMessage {
+        message: String,
+        conversation_id: Option<ConversationId>,
+        is_first: bool,
+    },
     Spotlight(SpotlightCommand),
     Interval {
         duration: Duration,
@@ -101,13 +105,21 @@ mod tests {
 
     #[test]
     fn test_command_and_complex_chaining() {
-        let fixture = Command::ChatMessage("hello".to_string())
-            .and(Command::ReadWorkspace)
-            .and(Command::Empty)
-            .and(Command::Exit);
+        let fixture = Command::ChatMessage {
+            message: "hello".to_string(),
+            conversation_id: None,
+            is_first: true,
+        }
+        .and(Command::ReadWorkspace)
+        .and(Command::Empty)
+        .and(Command::Exit);
         let actual = fixture;
         let expected = Command::And(vec![
-            Command::ChatMessage("hello".to_string()),
+            Command::ChatMessage {
+                message: "hello".to_string(),
+                conversation_id: None,
+                is_first: true,
+            },
             Command::ReadWorkspace,
             Command::Exit,
         ]);
@@ -116,9 +128,17 @@ mod tests {
 
     #[test]
     fn test_chat_command_and() {
-        let fixture = Command::Empty.and(Command::ChatMessage("test".to_string()));
+        let fixture = Command::Empty.and(Command::ChatMessage {
+            message: "test".to_string(),
+            conversation_id: None,
+            is_first: true,
+        });
         let actual = fixture;
-        let expected = Command::ChatMessage("test".to_string());
+        let expected = Command::ChatMessage {
+            message: "test".to_string(),
+            conversation_id: None,
+            is_first: true,
+        };
         assert_eq!(actual, expected);
     }
 
@@ -175,13 +195,21 @@ mod tests {
         let fixture = Command::And(vec![
             Command::ReadWorkspace,
             Command::Exit,
-            Command::ChatMessage("test".to_string()),
+            Command::ChatMessage {
+                message: "test".to_string(),
+                conversation_id: None,
+                is_first: true,
+            },
         ]);
         let actual = fixture.flatten();
         let expected = Command::And(vec![
             Command::ReadWorkspace,
             Command::Exit,
-            Command::ChatMessage("test".to_string()),
+            Command::ChatMessage {
+                message: "test".to_string(),
+                conversation_id: None,
+                is_first: true,
+            },
         ]);
         assert_eq!(actual, expected);
     }
@@ -192,7 +220,11 @@ mod tests {
             Command::ReadWorkspace,
             Command::And(vec![
                 Command::Exit,
-                Command::ChatMessage("test".to_string()),
+                Command::ChatMessage {
+                    message: "test".to_string(),
+                    conversation_id: None,
+                    is_first: true,
+                },
             ]),
             Command::And(vec![Command::ReadWorkspace]),
         ]);
@@ -200,7 +232,11 @@ mod tests {
         let expected = Command::And(vec![
             Command::ReadWorkspace,
             Command::Exit,
-            Command::ChatMessage("test".to_string()),
+            Command::ChatMessage {
+                message: "test".to_string(),
+                conversation_id: None,
+                is_first: true,
+            },
             Command::ReadWorkspace,
         ]);
         assert_eq!(actual, expected);
@@ -235,7 +271,11 @@ mod tests {
             Command::And(vec![
                 Command::Exit,
                 Command::And(vec![
-                    Command::ChatMessage("nested".to_string()),
+                    Command::ChatMessage {
+                        message: "nested".to_string(),
+                        conversation_id: None,
+                        is_first: true,
+                    },
                     Command::And(vec![Command::ReadWorkspace]),
                 ]),
             ]),
@@ -244,7 +284,11 @@ mod tests {
         let expected = Command::And(vec![
             Command::ReadWorkspace,
             Command::Exit,
-            Command::ChatMessage("nested".to_string()),
+            Command::ChatMessage {
+                message: "nested".to_string(),
+                conversation_id: None,
+                is_first: true,
+            },
             Command::ReadWorkspace,
         ]);
         assert_eq!(actual, expected);
@@ -255,20 +299,36 @@ mod tests {
         let fixture = Command::And(vec![
             Command::Empty,
             Command::And(vec![
-                Command::ChatMessage("hello".to_string()),
+                Command::ChatMessage {
+                    message: "hello".to_string(),
+                    conversation_id: None,
+                    is_first: true,
+                },
                 Command::Empty,
                 Command::And(vec![Command::ReadWorkspace, Command::Empty]),
             ]),
             Command::Exit,
             Command::And(vec![Command::Empty]),
-            Command::ChatMessage("world".to_string()),
+            Command::ChatMessage {
+                message: "world".to_string(),
+                conversation_id: None,
+                is_first: true,
+            },
         ]);
         let actual = fixture.flatten();
         let expected = Command::And(vec![
-            Command::ChatMessage("hello".to_string()),
+            Command::ChatMessage {
+                message: "hello".to_string(),
+                conversation_id: None,
+                is_first: true,
+            },
             Command::ReadWorkspace,
             Command::Exit,
-            Command::ChatMessage("world".to_string()),
+            Command::ChatMessage {
+                message: "world".to_string(),
+                conversation_id: None,
+                is_first: true,
+            },
         ]);
         assert_eq!(actual, expected);
     }

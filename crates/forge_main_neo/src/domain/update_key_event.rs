@@ -137,8 +137,12 @@ fn handle_prompt_submit(
             Command::Empty
         } else {
             state.show_spinner = true;
-            Command::Interval { duration: Duration::from_millis(100) }
-                .and(Command::ChatMessage(message))
+            let chat_command = Command::ChatMessage {
+                message,
+                conversation_id: state.conversation.conversation_id.clone(),
+                is_first: state.conversation.is_first,
+            };
+            Command::Interval { duration: Duration::from_millis(100) }.and(chat_command)
         }
     } else {
         Command::Empty
