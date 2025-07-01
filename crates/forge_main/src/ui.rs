@@ -693,14 +693,10 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                     .map(|cost| cost + self.state.usage.cost.as_ref().map_or(0.0, |c| *c));
                 self.state.usage = usage;
             }
-            ChatResponse::RetryableError { error, duration } => {
-                self.writeln(
-                    TitleFormat::error(format!(
-                        "🔄 Retry in {:.2} seconds\n",
-                        duration.as_secs_f32()
-                    ))
-                    .sub_title(error),
-                )?;
+            ChatResponse::RetryableError { error, duration: _ } => {
+                // TODO: log the error on posthog events. use EventKind::Error
+                self.spinner.start(Some("Retrying"))?;
+                self.writeln(TitleFormat::error(error))?;
             }
         }
         Ok(())

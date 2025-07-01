@@ -12,16 +12,6 @@ use tracing::{debug, info, warn};
 use crate::agent::AgentService;
 use crate::compact::Compactor;
 
-fn format_error_chain(error: &anyhow::Error) -> String {
-    let mut result = error.to_string();
-    let mut current = error.source();
-    while let Some(cause) = current {
-        result.push_str(&format!("\nCaused by: {cause}"));
-        current = cause.source();
-    }
-    result
-}
-
 pub type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<ChatResponse>>>;
 
 #[derive(Clone, Setters)]
@@ -346,10 +336,11 @@ impl<S: AgentService> Orchestrator<S> {
                     &self.environment.retry_config,
                     || self.execute_chat_turn(&model_id, context.clone(), is_tool_supported),
                     self.sender.as_ref().map(|sender| {
+                        // TODO: add trace regarding the error.
                         let sender = sender.clone();
                         move |error: &anyhow::Error, duration: Duration| {
                             let retry_event = ChatResponse::RetryableError {
-                                error: format_error_chain(error),
+                                error: format!("{error:?}"),
                                 duration,
                             };
                             let _ = sender.try_send(Ok(retry_event));
