@@ -186,8 +186,11 @@ pub enum PatchOperation {
     /// Append content after the matched text
     Append,
 
-    /// Replace the matched text with new content
-    Replace,
+    /// Replace the first occurence of matched text with new content
+    ReplaceFirst,
+
+    /// Replace the last occurence of matched text with new content
+    ReplaceLast,
 
     /// Use this when you want to replace all occurrences of the matched text
     /// with new content
@@ -246,9 +249,12 @@ pub struct FSPatch {
     /// The operation to perform on the matched text. Possible options are:
     /// - 'prepend': Add content before the matched text
     /// - 'append': Add content after the matched text
-    /// - 'replace': Replace the first occurrence of matched text with new
-    ///   content. Only use this when you're certain there's exactly one
-    ///   occurrence to replace.
+    /// - 'replace_first': Replace the first occurrence of matched text with new
+    ///   content. Always use this when you want to replace the first occurrence
+    ///   of a pattern ony.
+    /// - 'replace_last': Replace the last occurrence of matched text with new
+    ///   content. Always use this when you want to replace the last occurrence
+    ///   of a pattern only.
     /// - 'replace_all': Replace all occurrences of matched text with new
     ///   content. ALWAYS use this for variable renames, function renames, or
     ///   any operation where the text might appear multiple times in the file.

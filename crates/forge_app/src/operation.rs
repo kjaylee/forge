@@ -1209,7 +1209,7 @@ mod tests {
             input: forge_domain::FSPatch {
                 path: "/home/user/test.txt".to_string(),
                 search: Some("world".to_string()),
-                operation: forge_domain::PatchOperation::Replace,
+                operation: forge_domain::PatchOperation::ReplaceFirst,
                 content: "universe".to_string(),
                 explanation: Some("Replacing world with universe".to_string()),
             },

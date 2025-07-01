@@ -170,7 +170,8 @@ expression: tools
         "enum": [
           "prepend",
           "append",
-          "replace",
+          "replace_first",
+          "replace_last",
           "replace_all",
           "swap"
         ]
