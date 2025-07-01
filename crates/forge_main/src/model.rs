@@ -181,6 +181,7 @@ impl ForgeCommandManager {
             "/plan" | "/muse" => Ok(Command::Muse),
             "/help" => Ok(Command::Help),
             "/model" => Ok(Command::Model),
+            "/config" => Ok(Command::Config),
             "/tools" => Ok(Command::Tools),
             "/agent" => Ok(Command::Agent),
             text => {
@@ -270,6 +271,10 @@ pub enum Command {
         usage = "Switch between different AI agents. Use this command to change which agent handles your requests and see available options."
     ))]
     Agent,
+    /// Configure application settings interactively
+    /// This can be triggered with the '/config' command.
+    #[strum(props(usage = "Configure application settings interactively"))]
+    Config,
 }
 
 impl Command {
@@ -288,6 +293,7 @@ impl Command {
             Command::Model => "/model",
             Command::Tools => "/tools",
             Command::Custom(event) => &event.name,
+            Command::Config => "/config",
             Command::Shell(_) => "!shell",
             Command::Agent => "/agent",
         }
