@@ -324,6 +324,15 @@ impl<S: AgentService> Orchestrator<S> {
 
         let mut empty_tool_call_count = 0;
         let is_tool_supported = self.is_tool_supported(&agent)?;
+        let mut request_count = 0;
+
+        // Retrive the number of requests allowed per tick.
+        let max_requests_per_turn = self
+            .conversation
+            .variables
+            .get("max_requests_per_turn")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(20);
 
         while !is_complete {
             // Set context for the current loop iteration
@@ -431,6 +440,24 @@ impl<S: AgentService> Orchestrator<S> {
             // Update context in the conversation
             self.conversation.context = Some(context.clone());
             self.services.update(self.conversation.clone()).await?;
+            request_count += 1;
+
+            // If the agent has made too many requests, we can assume it is possibly stuck
+            // and ask the user if they want to continue or stop.
+            if request_count >= max_requests_per_turn {
+                let answer = self
+                    .services
+                    .select_one(
+                        "Do you wish to continue?",
+                        vec!["Yes", "No"].into_iter().map(String::from).collect(),
+                    )
+                    .await?;
+
+                if answer.is_none_or(|ans| ans == "No") {
+                    break;
+                }
+                request_count = 0;
+            }
         }
 
         Ok(())
