@@ -694,9 +694,9 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 self.state.usage = usage;
             }
             ChatResponse::RetryableError { error, duration: _ } => {
-                // TODO: log the error on posthog events. use EventKind::Error
                 self.spinner.start(Some("Retrying"))?;
-                self.writeln(TitleFormat::error(error))?;
+                self.writeln(TitleFormat::error(error.clone()))?;
+                tokio::spawn(TRACKER.dispatch(forge_tracker::EventKind::Error(error)));
             }
         }
         Ok(())

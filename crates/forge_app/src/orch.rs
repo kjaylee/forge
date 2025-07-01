@@ -336,9 +336,11 @@ impl<S: AgentService> Orchestrator<S> {
                     &self.environment.retry_config,
                     || self.execute_chat_turn(&model_id, context.clone(), is_tool_supported),
                     self.sender.as_ref().map(|sender| {
-                        // TODO: add trace regarding the error.
                         let sender = sender.clone();
+                        let agent_id = agent.id.clone();
+                        let model_id = model_id.clone();
                         move |error: &anyhow::Error, duration: Duration| {
+                            info!(agent_id = %agent_id, error = %error, model=%model_id, "Retryable Error");
                             let retry_event = ChatResponse::RetryableError {
                                 error: format!("{error:?}"),
                                 duration,
