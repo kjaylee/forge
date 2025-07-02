@@ -693,10 +693,12 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                     .map(|cost| cost + self.state.usage.cost.as_ref().map_or(0.0, |c| *c));
                 self.state.usage = usage;
             }
-            ChatResponse::RetryableError { error, duration: _ } => {
+            ChatResponse::RetryAttempt { cause, duration: _ } => {
                 self.spinner.start(Some("Retrying"))?;
-                self.writeln(TitleFormat::error(error.clone()))?;
-                tokio::spawn(TRACKER.dispatch(forge_tracker::EventKind::Error(error)));
+                self.writeln(TitleFormat::error(cause.as_str()))?;
+                tokio::spawn(
+                    TRACKER.dispatch(forge_tracker::EventKind::Error(cause.into_string())),
+                );
             }
         }
         Ok(())
