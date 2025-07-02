@@ -1,3 +1,4 @@
+#![allow(clippy::enum_variant_names)]
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -33,7 +34,6 @@ use crate::{Status, ToolCallFull, ToolDefinition, ToolDescription, ToolName};
 #[strum_discriminants(derive(Display))]
 #[serde(tag = "name", content = "arguments", rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[allow(clippy::enum_variant_names)]
 pub enum Tools {
     ForgeToolFsRead(FSRead),
     ForgeToolFsCreate(FSWrite),
