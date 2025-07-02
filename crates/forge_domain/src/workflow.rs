@@ -166,7 +166,7 @@ impl Workflow {
             tool_supported: None,
             updates: None,
             templates: None,
-            max_requests_per_turn: Some(20), // Default to 20 requests per turn
+            max_requests_per_turn: None, 
         }
     }
 

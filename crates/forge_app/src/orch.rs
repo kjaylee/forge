@@ -439,7 +439,7 @@ impl<S: AgentService> Orchestrator<S> {
 
             // If the agent has made too many requests, we can assume it is possibly stuck
             // and ask the user if they want to continue or stop.
-            if request_count >= max_requests_per_turn {
+            if max_requests_per_turn.is_some_and(|max| request_count >= max) {
                 let answer = self
                     .services
                     .select_one(
