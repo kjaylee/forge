@@ -432,9 +432,7 @@ mod tests {
         fixture
             .add_file("main.log", "base main log content")
             .unwrap();
-        fixture
-            .add_file(".ignore", "excluded/**/*\n*.log")
-            .unwrap();
+        fixture.add_file(".ignore", "excluded/**/*\n*.log").unwrap();
 
         let actual = Walker::max_all()
             .cwd(fixture.as_path().to_path_buf())
@@ -444,7 +442,7 @@ mod tests {
 
         let mut expected = vec!["included/main.rs", "included/test.rs", "base.rs"];
         expected.sort();
-        
+
         let mut actual_files: Vec<_> = actual
             .iter()
             .filter(|f| !f.is_dir())
