@@ -659,7 +659,11 @@ impl TryFrom<ToolCallFull> for Tools {
             value.arguments.to_string()
         };
 
-        let json_str = format!(r#"{{"name": "{}", "arguments": {}}}"#, value.name.to_string(), arg);
+        let json_str = format!(
+            r#"{{"name": "{}", "arguments": {}}}"#,
+            value.name,
+            arg
+        );
         eserde::json::from_str(&json_str)
     }
 }
