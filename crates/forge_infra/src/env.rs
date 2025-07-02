@@ -36,9 +36,9 @@ impl ForgeEnvironmentInfra {
 
     /// Resolves the provider key and provider from environment variables
     ///
-    /// Returns the provider configuration
-    /// Returns an error if no API key is found in the environment
-    fn resolve_provider(&self) -> anyhow::Result<Provider> {
+    /// Returns a tuple of (provider_key, provider)
+    /// Panics if no API key is found in the environment
+    fn resolve_provider(&self) -> Provider {
         let keys: [ProviderSearch; 4] = [
             ("FORGE_KEY", Box::new(Provider::antinomy)),
             ("OPENROUTER_API_KEY", Box::new(Provider::open_router)),
@@ -69,7 +69,7 @@ impl ForgeEnvironmentInfra {
                     provider
                 })
             })
-            .ok_or_else(|| anyhow::anyhow!("No API key found. Please set one of: {env_variables}"))
+            .unwrap_or_else(|| panic!("API key required. Get yours at https://app.forgecode.dev/"))
     }
 
     /// Resolves retry configuration from environment variables or returns
@@ -142,10 +142,7 @@ impl ForgeEnvironmentInfra {
             Self::dot_env(&cwd);
         }
 
-        let provider = self.resolve_provider().unwrap_or_else(|e| {
-            eprintln!("Configuration error: {e}");
-            std::process::exit(1);
-        });
+        let provider = self.resolve_provider();
         let retry_config = self.resolve_retry_config();
 
         Environment {
