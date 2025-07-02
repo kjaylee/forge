@@ -135,17 +135,11 @@ where
 {
     let mut output = vec![];
     while let Some(frame) = frames.next().await {
-        match frame {
-            Ok(text) => {
-                let bytes = text.as_ref();
-                writer.write_all(bytes)?;
-                writer.flush()?;
-                output.extend_from_slice(bytes);
-            }
-            Err(e) => {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, e));
-            }
-        }
+        let text = frame?;
+        let bytes = text.as_ref();
+        writer.write_all(bytes)?;
+        writer.flush()?;
+        output.extend_from_slice(bytes);
     }
 
     Ok(output)
