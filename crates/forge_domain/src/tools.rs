@@ -651,6 +651,9 @@ impl TryFrom<ToolCallFull> for Tools {
 
     fn try_from(value: ToolCallFull) -> Result<Self, Self::Error> {
         let arg = if value.arguments.is_null() {
+            // Note: If the arguments are null, we use an empty object.
+            // This is a workaround for eserde, which doesn't provide
+            // detailed error messages when required fields are missing.
             "{}".to_string()
         } else {
             value.arguments.to_string()
