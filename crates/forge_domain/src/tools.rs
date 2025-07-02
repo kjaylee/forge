@@ -3,10 +3,11 @@ use std::path::PathBuf;
 
 use convert_case::{Case, Casing};
 use derive_more::From;
+use eserde::{DeserializationErrors, Deserialize};
 use forge_tool_macros::ToolDescription;
 use schemars::schema::RootSchema;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::json;
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumDiscriminants, EnumIter};
@@ -33,6 +34,7 @@ use crate::{Status, ToolCallFull, ToolDefinition, ToolDescription, ToolName};
 #[strum_discriminants(derive(Display))]
 #[serde(tag = "name", content = "arguments", rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[allow(clippy::enum_variant_names)]
 pub enum Tools {
     ForgeToolFsRead(FSRead),
     ForgeToolFsCreate(FSWrite),
@@ -646,15 +648,22 @@ impl ToolsDiscriminants {
 }
 
 impl TryFrom<ToolCallFull> for Tools {
-    type Error = serde_json::Error;
+    type Error = DeserializationErrors;
 
     fn try_from(value: ToolCallFull) -> Result<Self, Self::Error> {
+        let arg = if value.arguments.is_null() {
+            json!({})
+        } else {
+            value.arguments
+        };
+
         let object = json!({
             "name": value.name.to_string(),
-            "arguments": value.arguments
+            "arguments": arg,
         });
-
-        serde_json::from_value(object)
+        // TODO: constructing the json object and then converting it to string
+        // and then deserializing it is not the most efficient way to do this.
+        eserde::json::from_str(&object.to_string())
     }
 }
 
@@ -710,5 +719,12 @@ mod tests {
             .join("\n");
 
         insta::assert_snapshot!(tools);
+    }
+
+    #[test]
+    fn test_tool_deser() {
+        let tool_call = ToolCallFull::new("forge_tool_fs_create".into());
+        let result = Tools::try_from(tool_call);
+        insta::assert_snapshot!(result.unwrap_err().to_string());
     }
 }

@@ -3,7 +3,7 @@ use forge_domain::ToolName;
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Invalid tool call arguments: {0}")]
-    CallArgument(serde_json::Error),
+    CallArgument(String),
 
     #[error("Tool {0} not found")]
     NotFound(ToolName),

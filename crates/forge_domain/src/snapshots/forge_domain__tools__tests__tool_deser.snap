@@ -1,0 +1,7 @@
+---
+source: crates/forge_domain/src/tools.rs
+expression: result.unwrap_err().to_string()
+---
+Something went wrong during deserialization:
+- missing field `path`
+- missing field `content`
