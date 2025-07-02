@@ -161,7 +161,7 @@ impl Conversation {
             agents,
             events: Default::default(),
             tasks: TaskList::new(),
-            max_requests_per_turn: workflow.max_requests_per_turn.clone(),
+            max_requests_per_turn: workflow.max_requests_per_turn,
         }
     }
 
