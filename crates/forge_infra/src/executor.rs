@@ -128,7 +128,7 @@ async fn stream<A: AsyncReadExt + Unpin, W: Write>(
             }
             let buff = buff[..n].to_vec();
             let str_data = String::from_utf8(buff.clone()).unwrap();
-            println!("Read {:#?} ",str_data);
+            println!("Read {str_data:#?} ");
 
             writer.write_all(&buff[..n])?;
             // note: flush is necessary else we get the cursor could not be found error.
@@ -227,18 +227,19 @@ mod tests {
     #[tokio::test]
     async fn test_stream_utf8_boundary_issue() {
         use std::io::Cursor;
-        let mut test_data = vec![b'A'; 1022]; 
-        test_data.extend_from_slice("👍".as_bytes()); 
-        
+        let mut test_data = vec![b'A'; 1022];
+        test_data.extend_from_slice("👍".as_bytes());
+
         // TODO: call stream with the test data
         let cursor = Cursor::new(test_data);
         let mut cursor_option = Some(cursor);
         let mut output = Vec::new();
-        
+
         // This should demonstrate the UTF-8 boundary issue
         stream(&mut cursor_option, &mut output).await.unwrap();
-        
-        // Convert to string - this will panic or produce invalid UTF-8 if the emoji was split
+
+        // Convert to string - this will panic or produce invalid UTF-8 if the emoji was
+        // split
         let output_str = String::from_utf8(output).expect("Output should be valid UTF-8");
         println!("Output string: {}", output_str);
     }
