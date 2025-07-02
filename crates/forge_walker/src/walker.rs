@@ -213,10 +213,34 @@ mod tests {
 
     /// Test Fixtures
     mod fixtures {
-        use std::fs::File;
+        use std::fs::{create_dir_all, File};
         use std::io::Write;
 
         use super::*;
+
+        pub struct Fixture(TempDir);
+
+        impl Default for Fixture {
+            fn default() -> Self {
+                let dir = tempdir().expect("Failed to create temp directory");
+                Fixture(dir)
+            }
+        }
+
+        impl Fixture {
+            pub fn add_file(&self, name: &str, content: &str) -> Result<()> {
+                let file_path = self.0.path().join(name);
+                if let Some(parent) = file_path.parent() {
+                    create_dir_all(parent)?;
+                }
+                File::create(file_path.as_path())?.write_all(content.as_bytes())?;
+                Ok(())
+            }
+
+            pub fn as_path(&self) -> &std::path::Path {
+                self.0.path()
+            }
+        }
 
         /// Creates a directory with files of specified sizes
         /// Returns a TempDir containing the test files
@@ -256,27 +280,6 @@ mod tests {
                 File::create(files_dir.join(format!("{prefix}{i}.txt")))?.write_all(b"test")?;
             }
             Ok((dir, files_dir))
-        }
-
-        /// Creates a directory with files and a .ignore file that excludes some
-        /// of them Returns a TempDir containing test files and .ignore
-        /// file
-        pub fn create_files_with_ignore(
-            files: &[&str],
-            ignore_patterns: &[&str],
-        ) -> Result<TempDir> {
-            let dir = tempdir()?;
-
-            // Create test files
-            for file_name in files {
-                File::create(dir.path().join(file_name))?.write_all(b"test content")?;
-            }
-
-            // Create .ignore file with patterns
-            let ignore_content = ignore_patterns.join("\n");
-            File::create(dir.path().join(".ignore"))?.write_all(ignore_content.as_bytes())?;
-
-            Ok(dir)
         }
     }
 
@@ -404,25 +407,44 @@ mod tests {
 
     #[tokio::test]
     async fn test_walker_respects_ignore_file() {
-        let fixture = fixtures::create_files_with_ignore(
-            &[
-                "included.txt",
-                "excluded.txt",
-                "temp.log",
-                "test.log",
-                "config.json",
-            ],
-            &["excluded.txt", "*.log"],
-        )
-        .unwrap();
+        let fixture = fixtures::Fixture::default();
+        fixture
+            .add_file("included/test.rs", "const test: &str = \"include_test\";")
+            .unwrap();
+        fixture
+            .add_file("included/main.rs", "const main: &str = \"include_main\";")
+            .unwrap();
+        fixture
+            .add_file("included/main.log", "included main log content")
+            .unwrap();
+        fixture
+            .add_file("excluded/test.rs", "const test: &str = \"exclude_test\";")
+            .unwrap();
+        fixture
+            .add_file("excluded/main.rs", "const main: &str = \"exclude_main\";")
+            .unwrap();
+        fixture
+            .add_file("excluded/main.log", "excluded main log content")
+            .unwrap();
+        fixture
+            .add_file("base.rs", "const base: &str = \"base\";")
+            .unwrap();
+        fixture
+            .add_file("main.log", "base main log content")
+            .unwrap();
+        fixture
+            .add_file(".ignore", "excluded/**/*\n*.log")
+            .unwrap();
 
         let actual = Walker::max_all()
-            .cwd(fixture.path().to_path_buf())
+            .cwd(fixture.as_path().to_path_buf())
             .get()
             .await
             .unwrap();
 
-        let expected = vec!["config.json", "included.txt"];
+        let mut expected = vec!["included/main.rs", "included/test.rs", "base.rs"];
+        expected.sort();
+        
         let mut actual_files: Vec<_> = actual
             .iter()
             .filter(|f| !f.is_dir())
