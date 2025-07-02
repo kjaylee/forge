@@ -1,15 +1,14 @@
+use forge_domain::{CommandOutput, Environment};
+use forge_services::CommandInfra;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-
-use bytes::{Buf, BytesMut};
-use forge_domain::{CommandOutput, Environment};
-use forge_services::CommandInfra;
+use std::time::Duration;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
-use tokio_util::codec::{Decoder, FramedRead};
+use tokio_util::codec::{BytesCodec, FramedRead, LinesCodec};
 
 /// Service for executing shell commands
 #[derive(Clone, Debug)]
@@ -116,55 +115,19 @@ impl ForgeCommandExecutorService {
     }
 }
 
-struct Utf8Codec;
-
-impl Decoder for Utf8Codec {
-    type Item = String;
-    type Error = anyhow::Error;
-    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if src.is_empty() {
-            return Ok(None);
-        }
-
-        match str::from_utf8(src) {
-            Ok(s) => {
-                let out = s.to_owned();
-                src.clear();
-
-                if out.is_empty() {
-                    return Ok(None);
-                }
-
-                Ok(Some(out))
-            }
-            Err(e) if e.error_len().is_none() => {
-                let valid = e.valid_up_to();
-
-                if valid == 0 {
-                    return Ok(None);
-                }
-
-                let out = str::from_utf8(&src[..valid])?.to_owned();
-                src.advance(valid);
-                Ok(Some(out))
-            }
-            Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e).into()),
-        }
-    }
-}
 async fn stream<A: AsyncReadExt + Unpin, W: Write>(
     io: &mut Option<A>,
     mut writer: W,
 ) -> io::Result<Vec<u8>> {
     if let Some(io) = io.as_mut() {
-        let mut frames = FramedRead::with_capacity(io, Utf8Codec, 1024);
+        let mut frames = FramedRead::with_capacity(io, BytesCodec::new(), 1024);
         return stream_frames(&mut frames, &mut writer).await;
     }
     Ok(vec![])
 }
 
 async fn stream_frames<R, W: Write>(
-    frames: &mut FramedRead<R, Utf8Codec>,
+    frames: &mut FramedRead<R, BytesCodec>,
     mut writer: W,
 ) -> io::Result<Vec<u8>>
 where
@@ -174,7 +137,7 @@ where
     while let Some(frame) = frames.next().await {
         match frame {
             Ok(text) => {
-                let bytes = text.as_bytes();
+                let bytes = text.as_ref();
                 writer.write_all(bytes)?;
                 writer.flush()?;
                 output.extend_from_slice(bytes);
@@ -277,7 +240,7 @@ mod tests {
     async fn test_stream_frames_small_capacity() {
         let fixture = b"hello world test data";
         let reader = Cursor::new(fixture);
-        let mut frames = FramedRead::with_capacity(reader, Utf8Codec, 1);
+        let mut frames = FramedRead::with_capacity(reader, BytesCodec::new(), 1);
         let mut writer = Vec::new();
 
         let actual = stream_frames(&mut frames, &mut writer).await.unwrap();
@@ -292,7 +255,7 @@ mod tests {
         let reader = Cursor::new(fixture.as_bytes());
         // try to stream just 1 byte at a time
         // it should still handle the 4 byte Unicode character correctly.
-        let mut frames = FramedRead::with_capacity(reader, Utf8Codec, 1);
+        let mut frames = FramedRead::with_capacity(reader, BytesCodec::new(), 1);
         let mut writer = Vec::new();
 
         let actual = stream_frames(&mut frames, &mut writer).await.unwrap();
