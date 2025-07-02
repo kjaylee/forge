@@ -3,12 +3,11 @@ use forge_services::CommandInfra;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
-use tokio_util::codec::{BytesCodec, FramedRead, LinesCodec};
+use tokio_util::codec::{BytesCodec, FramedRead};
 
 /// Service for executing shell commands
 #[derive(Clone, Debug)]
