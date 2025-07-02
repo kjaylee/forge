@@ -327,12 +327,7 @@ impl<S: AgentService> Orchestrator<S> {
         let mut request_count = 0;
 
         // Retrive the number of requests allowed per tick.
-        let max_requests_per_turn = self
-            .conversation
-            .variables
-            .get("max_requests_per_turn")
-            .and_then(|v| v.as_i64())
-            .unwrap_or(20);
+        let max_requests_per_turn = self.conversation.max_requests_per_turn;
 
         while !is_complete {
             // Set context for the current loop iteration
