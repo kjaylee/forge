@@ -66,8 +66,7 @@ impl<S: Services> ToolRegistry<S> {
                 .await
         } else if self.agent_executor.contains_tool(&input.name).await? {
             // Handle agent delegation tool calls
-            let agent_input: AgentInput =
-                serde_json::from_value(input.arguments).context("Failed to parse agent input")?;
+            let agent_input = AgentInput::try_from(&input)?;
             // NOTE: Agents should not timeout
             self.agent_executor
                 .execute(input.name.to_string(), agent_input.task, context)

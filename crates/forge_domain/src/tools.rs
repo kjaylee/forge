@@ -659,8 +659,15 @@ impl TryFrom<ToolCallFull> for Tools {
             value.arguments.to_string()
         };
 
-        let json_str = format!(r#"{{"name": "{}", "arguments": {}}}"#, value.name, arg);
+        let json_str = format!(r#"{{"name": "{}", "arguments": {}}}"#, value.name.to_string(), arg);
         eserde::json::from_str(&json_str)
+    }
+}
+
+impl TryFrom<&ToolCallFull> for AgentInput {
+    type Error = DeserializationErrors;
+    fn try_from(value: &ToolCallFull) -> Result<Self, Self::Error> {
+        eserde::json::from_str(&value.arguments.to_string())
     }
 }
 
