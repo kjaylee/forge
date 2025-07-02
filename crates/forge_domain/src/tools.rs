@@ -250,8 +250,8 @@ pub struct FSPatch {
     /// The operation to perform on the matched text. Possible options are:
     /// - 'prepend': Add content before the matched text
     /// - 'append': Add content after the matched text
-    /// - 'replace': Use only for specific, targeted replacements where
-    ///   you need to modify just the first match.
+    /// - 'replace': Use only for specific, targeted replacements where you need
+    ///   to modify just the first match.
     /// - 'replace_all': Should be used for renaming variables, functions,
     ///   types, or any widespread replacements across the file. This is the
     ///   recommended choice for consistent refactoring operations as it ensures

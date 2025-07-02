@@ -59,6 +59,8 @@ enum Error {
     NoMatch(String),
     #[error("Could not find swap target text: {0}")]
     NoSwapTarget(String),
+    #[error("Multiple matches found for search text: '{0}'. Either provide a more specific search pattern or use replace_all to replace all occurrences.")]
+    MultipleMatches(String),
 }
 
 fn apply_replacement(
@@ -101,12 +103,25 @@ fn apply_replacement(
             )),
 
             // Replace matched text with new content
-            PatchOperation::Replace => Ok(format!(
-                "{}{}{}",
-                &haystack[..patch.start],
-                content,
-                &haystack[patch.end()..]
-            )),
+            PatchOperation::Replace => {
+                // Check if there are multiple matches
+                let mut match_count = 0;
+                let mut search_start = 0;
+                while let Some(pos) = haystack[search_start..].find(needle.as_str()) {
+                    match_count += 1;
+                    if match_count > 1 {
+                        return Err(Error::MultipleMatches(needle.to_string()));
+                    }
+                    search_start += pos + needle.len();
+                }
+
+                Ok(format!(
+                    "{}{}{}",
+                    &haystack[..patch.start],
+                    content,
+                    &haystack[patch.end()..]
+                ))
+            }
 
             // Swap with another text in the source
             PatchOperation::Swap => {
@@ -223,6 +238,32 @@ impl<F: FileWriterInfra> FsPatchService for ForgeFsPatch<F> {
 mod tests {
     use forge_domain::PatchOperation;
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_apply_replacement_replace_multiple_matches_error() {
+        let source = "test test test";
+        let search = Some("test".to_string());
+        let operation = PatchOperation::Replace;
+        let content = "replaced";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Multiple matches found for search text: 'test'. Either provide a more specific search pattern or use replace_all to replace all occurrences."));
+    }
+
+    #[test]
+    fn test_apply_replacement_replace_single_match_success() {
+        let source = "hello world test";
+        let search = Some("world".to_string());
+        let operation = PatchOperation::Replace;
+        let content = "universe";
+
+        let result = super::apply_replacement(source.to_string(), search, &operation, content);
+        assert_eq!(result.unwrap(), "hello universe test");
+    }
 
     #[test]
     fn test_apply_replacement_prepend() {
@@ -386,7 +427,11 @@ mod tests {
         let content = "replaced";
 
         let result = super::apply_replacement(source.to_string(), search, &operation, content);
-        assert_eq!(result.unwrap(), "replaced test test");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Multiple matches found for search text: 'test'"));
     }
 
     // Error cases
