@@ -13,13 +13,13 @@ where
     Fut: std::future::Future<Output = anyhow::Result<T>>,
     C: Fn(&anyhow::Error, Duration) + Send + Sync + 'static,
 {
-    let retry_builder = ExponentialBuilder::default()
+    let strategy = ExponentialBuilder::default()
         .with_min_delay(Duration::from_millis(config.min_delay_ms))
         .with_factor(config.backoff_factor as f32)
         .with_max_times(config.max_retry_attempts)
         .with_jitter();
 
-    let retryable = operation.retry(&retry_builder).when(should_retry);
+    let retryable = operation.retry(&strategy).when(should_retry);
 
     match notify {
         Some(callback) => retryable.notify(callback).await,
