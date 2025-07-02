@@ -8,7 +8,6 @@ use forge_tool_macros::ToolDescription;
 use schemars::schema::RootSchema;
 use schemars::JsonSchema;
 use serde::Serialize;
-use serde_json::json;
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumDiscriminants, EnumIter};
 
@@ -652,18 +651,13 @@ impl TryFrom<ToolCallFull> for Tools {
 
     fn try_from(value: ToolCallFull) -> Result<Self, Self::Error> {
         let arg = if value.arguments.is_null() {
-            json!({})
+            "{}".to_string()
         } else {
-            value.arguments
+            value.arguments.to_string()
         };
 
-        let object = json!({
-            "name": value.name.to_string(),
-            "arguments": arg,
-        });
-        // TODO: constructing the json object and then converting it to string
-        // and then deserializing it is not the most efficient way to do this.
-        eserde::json::from_str(&object.to_string())
+        let json_str = format!(r#"{{"name": "{}", "arguments": {}}}"#, value.name, arg);
+        eserde::json::from_str(&json_str)
     }
 }
 
@@ -722,9 +716,22 @@ mod tests {
     }
 
     #[test]
-    fn test_tool_deser() {
+    fn test_tool_deser_failure() {
         let tool_call = ToolCallFull::new("forge_tool_fs_create".into());
         let result = Tools::try_from(tool_call);
         insta::assert_snapshot!(result.unwrap_err().to_string());
+    }
+
+    #[test]
+    fn test_correct_deser() {
+        let tool_call = ToolCallFull::new("forge_tool_fs_create".into()).arguments(json!({
+            "path": "/some/path/foo.txt",
+            "content": "Hello, World!",
+        }));
+        let result = Tools::try_from(tool_call);
+        assert!(result.is_ok());
+        assert!(
+            matches!(result.unwrap(), Tools::ForgeToolFsCreate(data) if data.path == "/some/path/foo.txt" && data.content == "Hello, World!")
+        );
     }
 }
