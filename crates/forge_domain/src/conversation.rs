@@ -161,7 +161,9 @@ impl Conversation {
             agents,
             events: Default::default(),
             tasks: TaskList::new(),
-            max_requests_per_turn: workflow.max_requests_per_turn.unwrap_or(20), // Default to 20 requests per turn
+            max_requests_per_turn: workflow.max_requests_per_turn.unwrap_or(20), /* Default to 20
+                                                                                  * requests per
+                                                                                  * turn */
         }
     }
 
