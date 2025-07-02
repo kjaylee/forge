@@ -107,8 +107,8 @@ impl ForgeCommandExecutorService {
         drop(ready);
 
         Ok(CommandOutput {
-            stdout: String::from_utf8_lossy(&stdout_buffer).into_owned(),
-            stderr: String::from_utf8_lossy(&stderr_buffer).into_owned(),
+            stdout: String::from_utf8(stdout_buffer)?,
+            stderr: String::from_utf8(stderr_buffer)?,
             exit_code: status.code(),
             command,
         })
