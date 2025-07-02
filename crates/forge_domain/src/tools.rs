@@ -189,12 +189,7 @@ pub enum PatchOperation {
     /// Should be used only when you want to replace the first occurrence.
     /// Use only for specific, targeted replacements where you need to modify
     /// just the first match.
-    ReplaceFirst,
-
-    /// Should be used only when you want to replace the last occurrence.
-    /// Use only for specific, targeted replacements where you need to modify
-    /// just the last match.
-    ReplaceLast,
+    Replace,
 
     /// Should be used for renaming variables, functions, types, or any
     /// widespread replacements across the file. This is the recommended
@@ -234,7 +229,7 @@ impl JsonSchema for PatchOperation {
 }
 
 /// Modifies files with targeted line operations on matched patterns. Supports
-/// prepend, append, replace_first, replace_all, replace_last, swap, delete
+/// prepend, append, replace, replace_all, swap, delete
 /// operations. Ideal for precise changes to configs, code, or docs while
 /// preserving context. Not suitable for complex refactoring or modifying all
 /// pattern occurrences - use `forge_tool_fs_create` instead for complete
@@ -255,10 +250,8 @@ pub struct FSPatch {
     /// The operation to perform on the matched text. Possible options are:
     /// - 'prepend': Add content before the matched text
     /// - 'append': Add content after the matched text
-    /// - 'replace_first': Use only for specific, targeted replacements where
+    /// - 'replace': Use only for specific, targeted replacements where
     ///   you need to modify just the first match.
-    /// - 'replace_last': Use only for specific, targeted replacements where you
-    ///   need to modify just the last match.
     /// - 'replace_all': Should be used for renaming variables, functions,
     ///   types, or any widespread replacements across the file. This is the
     ///   recommended choice for consistent refactoring operations as it ensures

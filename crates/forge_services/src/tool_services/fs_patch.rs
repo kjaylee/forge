@@ -101,33 +101,12 @@ fn apply_replacement(
             )),
 
             // Replace matched text with new content
-            PatchOperation::ReplaceFirst => Ok(format!(
+            PatchOperation::Replace => Ok(format!(
                 "{}{}{}",
                 &haystack[..patch.start],
                 content,
                 &haystack[patch.end()..]
             )),
-
-            // Replace the last occurrence of matched text with new content
-            PatchOperation::ReplaceLast => {
-                // Find all occurrences and use the last one
-                let mut last_match = patch;
-                let mut search_from = patch.end();
-
-                while let Some(next_match) =
-                    Range::find_exact(&haystack[search_from..], needle.as_str())
-                {
-                    last_match = Range::new(search_from + next_match.start, next_match.length);
-                    search_from = last_match.end();
-                }
-
-                Ok(format!(
-                    "{}{}{}",
-                    &haystack[..last_match.start],
-                    content,
-                    &haystack[last_match.end()..]
-                ))
-            }
 
             // Swap with another text in the source
             PatchOperation::Swap => {
@@ -179,9 +158,7 @@ fn apply_replacement(
             // Prepend to the beginning of the file
             PatchOperation::Prepend => Ok(format!("{content}{haystack}")),
             // Replace is equivalent to completely replacing the file
-            PatchOperation::ReplaceFirst
-            | PatchOperation::ReplaceAll
-            | PatchOperation::ReplaceLast => Ok(content.to_string()),
+            PatchOperation::Replace | PatchOperation::ReplaceAll => Ok(content.to_string()),
             // Swap doesn't make sense with empty search - keep source unchanged
             PatchOperation::Swap => Ok(haystack),
         }
@@ -306,7 +283,7 @@ mod tests {
     fn test_apply_replacement_replace() {
         let source = "hello world";
         let search = Some("world".to_string());
-        let operation = PatchOperation::ReplaceFirst;
+        let operation = PatchOperation::Replace;
         let content = "universe";
 
         let result = super::apply_replacement(source.to_string(), search, &operation, content);
@@ -317,7 +294,7 @@ mod tests {
     fn test_apply_replacement_replace_no_search() {
         let source = "hello world";
         let search = None;
-        let operation = PatchOperation::ReplaceFirst;
+        let operation = PatchOperation::Replace;
         let content = "new content";
 
         let result = super::apply_replacement(source.to_string(), search, &operation, content);
@@ -372,7 +349,7 @@ mod tests {
     fn test_apply_replacement_multiline() {
         let source = "line1\nline2\nline3";
         let search = Some("line2".to_string());
-        let operation = PatchOperation::ReplaceFirst;
+        let operation = PatchOperation::Replace;
         let content = "replaced_line";
 
         let result = super::apply_replacement(source.to_string(), search, &operation, content);
@@ -383,7 +360,7 @@ mod tests {
     fn test_apply_replacement_with_special_chars() {
         let source = "hello $world @test";
         let search = Some("$world".to_string());
-        let operation = PatchOperation::ReplaceFirst;
+        let operation = PatchOperation::Replace;
         let content = "$universe";
 
         let result = super::apply_replacement(source.to_string(), search, &operation, content);
@@ -394,7 +371,7 @@ mod tests {
     fn test_apply_replacement_empty_content() {
         let source = "hello world test";
         let search = Some("world ".to_string());
-        let operation = PatchOperation::ReplaceFirst;
+        let operation = PatchOperation::Replace;
         let content = "";
 
         let result = super::apply_replacement(source.to_string(), search, &operation, content);
@@ -405,7 +382,7 @@ mod tests {
     fn test_apply_replacement_first_occurrence_only() {
         let source = "test test test";
         let search = Some("test".to_string());
-        let operation = PatchOperation::ReplaceFirst;
+        let operation = PatchOperation::Replace;
         let content = "replaced";
 
         let result = super::apply_replacement(source.to_string(), search, &operation, content);
@@ -417,7 +394,7 @@ mod tests {
     fn test_apply_replacement_no_match() {
         let source = "hello world";
         let search = Some("missing".to_string());
-        let operation = PatchOperation::ReplaceFirst;
+        let operation = PatchOperation::Replace;
         let content = "replacement";
 
         let result = super::apply_replacement(source.to_string(), search, &operation, content);
@@ -426,77 +403,6 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("Could not find match for search text: missing"));
-    }
-
-    #[test]
-    fn test_apply_replacement_replace_last() {
-        let source = "test test test";
-        let search = Some("test".to_string());
-        let operation = PatchOperation::ReplaceLast;
-        let content = "replaced";
-
-        let result = super::apply_replacement(source.to_string(), search, &operation, content);
-        assert_eq!(result.unwrap(), "test test replaced");
-    }
-
-    #[test]
-    fn test_apply_replacement_replace_last_single_occurrence() {
-        let source = "hello world";
-        let search = Some("world".to_string());
-        let operation = PatchOperation::ReplaceLast;
-        let content = "universe";
-
-        let result = super::apply_replacement(source.to_string(), search, &operation, content);
-        assert_eq!(result.unwrap(), "hello universe");
-    }
-
-    #[test]
-    fn test_apply_replacement_replace_last_multiline() {
-        let source = "line1\nline2\nline1\nline3";
-        let search = Some("line1".to_string());
-        let operation = PatchOperation::ReplaceLast;
-        let content = "replaced_line";
-
-        let result = super::apply_replacement(source.to_string(), search, &operation, content);
-        assert_eq!(result.unwrap(), "line1\nline2\nreplaced_line\nline3");
-    }
-
-    #[test]
-    fn test_apply_replacement_replace_last_no_search() {
-        let source = "hello world";
-        let search = None;
-        let operation = PatchOperation::ReplaceLast;
-        let content = "new content";
-
-        let result = super::apply_replacement(source.to_string(), search, &operation, content);
-        assert_eq!(result.unwrap(), "new content");
-    }
-
-    #[test]
-    fn test_apply_replacement_replace_last_no_match() {
-        let source = "hello world";
-        let search = Some("missing".to_string());
-        let operation = PatchOperation::ReplaceLast;
-        let content = "replacement";
-
-        let result = super::apply_replacement(source.to_string(), search, &operation, content);
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not find match for search text: missing"));
-    }
-
-    #[test]
-    fn test_apply_replacement_replace_last_overlapping_matches() {
-        let source = "aaaa";
-        let search = Some("aa".to_string());
-        let operation = PatchOperation::ReplaceLast;
-        let content = "bb";
-
-        let result = super::apply_replacement(source.to_string(), search, &operation, content);
-        // Should replace the last non-overlapping occurrence
-        assert_eq!(result.unwrap(), "aabb");
     }
 
     #[test]
@@ -529,7 +435,7 @@ mod tests {
     fn test_apply_replacement_whitespace_handling() {
         let source = "  hello   world  ";
         let search = Some("hello   world".to_string());
-        let operation = PatchOperation::ReplaceFirst;
+        let operation = PatchOperation::Replace;
         let content = "test";
 
         let result = super::apply_replacement(source.to_string(), search, &operation, content);
@@ -540,7 +446,7 @@ mod tests {
     fn test_apply_replacement_unicode() {
         let source = "héllo wørld 🌍";
         let search = Some("wørld".to_string());
-        let operation = PatchOperation::ReplaceFirst;
+        let operation = PatchOperation::Replace;
         let content = "univérse";
 
         let result = super::apply_replacement(source.to_string(), search, &operation, content);

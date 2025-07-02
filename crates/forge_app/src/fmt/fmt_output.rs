@@ -347,7 +347,7 @@ mod tests {
                 path: "/home/user/project/test.txt".to_string(),
                 search: Some("Hello world".to_string()),
                 content: "Hello universe".to_string(),
-                operation: PatchOperation::ReplaceFirst,
+                operation: PatchOperation::Replace,
                 explanation: Some("Replace text".to_string()),
             },
             output: PatchOutput {
@@ -369,7 +369,7 @@ mod tests {
                 path: "/home/user/project/large_file.txt".to_string(),
                 search: Some("line2".to_string()),
                 content: "new line\nline2".to_string(),
-                operation: PatchOperation::ReplaceFirst,
+                operation: PatchOperation::Replace,
                 explanation: Some("Add new line".to_string()),
             },
             output: PatchOutput {
