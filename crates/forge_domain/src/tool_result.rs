@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Image, ToolCallFull, ToolCallId, ToolName};
 
-const REFLECTION_PROMPT: &str = r#"\nYou must now deeply reflect on the error above. Enclose your full reflection within <forge_thinking> tags.
+const REFLECTION_PROMPT: &str = r#"You must now deeply reflect on the error above. Enclose your full reflection within <forge_thinking> tags.
 1. Pinpoint exactly what was wrong with the tool call — was it the wrong tool, incorrect or missing parameters, or malformed structure?
 2. Explain why that mistake happened. Did you misunderstand the tool's schema? Miss a required field? Misread the context?
 3. Make the correct tool call as it should have been made.
@@ -64,12 +64,8 @@ impl ToolResult {
                 let error_tag = Element::new("error").cdata(message.join("\n"));
                 let reflection_tag = Element::new("reflection").text(REFLECTION_PROMPT);
 
-                self.output = ToolOutput::text(format!(
-                    "{}\n{}",
-                    error_tag.render(),
-                    reflection_tag.render()
-                ))
-                .is_error(true);
+                self.output =
+                    ToolOutput::text(format!("{}\n{}", error_tag, reflection_tag)).is_error(true);
             }
         }
         self
