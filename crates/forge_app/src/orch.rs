@@ -1,6 +1,6 @@
-use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_recursion::async_recursion;
 use derive_setters::Setters;
@@ -54,7 +54,7 @@ impl<S: AgentService> Orchestrator<S> {
     // Helper function to get all tool results from a vector of tool calls
     #[async_recursion]
     async fn execute_tool_calls(
-        &mut self,
+        &self,
         agent: &Agent,
         tool_calls: &[ToolCallFull],
         tool_context: &mut ToolCallContext,
@@ -236,7 +236,7 @@ impl<S: AgentService> Orchestrator<S> {
             .pipe(ImageHandling::new());
         let response = self
             .services
-            .chat(model_id, transformers.transform(context))
+            .chat_agent(model_id, transformers.transform(context))
             .await?;
         response.into_full(!tool_supported).await
     }
@@ -267,6 +267,13 @@ impl<S: AgentService> Orchestrator<S> {
 
         // Render the system prompts with the variables
         context = self.set_system_prompt(context, &agent, &variables).await?;
+
+        // Create a new compactor
+        let compactor = Compactor::new(self.services.clone());
+
+        // Perform an aggressive compaction before starting out
+        // TODO: Improve compaction by providing context of the user message
+        context = compactor.compact(&agent, context, true).await?;
 
         // Render user prompts
         context = self
@@ -313,42 +320,57 @@ impl<S: AgentService> Orchestrator<S> {
 
         self.conversation.context = Some(context.clone());
 
-        let mut tool_context = ToolCallContext::new(self.sender.clone());
         // Indicates whether the tool execution has been completed
         let mut is_complete = false;
 
         let mut empty_tool_call_count = 0;
         let is_tool_supported = self.is_tool_supported(&agent)?;
+
         while !is_complete {
             // Set context for the current loop iteration
             self.conversation.context = Some(context.clone());
             self.services.update(self.conversation.clone()).await?;
 
             let ChatCompletionMessageFull { tool_calls, content, mut usage } =
-                crate::retry::retry_with_config(&self.environment.retry_config, || {
-                    self.execute_chat_turn(&model_id, context.clone(), is_tool_supported)
-                })
+                crate::retry::retry_with_config(
+                    &self.environment.retry_config,
+                    || self.execute_chat_turn(&model_id, context.clone(), is_tool_supported),
+                    self.sender.as_ref().map(|sender| {
+                        let sender = sender.clone();
+                        let agent_id = agent.id.clone();
+                        let model_id = model_id.clone();
+                        move |error: &anyhow::Error, duration: Duration| {
+                            tracing::error!(agent_id = %agent_id, error = %error, model=%model_id, "Retry Attempt");
+                            let retry_event = ChatResponse::RetryAttempt {
+                                cause: error.into(),
+                                duration,
+                            };
+                            let _ = sender.try_send(Ok(retry_event));
+                        }
+                    }),
+                )
                 .await?;
 
             // Set estimated tokens
-            usage.estimated_tokens = estimate_token_count(context.to_text().len()) as u64;
+            usage.estimated_tokens = context.token_count();
 
             // Send the usage information if available
 
             info!(
                 token_usage = usage.prompt_tokens,
                 estimated_token_usage = usage.estimated_tokens,
-                content_length = usage.content_length,
                 "Processing usage information"
             );
 
             self.send(ChatResponse::Usage(usage.clone())).await?;
 
             // Check if context requires compression and decide to compact
-            if agent.should_compact(&context, max(usage.prompt_tokens, usage.estimated_tokens)) {
+            let context_tokens = usage
+                .prompt_tokens
+                .max(usage.estimated_tokens.max(usage.total_tokens));
+            if agent.should_compact(&context, context_tokens) {
                 info!(agent_id = %agent.id, "Compaction needed, applying compaction");
-                let compactor = Compactor::new(self.services.clone());
-                context = compactor.compact_context(&agent, context).await?;
+                context = compactor.compact(&agent, context, false).await?;
             } else {
                 debug!(agent_id = %agent.id, "Compaction not needed");
             }
@@ -373,6 +395,8 @@ impl<S: AgentService> Orchestrator<S> {
                 })
                 .await?;
             }
+            let mut tool_context =
+                ToolCallContext::new(self.conversation.tasks.clone()).sender(self.sender.clone());
 
             // Process tool calls and update context
             context = context.append_message(
@@ -380,6 +404,7 @@ impl<S: AgentService> Orchestrator<S> {
                 self.execute_tool_calls(&agent, &tool_calls, &mut tool_context)
                     .await?,
             );
+            self.conversation.tasks = tool_context.tasks;
 
             context = SetModel::new(model_id.clone()).transform(context);
 

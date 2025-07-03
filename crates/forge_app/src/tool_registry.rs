@@ -62,14 +62,11 @@ impl<S: Services> ToolRegistry<S> {
 
         // First, try to call a Forge tool
         if Tools::contains(&input.name) {
-            self.call_with_timeout(&tool_name, || {
-                self.tool_executor.execute(input.clone(), context)
-            })
-            .await
+            self.call_with_timeout(&tool_name, || self.tool_executor.execute(input, context))
+                .await
         } else if self.agent_executor.contains_tool(&input.name).await? {
             // Handle agent delegation tool calls
-            let agent_input: AgentInput =
-                serde_json::from_value(input.arguments).context("Failed to parse agent input")?;
+            let agent_input = AgentInput::try_from(&input)?;
             // NOTE: Agents should not timeout
             self.agent_executor
                 .execute(input.name.to_string(), agent_input.task, context)
@@ -97,7 +94,7 @@ impl<S: Services> ToolRegistry<S> {
     }
 
     pub async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {
-        let mcp_tools = self.mcp_executor.services.mcp_service().list().await?;
+        let mcp_tools = self.mcp_executor.services.list().await?;
         let agent_tools = self.agent_executor.tool_agents().await?;
 
         let tools = Tools::iter()

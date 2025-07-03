@@ -1,17 +1,20 @@
+#![allow(clippy::enum_variant_names)]
 use std::collections::HashSet;
 use std::path::PathBuf;
 
 use convert_case::{Case, Casing};
 use derive_more::From;
+use eserde::Deserialize;
 use forge_tool_macros::ToolDescription;
 use schemars::schema::RootSchema;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde::Serialize;
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumDiscriminants, EnumIter};
 
-use crate::{ToolCallFull, ToolDefinition, ToolDescription, ToolName};
+use crate::{
+    Status, ToolCallArgumentError, ToolCallFull, ToolDefinition, ToolDescription, ToolName,
+};
 
 /// Enum representing all possible tool input types.
 ///
@@ -44,6 +47,11 @@ pub enum Tools {
     ForgeToolNetFetch(NetFetch),
     ForgeToolFollowup(Followup),
     ForgeToolAttemptCompletion(AttemptCompletion),
+    ForgeToolTaskListAppend(TaskListAppend),
+    ForgeToolTaskListAppendMultiple(TaskListAppendMultiple),
+    ForgeToolTaskListUpdate(TaskListUpdate),
+    ForgeToolTaskListList(TaskListList),
+    ForgeToolTaskListClear(TaskListClear),
 }
 
 /// Input structure for agent tool calls. This serves as the generic schema
@@ -79,12 +87,12 @@ pub struct FSRead {
     /// Optional start position in lines (1-based). If provided, reading
     /// will start from this line position.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub start_line: Option<u64>,
+    pub start_line: Option<i32>,
 
     /// Optional end position in lines (inclusive). If provided, reading
     /// will end at this line position.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub end_line: Option<u64>,
+    pub end_line: Option<i32>,
     /// One sentence explanation as to why this specific tool is being used, and
     /// how it contributes to the goal.
     #[serde(default)]
@@ -142,10 +150,10 @@ pub struct FSSearch {
     pub regex: Option<String>,
 
     /// Starting index for the search results (1-based).
-    pub start_index: Option<u64>,
+    pub start_index: Option<i32>,
 
     /// Maximum number of lines to return in the search results.
-    pub max_search_lines: Option<u64>,
+    pub max_search_lines: Option<i32>,
 
     /// Glob pattern to filter files (e.g., '*.ts' for TypeScript files).
     /// If not provided, it will search all files (*).
@@ -171,7 +179,7 @@ pub struct FSRemove {
 }
 
 /// Operation types that can be performed on matched text
-#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, AsRefStr)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, AsRefStr, EnumIter)]
 #[serde(rename_all = "snake_case")]
 pub enum PatchOperation {
     /// Prepend content before the matched text
@@ -181,17 +189,51 @@ pub enum PatchOperation {
     /// Append content after the matched text
     Append,
 
-    /// Replace the matched text with new content
+    /// Should be used only when you want to replace the first occurrence.
+    /// Use only for specific, targeted replacements where you need to modify
+    /// just the first match.
     Replace,
+
+    /// Should be used for renaming variables, functions, types, or any
+    /// widespread replacements across the file. This is the recommended
+    /// choice for consistent refactoring operations as it ensures all
+    /// occurrences are updated.
+    ReplaceAll,
 
     /// Swap the matched text with another text (search for the second text and
     /// swap them)
     Swap,
 }
 
+// TODO: do the Blanket impl for all the unit enums
+impl JsonSchema for PatchOperation {
+    fn schema_name() -> String {
+        std::any::type_name::<Self>()
+            .split("::")
+            .last()
+            .unwrap_or("PatchOperation")
+            .to_string()
+    }
+
+    fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        use schemars::schema::{InstanceType, Schema, SchemaObject};
+        let variants: Vec<serde_json::Value> = Self::iter()
+            .map(|variant| variant.as_ref().to_case(Case::Snake).into())
+            .collect();
+        Schema::Object(SchemaObject {
+            instance_type: Some(InstanceType::String.into()),
+            enum_values: Some(variants),
+            metadata: Some(Box::new(schemars::schema::Metadata {
+                ..Default::default()
+            })),
+            ..Default::default()
+        })
+    }
+}
+
 /// Modifies files with targeted line operations on matched patterns. Supports
-/// prepend, append, replace, swap, delete operations on first pattern
-/// occurrence. Ideal for precise changes to configs, code, or docs while
+/// prepend, append, replace, replace_all, swap, delete
+/// operations. Ideal for precise changes to configs, code, or docs while
 /// preserving context. Not suitable for complex refactoring or modifying all
 /// pattern occurrences - use `forge_tool_fs_create` instead for complete
 /// rewrites and `forge_tool_fs_undo` for undoing the last operation. Fails if
@@ -208,8 +250,17 @@ pub struct FSPatch {
     /// search target, so without one, it makes no changes.
     pub search: Option<String>,
 
-    /// The operation to perform on the matched text. Possible options are only
-    /// 'prepend', 'append', 'replace', and 'swap'.
+    /// The operation to perform on the matched text. Possible options are:
+    /// - 'prepend': Add content before the matched text
+    /// - 'append': Add content after the matched text
+    /// - 'replace': Use only for specific, targeted replacements where you need
+    ///   to modify just the first match.
+    /// - 'replace_all': Should be used for renaming variables, functions,
+    ///   types, or any widespread replacements across the file. This is the
+    ///   recommended choice for consistent refactoring operations as it ensures
+    ///   all occurrences are updated.
+    /// - 'swap': Replace the matched text with another text (search for the
+    ///   second text and swap them)
     pub operation: PatchOperation,
 
     /// The content to use for the operation (replacement text, line to
@@ -340,6 +391,72 @@ pub struct AttemptCompletion {
     pub result: String,
 }
 
+/// Add a new task to the end of the task list. Tasks are stored in conversation
+/// state and persist across agent interactions. Use this tool to add individual
+/// work items that need to be tracked during development sessions. Task IDs are
+/// auto-generated integers starting from 1.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+pub struct TaskListAppend {
+    /// The task description to add to the list
+    pub task: String,
+    /// One sentence explanation as to why this specific tool is being used, and
+    /// how it contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Add multiple new tasks to the end of the task list. Tasks are stored in
+/// conversation state and persist across agent interactions. Use this tool to
+/// add several work items at once during development sessions. Task IDs are
+/// auto-generated integers starting from 1.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+pub struct TaskListAppendMultiple {
+    /// The list of task descriptions to add
+    pub tasks: Vec<String>,
+    /// One sentence explanation as to why this specific tool is being used, and
+    /// how it contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Update the status of a specific task in the task list. Use this when a
+/// task's status changes (e.g., from Pending to InProgress, InProgress to Done,
+/// etc.). The task will remain in the list but with an updated status.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+pub struct TaskListUpdate {
+    /// The ID of the task to update
+    pub task_id: i32,
+    /// The new status for the task
+    pub status: Status,
+    /// One sentence explanation as to why this specific tool is being used, and
+    /// how it contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Display the current task list with statistics. Shows all tasks with their
+/// IDs, descriptions, and status (PENDING, IN_PROGRESS, DONE), along with
+/// summary statistics. Use this tool to review current work items and track
+/// progress through development sessions.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+pub struct TaskListList {
+    /// One sentence explanation as to why this specific tool is being used, and
+    /// how it contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Remove all tasks from the task list. This operation cannot be undone and
+/// will reset the task ID counter to 1. Use this tool when you want to start
+/// fresh with a clean task list.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+pub struct TaskListClear {
+    /// One sentence explanation as to why this specific tool is being used, and
+    /// how it contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
 fn default_raw() -> Option<bool> {
     Some(false)
 }
@@ -461,6 +578,11 @@ impl ToolDescription for Tools {
             Tools::ForgeToolFsRemove(v) => v.description(),
             Tools::ForgeToolFsUndo(v) => v.description(),
             Tools::ForgeToolFsCreate(v) => v.description(),
+            Tools::ForgeToolTaskListAppend(v) => v.description(),
+            Tools::ForgeToolTaskListAppendMultiple(v) => v.description(),
+            Tools::ForgeToolTaskListUpdate(v) => v.description(),
+            Tools::ForgeToolTaskListList(v) => v.description(),
+            Tools::ForgeToolTaskListClear(v) => v.description(),
         }
     }
 }
@@ -473,17 +595,35 @@ lazy_static::lazy_static! {
 
 impl Tools {
     pub fn schema(&self) -> RootSchema {
+        use schemars::gen::SchemaSettings;
+        let gen = SchemaSettings::default()
+            .with(|s| {
+                // incase of null, add nullable property.
+                s.option_nullable = true;
+                // incase of option type, don't add null in type.
+                s.option_add_null_type = false;
+                s.meta_schema = None;
+                s.inline_subschemas = true;
+            })
+            .into_generator();
         match self {
-            Tools::ForgeToolFsPatch(_) => schemars::schema_for!(FSPatch),
-            Tools::ForgeToolProcessShell(_) => schemars::schema_for!(Shell),
-            Tools::ForgeToolFollowup(_) => schemars::schema_for!(Followup),
-            Tools::ForgeToolNetFetch(_) => schemars::schema_for!(NetFetch),
-            Tools::ForgeToolAttemptCompletion(_) => schemars::schema_for!(AttemptCompletion),
-            Tools::ForgeToolFsSearch(_) => schemars::schema_for!(FSSearch),
-            Tools::ForgeToolFsRead(_) => schemars::schema_for!(FSRead),
-            Tools::ForgeToolFsRemove(_) => schemars::schema_for!(FSRemove),
-            Tools::ForgeToolFsUndo(_) => schemars::schema_for!(FSUndo),
-            Tools::ForgeToolFsCreate(_) => schemars::schema_for!(FSWrite),
+            Tools::ForgeToolFsPatch(_) => gen.into_root_schema_for::<FSPatch>(),
+            Tools::ForgeToolProcessShell(_) => gen.into_root_schema_for::<Shell>(),
+            Tools::ForgeToolFollowup(_) => gen.into_root_schema_for::<Followup>(),
+            Tools::ForgeToolNetFetch(_) => gen.into_root_schema_for::<NetFetch>(),
+            Tools::ForgeToolAttemptCompletion(_) => gen.into_root_schema_for::<AttemptCompletion>(),
+            Tools::ForgeToolFsSearch(_) => gen.into_root_schema_for::<FSSearch>(),
+            Tools::ForgeToolFsRead(_) => gen.into_root_schema_for::<FSRead>(),
+            Tools::ForgeToolFsRemove(_) => gen.into_root_schema_for::<FSRemove>(),
+            Tools::ForgeToolFsUndo(_) => gen.into_root_schema_for::<FSUndo>(),
+            Tools::ForgeToolFsCreate(_) => gen.into_root_schema_for::<FSWrite>(),
+            Tools::ForgeToolTaskListAppend(_) => gen.into_root_schema_for::<TaskListAppend>(),
+            Tools::ForgeToolTaskListAppendMultiple(_) => {
+                gen.into_root_schema_for::<TaskListAppendMultiple>()
+            }
+            Tools::ForgeToolTaskListUpdate(_) => gen.into_root_schema_for::<TaskListUpdate>(),
+            Tools::ForgeToolTaskListList(_) => gen.into_root_schema_for::<TaskListList>(),
+            Tools::ForgeToolTaskListClear(_) => gen.into_root_schema_for::<TaskListClear>(),
         }
     }
 
@@ -521,15 +661,27 @@ impl ToolsDiscriminants {
 }
 
 impl TryFrom<ToolCallFull> for Tools {
-    type Error = serde_json::Error;
+    type Error = ToolCallArgumentError;
 
     fn try_from(value: ToolCallFull) -> Result<Self, Self::Error> {
-        let object = json!({
-            "name": value.name.to_string(),
-            "arguments": value.arguments
-        });
+        let arg = if value.arguments.is_null() {
+            // Note: If the arguments are null, we use an empty object.
+            // This is a workaround for eserde, which doesn't provide
+            // detailed error messages when required fields are missing.
+            "{}".to_string()
+        } else {
+            value.arguments.to_string()
+        };
 
-        serde_json::from_value(object)
+        let json_str = format!(r#"{{"name": "{}", "arguments": {}}}"#, value.name, arg);
+        eserde::json::from_str(&json_str).map_err(ToolCallArgumentError::from)
+    }
+}
+
+impl TryFrom<&ToolCallFull> for AgentInput {
+    type Error = ToolCallArgumentError;
+    fn try_from(value: &ToolCallFull) -> Result<Self, Self::Error> {
+        eserde::json::from_str(&value.arguments.to_string()).map_err(ToolCallArgumentError::from)
     }
 }
 
@@ -537,6 +689,7 @@ impl TryFrom<ToolCallFull> for Tools {
 mod tests {
     use pretty_assertions::assert_eq;
     use serde_json::json;
+    use strum::IntoEnumIterator;
 
     use crate::{FSRead, ToolCallFull, ToolName, Tools, ToolsDiscriminants};
 
@@ -570,5 +723,39 @@ mod tests {
         let actual = ToolsDiscriminants::ForgeToolFsRemove.name();
         let expected = ToolName::new("forge_tool_fs_remove");
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_tool_definition_json() {
+        let tools = Tools::iter()
+            .map(|tool| {
+                let definition = tool.definition();
+                serde_json::to_string_pretty(&definition)
+                    .expect("Failed to serialize tool definition to JSON")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        insta::assert_snapshot!(tools);
+    }
+
+    #[test]
+    fn test_tool_deser_failure() {
+        let tool_call = ToolCallFull::new("forge_tool_fs_create".into());
+        let result = Tools::try_from(tool_call);
+        insta::assert_snapshot!(result.unwrap_err().to_string());
+    }
+
+    #[test]
+    fn test_correct_deser() {
+        let tool_call = ToolCallFull::new("forge_tool_fs_create".into()).arguments(json!({
+            "path": "/some/path/foo.txt",
+            "content": "Hello, World!",
+        }));
+        let result = Tools::try_from(tool_call);
+        assert!(result.is_ok());
+        assert!(
+            matches!(result.unwrap(), Tools::ForgeToolFsCreate(data) if data.path == "/some/path/foo.txt" && data.content == "Hello, World!")
+        );
     }
 }

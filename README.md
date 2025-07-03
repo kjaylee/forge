@@ -1,7 +1,7 @@
 <h1 align="center">⚒️ Forge: AI-Enhanced Terminal Development Environment</h1>
 <p align="center">A comprehensive coding agent that integrates AI capabilities with your development environment</p>
 
-<p align="center"><code>npm install -g @antinomyhq/forge</code></p>
+<p align="center"><code>npx forgecode@latest</code></p>
 
 [![CI Status](https://img.shields.io/github/actions/workflow/status/antinomyhq/forge/ci.yml?style=for-the-badge)](https://github.com/antinomyhq/forge/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/antinomyhq/forge?style=for-the-badge)](https://github.com/antinomyhq/forge/releases)
@@ -35,13 +35,7 @@
 
 ## Quickstart
 
-Install globally:
-
-```bash
-npm install -g @antinomyhq/forge
-```
-
-Sign up at [Forgecode.dev](https://app.forgecode.dev/app/) to enable the Forge provider.
+Sign up at [Forgecode.dev](https://app.forgecode.dev/app/) to create a key for the Forge provider.
 
 Then set up your Forge provider key:
 
@@ -50,10 +44,10 @@ Then set up your Forge provider key:
 FORGE_KEY=ForgeKey
 ```
 
-Run Forge in interactive mode:
+Run Forge in interactive mode via npx
 
 ```bash
-forge
+npx forgecode@latest
 ```
 
 That's it! Forge is now ready to assist you with your development tasks.
@@ -70,6 +64,7 @@ Forge can be used in different ways depending on your needs. Here are some commo
 ```
 
 Forge will analyze your project's structure, identify authentication-related files, and provide a detailed explanation of the authentication flow, including the relationships between different components.
+
 </details>
 
 <details>
@@ -80,6 +75,7 @@ Forge will analyze your project's structure, identify authentication-related fil
 ```
 
 Forge will suggest the best approach based on your current codebase, explain the steps needed, and even scaffold the necessary components and styles for you.
+
 </details>
 
 <details>
@@ -90,6 +86,7 @@ Forge will suggest the best approach based on your current codebase, explain the
 ```
 
 Forge will analyze the error, suggest potential causes based on your code, and propose different solutions to fix the issue.
+
 </details>
 
 <details>
@@ -100,6 +97,7 @@ Forge will analyze the error, suggest potential causes based on your code, and p
 ```
 
 Forge will analyze the code, identify potential issues, and suggest improvements for readability, performance, security, and maintainability.
+
 </details>
 
 <details>
@@ -110,6 +108,7 @@ Forge will analyze the code, identify potential issues, and suggest improvements
 ```
 
 Forge will provide a tailored tutorial on integrating GraphQL with Express, using your specific project structure as context.
+
 </details>
 
 <details>
@@ -120,6 +119,7 @@ Forge will provide a tailored tutorial on integrating GraphQL with Express, usin
 ```
 
 Forge will suggest an appropriate schema design, including tables/collections, relationships, indexes, and constraints based on your project's existing database technology.
+
 </details>
 
 <details>
@@ -130,6 +130,7 @@ Forge will suggest an appropriate schema design, including tables/collections, r
 ```
 
 Forge can help modernize your codebase by walking you through refactoring steps and implementing them with your approval.
+
 </details>
 
 <details>
@@ -140,6 +141,7 @@ Forge can help modernize your codebase by walking you through refactoring steps 
 ```
 
 Forge can guide you through resolving git conflicts, explaining the differences and suggesting the best way to reconcile them.
+
 </details>
 
 ## Why Forge?
@@ -177,14 +179,15 @@ Here's a quick reference of Forge's command-line options:
 Forge supports multiple AI providers. Below are setup instructions for each supported provider:
 
 <details>
-<summary><strong>Antinomy.ai (Recommended)</strong></summary>
+<summary><strong>forgecode.dev (Recommended)</strong></summary>
 
 ```bash
 # .env
 FORGE_KEY=ForgeKey
 ```
 
-To use Antinomy's provider with Forge:
+To use Forgecode's provider with Forge:
+
 1. Visit [https://app.forgecode.dev/](https://app.forgecode.dev/)
 2. Login with your existing credentials or create a new account
 3. Once logged in, your account will automatically enable the Forge Provider
@@ -199,6 +202,18 @@ _No changes in `forge.yaml` required_
 ```bash
 # .env
 OPENROUTER_API_KEY=<your_openrouter_api_key>
+```
+
+_No changes in `forge.yaml` required_
+
+</details>
+
+<details>
+<summary><strong>Requesty</strong></summary>
+
+```bash
+# .env
+REQUESTY_API_KEY=<your_requesty_api_key>
 ```
 
 _No changes in `forge.yaml` required_
@@ -339,9 +354,9 @@ Define custom commands as shortcuts for repetitive prompts:
 ```yaml
 # forge.yaml
 commands:
-  - name: "refactor"
-    description: "Refactor selected code"
-    prompt: "Please refactor this code to improve readability and performance"
+  - name: 'refactor'
+    description: 'Refactor selected code'
+    prompt: 'Please refactor this code to improve readability and performance'
 ```
 
 </details>
@@ -353,7 +368,7 @@ Specify the default AI model to use for all agents in the workflow.
 
 ```yaml
 # forge.yaml
-model: "claude-3.7-sonnet"
+model: 'claude-3.7-sonnet'
 ```
 
 </details>
@@ -414,16 +429,16 @@ Or manually create a `.mcp.json` file with the following structure:
 
 ```json
 {
-  "mcp_servers": {
-    "server_name": {
-      "command": "command_to_execute",
-      "args": ["arg1", "arg2"],
-      "env": {"ENV_VAR": "value"}
-    },
-    "another_server": {
-      "url": "http://localhost:3000/events"
-    }
-  }
+	"mcpServers": {
+		"server_name": {
+			"command": "command_to_execute",
+			"args": ["arg1", "arg2"],
+			"env": { "ENV_VAR": "value" }
+		},
+		"another_server": {
+			"url": "http://localhost:3000/events"
+		}
+	}
 }
 ```
 
@@ -471,3 +486,4 @@ Your support drives Forge's continued evolution! By starring our GitHub reposito
 - Motivate our development team 💪
 - Enable us to prioritize new features 🛠️
 - Strengthen our open-source community 🌱
+

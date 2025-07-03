@@ -867,6 +867,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "eserde"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "126e7cf1ef2f9cfbc4d0767cf97961beb73e62f22d90616d9a1228ab06fd1387"
+dependencies = [
+ "eserde_derive",
+ "itoa",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "eserde_derive"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a9861273a1a4623e150b093a99b9c0e51a4d1b2b52efe64facf0f15978f08e9"
+dependencies = [
+ "indexmap",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
+]
+
+[[package]]
 name = "etcetera"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -991,6 +1015,7 @@ dependencies = [
  "convert_case",
  "derive_more",
  "derive_setters",
+ "eserde",
  "forge_display",
  "forge_domain",
  "forge_stream",
@@ -1051,6 +1076,7 @@ dependencies = [
  "derive-getters",
  "derive_more",
  "derive_setters",
+ "eserde",
  "forge_template",
  "forge_tool_macros",
  "insta",
@@ -1102,6 +1128,7 @@ dependencies = [
  "forge_fs",
  "forge_services",
  "forge_snaps",
+ "forge_walker",
  "inquire",
  "pretty_assertions",
  "reqwest 0.12.12",
@@ -1140,6 +1167,7 @@ dependencies = [
  "chrono",
  "clap",
  "colored 3.0.0",
+ "console",
  "convert_case",
  "derive_setters",
  "forge_api",
@@ -1181,6 +1209,7 @@ dependencies = [
  "derive_setters",
  "forge_domain",
  "insta",
+ "mockito",
  "pretty_assertions",
  "regex",
  "reqwest 0.12.12",
