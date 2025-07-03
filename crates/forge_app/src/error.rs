@@ -4,7 +4,7 @@ use forge_domain::ToolName;
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Invalid tool call arguments: {0}")]
-    CallArgument(ToolCallParameterError),
+    CallArgument(ToolCallArgumentError),
 
     #[error("Tool {0} not found")]
     NotFound(ToolName),
@@ -25,9 +25,9 @@ pub enum Error {
 }
 
 #[derive(Debug, From)]
-pub struct ToolCallParameterError(eserde::DeserializationErrors);
+pub struct ToolCallArgumentError(eserde::DeserializationErrors);
 
-impl std::fmt::Display for ToolCallParameterError {
+impl std::fmt::Display for ToolCallArgumentError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Invalid parameters:")?;
         for error in self.0.iter() {
