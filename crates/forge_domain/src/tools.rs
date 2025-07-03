@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use convert_case::{Case, Casing};
 use derive_more::From;
-use eserde::{DeserializationErrors, Deserialize};
+use eserde::Deserialize;
 use forge_tool_macros::ToolDescription;
 use schemars::schema::RootSchema;
 use schemars::JsonSchema;
@@ -12,7 +12,9 @@ use serde::Serialize;
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumDiscriminants, EnumIter};
 
-use crate::{Status, ToolCallFull, ToolDefinition, ToolDescription, ToolName};
+use crate::{
+    Status, ToolCallArgumentError, ToolCallFull, ToolDefinition, ToolDescription, ToolName,
+};
 
 /// Enum representing all possible tool input types.
 ///
@@ -647,7 +649,7 @@ impl ToolsDiscriminants {
 }
 
 impl TryFrom<ToolCallFull> for Tools {
-    type Error = DeserializationErrors;
+    type Error = ToolCallArgumentError;
 
     fn try_from(value: ToolCallFull) -> Result<Self, Self::Error> {
         let arg = if value.arguments.is_null() {
@@ -660,14 +662,14 @@ impl TryFrom<ToolCallFull> for Tools {
         };
 
         let json_str = format!(r#"{{"name": "{}", "arguments": {}}}"#, value.name, arg);
-        eserde::json::from_str(&json_str)
+        eserde::json::from_str(&json_str).map_err(ToolCallArgumentError::from)
     }
 }
 
 impl TryFrom<&ToolCallFull> for AgentInput {
-    type Error = DeserializationErrors;
+    type Error = ToolCallArgumentError;
     fn try_from(value: &ToolCallFull) -> Result<Self, Self::Error> {
-        eserde::json::from_str(&value.arguments.to_string())
+        eserde::json::from_str(&value.arguments.to_string()).map_err(ToolCallArgumentError::from)
     }
 }
 

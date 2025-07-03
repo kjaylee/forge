@@ -1,5 +1,4 @@
-use derive_more::From;
-use forge_domain::ToolName;
+use forge_domain::{ToolCallArgumentError, ToolName};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -22,17 +21,4 @@ pub enum Error {
 
     #[error("Empty tool response")]
     EmptyToolResponse,
-}
-
-#[derive(Debug, From)]
-pub struct ToolCallArgumentError(eserde::DeserializationErrors);
-
-impl std::fmt::Display for ToolCallArgumentError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Invalid parameters:")?;
-        for error in self.0.iter() {
-            writeln!(f, "- {error}")?;
-        }
-        Ok(())
-    }
 }
