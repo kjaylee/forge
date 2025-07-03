@@ -65,7 +65,7 @@ impl ToolResult {
                 let reflection_tag = Element::new("reflection").text(REFLECTION_PROMPT);
 
                 self.output =
-                    ToolOutput::text(format!("{}\n{}", error_tag, reflection_tag)).is_error(true);
+                    ToolOutput::text(format!("{error_tag}\n{reflection_tag}")).is_error(true);
             }
         }
         self
