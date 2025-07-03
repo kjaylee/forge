@@ -61,11 +61,10 @@ impl ToolResult {
                     i += 1;
                 }
 
-                let error_tag = Element::new("error").cdata(message.join("\n"));
-                let reflection_tag = Element::new("reflection").text(REFLECTION_PROMPT);
-
                 self.output =
-                    ToolOutput::text(format!("{error_tag}\n{reflection_tag}")).is_error(true);
+                    ToolOutput::text(Element::new("error")
+                    .append(Element::new("cause").cdata(message.join("\n")))
+                    .append(Element::new("reflection").text(REFLECTION_PROMPT))).is_error(true);
             }
         }
         self
