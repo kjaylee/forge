@@ -49,9 +49,10 @@ impl<F: FileReaderInfra + EnvironmentInfra> ForgeChatRequest<F> {
 
         //NOTE: Attachments should not be truncated since they are provided by the user
         let content = match mime_type {
-            Some(mime_type) => {
-                AttachmentContent::Image(Image::new_bytes(&self.infra.read(&path).await?, mime_type))
-            }
+            Some(mime_type) => AttachmentContent::Image(Image::new_bytes(
+                &self.infra.read(&path).await?,
+                mime_type,
+            )),
             None => AttachmentContent::FileContent(self.infra.read_utf8(&path).await?),
         };
 
