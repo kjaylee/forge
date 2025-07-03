@@ -1,5 +1,0 @@
----
-source: crates/forge_domain/src/error.rs
-expression: actual
----
-JSON serialization/deserialization error: expected value at line 1 column 1
