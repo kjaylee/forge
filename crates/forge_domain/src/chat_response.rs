@@ -21,7 +21,7 @@ pub enum ChatResponse {
     },
     State {
         stopped: bool,
-    }
+    },
 }
 
 #[derive(Clone)]
