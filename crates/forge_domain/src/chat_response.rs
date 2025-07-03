@@ -19,6 +19,9 @@ pub enum ChatResponse {
         cause: Cause,
         duration: Duration,
     },
+    State {
+        stopped: bool,
+    }
 }
 
 #[derive(Clone)]

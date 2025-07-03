@@ -696,6 +696,13 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 self.writeln(TitleFormat::error(cause.as_str()))?;
                 tracker::error_string(cause.into_string());
             }
+            ChatResponse::State { stopped } => {
+                if stopped {
+                    self.spinner.stop(None)?;
+                } else {
+                    self.spinner.start(None)?;
+                }
+            }
         }
         Ok(())
     }

@@ -454,7 +454,9 @@ impl<S: AgentService> Orchestrator<S> {
 
             // If the agent has made too many requests, we can assume it is possibly stuck
             // and ask the user if they want to continue or stop.
-            if max_requests_per_turn.is_some_and(|max| request_count >= max) {
+            if !is_complete && max_requests_per_turn.is_some_and(|max| request_count >= max) {
+                // Update the UI to indicate that processing is stopped for user's approval
+                let _ = self.send(ChatResponse::State { stopped: true }).await;
                 let answer = self
                     .services
                     .select_one(
@@ -466,6 +468,8 @@ impl<S: AgentService> Orchestrator<S> {
                 if answer.is_none_or(|ans| ans == "No") {
                     break;
                 }
+                // Resume processing when the user confirms
+                let _ = self.send(ChatResponse::State { stopped: false }).await;
                 request_count = 0;
             }
         }
