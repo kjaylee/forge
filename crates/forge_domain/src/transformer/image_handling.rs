@@ -47,8 +47,6 @@ impl Transformer for ImageHandling {
                     images.push((id, image));
                 }
                 ToolValue::Pdf(pdf) => {
-                    println!("{}", std::backtrace::Backtrace::force_capture());
-
                     let pdf = std::mem::take(pdf);
                     let id = pdfs.len();
                     *output_value = ToolValue::Text(format!(

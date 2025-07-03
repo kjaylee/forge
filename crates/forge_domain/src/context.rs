@@ -89,7 +89,10 @@ impl ContextMessage {
                 lines.push_str("</message>");
             }
             ContextMessage::Image(_) => {
-                lines.push_str("<image path=\"[base64 URL]\">".to_string().as_str());
+                lines.push_str("<image path=\"[base64 URL]\"/>".to_string().as_str());
+            }
+            ContextMessage::Pdf(_) => {
+                lines.push_str("<pdf path=\"[base64 URL]\"/>".to_string().as_str());
             }
         }
         lines
@@ -144,6 +147,7 @@ impl ContextMessage {
             ContextMessage::Text(_) => false,
             ContextMessage::Tool(_) => true,
             ContextMessage::Image(_) => false,
+            ContextMessage::Pdf(_) => false,
         }
     }
 

@@ -114,7 +114,6 @@ impl<F: FileInfoInfra + EnvironmentInfra + InfraFsReadService> ForgeFsRead<F> {
 
     async fn read_raw(&self, path: &Path) -> anyhow::Result<Vec<u8>> {
         self.0
-            .file_read_service()
             .read(path)
             .await
             .with_context(|| format!("Failed to read file content from {}", path.display()))
@@ -152,7 +151,7 @@ impl<F: FileInfoInfra + EnvironmentInfra + InfraFsReadService> FsReadService for
     ) -> anyhow::Result<ReadOutput> {
         let path = Path::new(&path);
         assert_absolute_path(path)?;
-        let ty = self.0.file_meta_service().mime_type(path).await?;
+        let ty = self.0.mime_type(path).await?;
         match &ty {
             MimeType::Text => self.read_utf8(path, start_line, end_line).await,
             MimeType::Pdf => self.read_pdf(path, ty).await,
