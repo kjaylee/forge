@@ -7,9 +7,9 @@ use crate::{Image, ToolCallFull, ToolCallId, ToolName};
 const REFLECTION_PROMPT: &str = r#"\nYou must now deeply reflect on the error above. Enclose your full reflection within <forge_thinking> tags.
 1. Pinpoint exactly what was wrong with the tool call — was it the wrong tool, incorrect or missing parameters, or malformed structure?
 2. Explain why that mistake happened. Did you misunderstand the tool's schema? Miss a required field? Misread the context?
-3. Write the correct tool call as it should have been made.
+3. Make the correct tool call as it should have been made.
 
-Do NOT skip this reflection. You are expected to improve with every iteration."#;
+Do NOT skip this reflection."#;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 #[setters(into)]
@@ -61,11 +61,15 @@ impl ToolResult {
                     i += 1;
                 }
 
-                // Add reflection prompt to encourage deep thinking about the error
-                message.push(REFLECTION_PROMPT.to_string());
+                let error_tag = Element::new("error").cdata(message.join("\n"));
+                let reflection_tag = Element::new("reflection").text(REFLECTION_PROMPT);
 
-                self.output = ToolOutput::text(Element::new("error").cdata(message.join("\n")))
-                    .is_error(true);
+                self.output = ToolOutput::text(format!(
+                    "{}\n{}",
+                    error_tag.render(),
+                    reflection_tag.render()
+                ))
+                .is_error(true);
             }
         }
         self
