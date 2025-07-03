@@ -158,8 +158,7 @@ impl<
         input: ToolCallFull,
         context: &mut ToolCallContext,
     ) -> anyhow::Result<ToolOutput> {
-        let tool_input =
-            Tools::try_from(input).map_err(|error| Error::CallArgument(error.to_string()))?;
+        let tool_input = Tools::try_from(input).map_err(Error::CallArgument)?;
         let env = self.services.get_environment();
         if let Some(content) = tool_input.to_content(&env) {
             context.send(content).await?;

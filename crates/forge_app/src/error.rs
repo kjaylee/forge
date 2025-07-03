@@ -1,9 +1,10 @@
+use eserde::DeserializationErrors;
 use forge_domain::ToolName;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Invalid tool call arguments: {0}")]
-    CallArgument(String),
+    CallArgument(DeserializationErrors),
 
     #[error("Tool {0} not found")]
     NotFound(ToolName),

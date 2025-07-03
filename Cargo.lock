@@ -1015,6 +1015,7 @@ dependencies = [
  "convert_case",
  "derive_more",
  "derive_setters",
+ "eserde",
  "forge_display",
  "forge_domain",
  "forge_stream",
