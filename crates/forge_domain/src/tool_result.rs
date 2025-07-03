@@ -11,7 +11,6 @@ const REFLECTION_PROMPT: &str = r#"\nYou must now deeply reflect on the error ab
 
 Do NOT skip this reflection. You are expected to improve with every iteration."#;
 
-
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 #[setters(into)]
 pub struct ToolResult {
