@@ -20,6 +20,7 @@ pub enum ChatResponse {
         duration: Duration,
     },
     State {
+        // status of the loader state in the UI
         stopped: bool,
     },
 }
