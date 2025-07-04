@@ -269,6 +269,12 @@ mod tests {
     }
 
     #[test]
+    fn test_reasoning_response_event() {
+        let event = "{\"id\":\"gen-1751626123-nYRpHzdA0thRXF0LoQi0\",\"provider\":\"Google\",\"model\":\"anthropic/claude-3.7-sonnet:thinking\",\"object\":\"chat.completion.chunk\",\"created\":1751626123,\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"reasoning\":\"I need to check\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"I need to check\"}]},\"finish_reason\":null,\"native_finish_reason\":null,\"logprobs\":null}]}";
+        assert!(Fixture::test_response_compatibility(event));
+    }
+
+    #[test]
     fn test_fireworks_response_event_missing_arguments() {
         let event = "{\"id\":\"gen-1749331907-SttL6PXleVHnrdLMABfU\",\"provider\":\"Fireworks\",\"model\":\"qwen/qwen3-235b-a22b\",\"object\":\"chat.completion.chunk\",\"created\":1749331907,\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"index\":0,\"id\":\"call_Wl2L8rrzHwrXSeiciIvU65IS\",\"type\":\"function\",\"function\":{\"name\":\"forge_tool_attempt_completion\"}}]},\"finish_reason\":null,\"native_finish_reason\":null,\"logprobs\":null}]}";
         assert!(Fixture::test_response_compatibility(event));
