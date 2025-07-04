@@ -273,4 +273,112 @@ mod tests {
         assert!(domain_error.is_some());
         assert!(matches!(domain_error.unwrap(), Error::Retryable(_)));
     }
+    
+    #[tokio::test]
+    async fn test_into_full_with_reasoning() {
+        // Fixture: Create a stream with reasoning content across multiple messages
+        let messages = vec![
+            Ok(ChatCompletionMessage::default()
+                .content(Content::part("Hello "))
+                .reasoning(Content::part("First reasoning: "))),
+            Ok(ChatCompletionMessage::default()
+                .content(Content::part("world!"))
+                .reasoning(Content::part("thinking deeply about this..."))),
+        ];
+
+        let result_stream: BoxStream<ChatCompletionMessage, anyhow::Error> =
+            Box::pin(tokio_stream::iter(messages));
+
+        // Actual: Convert stream to full message
+        let actual = result_stream.into_full(false).await.unwrap();
+
+        // Expected: Reasoning should be aggregated from all messages
+        let expected = ChatCompletionMessageFull {
+            content: "Hello world!".to_string(),
+            tool_calls: vec![],
+            usage: Usage::default(),
+            reasoning: Some("First reasoning: thinking deeply about this...".to_string()),
+            reasoning_details: None,
+        };
+
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_into_full_with_reasoning_details() {
+        use crate::reasoning::{Reasoning, ReasoningFull};
+
+        // Fixture: Create a stream with reasoning details
+        let reasoning_full = vec![ReasoningFull {
+            text: Some("Deep thought process".to_string()),
+            signature: Some("signature1".to_string()),
+        }];
+
+        let reasoning_part = crate::reasoning::ReasoningPart {
+            text: Some("Partial reasoning".to_string()),
+            signature: Some("signature2".to_string()),
+        };
+
+        let messages = vec![
+            Ok(ChatCompletionMessage::default()
+                .content(Content::part("Processing..."))
+                .add_reasoning_detail(Reasoning::Full(reasoning_full.clone()))),
+            Ok(ChatCompletionMessage::default()
+                .content(Content::part(" complete"))
+                .add_reasoning_detail(Reasoning::Part(vec![reasoning_part]))),
+        ];
+
+        let result_stream: BoxStream<ChatCompletionMessage, anyhow::Error> =
+            Box::pin(tokio_stream::iter(messages));
+
+        // Actual: Convert stream to full message
+        let actual = result_stream.into_full(false).await.unwrap();
+
+        // Expected: Reasoning details should be collected from all messages
+        let expected_reasoning_details = vec![
+            reasoning_full[0].clone(),
+            ReasoningFull {
+                text: Some("Partial reasoning".to_string()),
+                signature: Some("signature2".to_string()),
+            },
+        ];
+
+        let expected = ChatCompletionMessageFull {
+            content: "Processing... complete".to_string(),
+            tool_calls: vec![],
+            usage: Usage::default(),
+            reasoning: None,
+            reasoning_details: Some(expected_reasoning_details),
+        };
+
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_into_full_with_empty_reasoning() {
+        // Fixture: Create a stream with empty reasoning
+        let messages = vec![
+            Ok(ChatCompletionMessage::default().content(Content::part("Hello"))),
+            Ok(ChatCompletionMessage::default()
+                .content(Content::part(" world"))
+                .reasoning(Content::part(""))), // Empty reasoning
+        ];
+
+        let result_stream: BoxStream<ChatCompletionMessage, anyhow::Error> =
+            Box::pin(tokio_stream::iter(messages));
+
+        // Actual: Convert stream to full message
+        let actual = result_stream.into_full(false).await.unwrap();
+
+        // Expected: Empty reasoning should result in None
+        let expected = ChatCompletionMessageFull {
+            content: "Hello world".to_string(),
+            tool_calls: vec![],
+            usage: Usage::default(),
+            reasoning: None, // Empty reasoning should be None
+            reasoning_details: None,
+        };
+
+        assert_eq!(actual, expected);
+    }
 }
