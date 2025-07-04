@@ -211,7 +211,7 @@ impl<S: AgentService> Orchestrator<S> {
             debug!(
                 conversation_id = %self.conversation.id.clone(),
                 event_name = %event.name,
-                event_value = %event.value,
+                event_value = %format!("{:?}", event.value),
                 "Dispatching event"
             );
             self.conversation.dispatch_event(event.clone())
@@ -461,7 +461,8 @@ impl<S: AgentService> Orchestrator<S> {
                     },
                 })
                 .await?;
-                break;
+                // force completion
+                is_complete = true;
             }
         }
 
@@ -484,15 +485,18 @@ impl<S: AgentService> Orchestrator<S> {
                         .to_string(),
                 );
             debug!(event_context = ?event_context, "Event context");
-            self.services
+            Some(self.services
                 .render(user_prompt.template.as_str(), &event_context)
-                .await?
+                .await?)
         } else {
             // Use the raw event value as content if no user_prompt is provided
-            event.value.to_string()
+            event
+                .value
+                .as_ref()
+                .map(|v| v.to_string())
         };
 
-        if !content.is_empty() {
+        if let Some(content) = content {
             context = context.add_message(ContextMessage::user(content, agent.model.clone()));
         }
 

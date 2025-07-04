@@ -13,7 +13,7 @@ use crate::{Attachment, NamedTool, ToolCallFull, ToolDefinition, ToolName};
 pub struct Event {
     pub id: String,
     pub name: String,
-    pub value: Value,
+    pub value: Option<Value>,
     pub timestamp: String,
     pub attachments: Vec<Attachment>,
 }
@@ -83,7 +83,7 @@ impl Event {
         Self {
             id,
             name: name.to_string(),
-            value: value.into(),
+            value: Some(value.into()),
             timestamp,
             attachments: Vec::new(),
         }

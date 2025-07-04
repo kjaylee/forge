@@ -189,7 +189,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
         // Handle direct prompt if provided
         let prompt = self.cli.prompt.clone();
         if let Some(prompt) = prompt {
-            self.on_message(prompt).await?;
+            self.on_message(Some(prompt)).await?;
             return Ok(());
         }
 
@@ -331,7 +331,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
             }
             Command::Message(ref content) => {
                 self.spinner.start(None)?;
-                self.on_message(content.clone()).await?;
+                self.on_message(Some(content.clone())).await?;
             }
             Command::Forge => {
                 self.on_agent_change(AgentId::FORGE).await?;
@@ -578,7 +578,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
         Ok(workflow)
     }
 
-    async fn on_message(&mut self, content: String) -> Result<()> {
+    async fn on_message(&mut self, content: Option<String>) -> Result<()> {
         let conversation_id = self.init_conversation().await?;
 
         // Create a ChatRequest with the appropriate event type
@@ -700,7 +700,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 InterruptionReason::MaxRequestPerTurnLimitReached { limit } => {
                     self.spinner.stop(None)?;
                     let result = Select::new(
-                        &format!("You’ve reached the maximum allowed requests ({limit}) for this turn. Do you want to continue anyway?"),
+                        &format!("You’ve reached the maximum allowed requests({limit}) for this turn. Do you want to continue anyway?"),
                         vec!["Yes", "No"]
                             .into_iter()
                             .map(|s| s.to_string())
@@ -715,7 +715,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
                     if result == "Yes" {
                         self.spinner.start(None)?;
-                        Box::pin(self.on_message("Continue".to_string())).await?;
+                        Box::pin(self.on_message(None)).await?;
                     }
                 }
             },
