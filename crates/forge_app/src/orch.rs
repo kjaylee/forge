@@ -452,8 +452,8 @@ impl<S: AgentService> Orchestrator<S> {
             self.services.update(self.conversation.clone()).await?;
             request_count += 1;
 
-            if !is_complete {
-                if let Some(max_request_allowed) = max_requests_per_turn {
+            if !is_complete
+                && let Some(max_request_allowed) = max_requests_per_turn {
                     // Check if agent has reached the maximum request per turn limit
                     if request_count > max_request_allowed {
                         warn!(
@@ -474,7 +474,6 @@ impl<S: AgentService> Orchestrator<S> {
                         is_complete = true;
                     }
                 }
-            }
         }
 
         Ok(())
