@@ -485,7 +485,9 @@ impl<S: AgentService> Orchestrator<S> {
         variables: &HashMap<String, Value>,
         event: &Event,
     ) -> anyhow::Result<Context> {
-        let content = if let Some(user_prompt) = &agent.user_prompt && event.value.is_some() {
+        let content = if let Some(user_prompt) = &agent.user_prompt
+            && event.value.is_some()
+        {
             let event_context = EventContext::new(event.clone())
                 .variables(variables.clone())
                 .current_time(
