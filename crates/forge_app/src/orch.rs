@@ -161,6 +161,26 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(tool_supported)
     }
 
+    fn is_reasoning_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
+        let model_id = agent
+            .model
+            .as_ref()
+            .ok_or(Error::MissingModel(agent.id.clone()))?;
+
+        let model = self.models.iter().find(|model| &model.id == model_id);
+        let reasoning_supported = model
+            .and_then(|model| model.supports_reasoning)
+            .unwrap_or_default();
+
+        debug!(
+            agent_id = %agent.id,
+            model_id = %model_id,
+            reasoning_supported,
+            "Reasoning support check"
+        );
+        Ok(reasoning_supported)
+    }
+
     async fn set_system_prompt(
         &mut self,
         context: Context,
@@ -230,10 +250,12 @@ impl<S: AgentService> Orchestrator<S> {
         model_id: &ModelId,
         context: Context,
         tool_supported: bool,
+        reasoning_supported: bool,
     ) -> anyhow::Result<ChatCompletionMessageFull> {
         let mut transformers = TransformToolCalls::new()
             .when(|_| !tool_supported)
-            .pipe(ImageHandling::new());
+            .pipe(ImageHandling::new())
+            .pipe(DropReasoningDetails::default().when(|_| !reasoning_supported));
         let response = self
             .services
             .chat_agent(model_id, transformers.transform(context))
@@ -256,6 +278,7 @@ impl<S: AgentService> Orchestrator<S> {
             .clone()
             .ok_or(Error::MissingModel(agent.id.clone()))?;
         let tool_supported = self.is_tool_supported(&agent)?;
+        let reasoning_supported = self.is_reasoning_supported(&agent)?;
 
         let mut context = self.conversation.context.clone().unwrap_or_default();
 
@@ -324,7 +347,6 @@ impl<S: AgentService> Orchestrator<S> {
         let mut is_complete = false;
 
         let mut empty_tool_call_count = 0;
-        let is_tool_supported = self.is_tool_supported(&agent)?;
 
         while !is_complete {
             // Set context for the current loop iteration
@@ -334,7 +356,7 @@ impl<S: AgentService> Orchestrator<S> {
             let ChatCompletionMessageFull { tool_calls, content, mut usage, reasoning, reasoning_details } =
                 crate::retry::retry_with_config(
                     &self.environment.retry_config,
-                    || self.execute_chat_turn(&model_id, context.clone(), is_tool_supported),
+                    || self.execute_chat_turn(&model_id, context.clone(), tool_supported, reasoning_supported),
                     self.sender.as_ref().map(|sender| {
                         let sender = sender.clone();
                         let agent_id = agent.id.clone();
