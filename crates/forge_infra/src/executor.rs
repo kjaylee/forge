@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bytes::Bytes;
+use forge_app::{AppConfig, ChoiceType};
 use forge_domain::{CommandOutput, Environment};
 use forge_services::{
     CommandExecutionPrompt, CommandInfra, FileReaderInfra, FileWriterInfra, UserInfra,
@@ -11,7 +12,6 @@ use strum::IntoEnumIterator;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 use tokio::sync::Mutex;
-use forge_app::{AppConfig, ChoiceType};
 
 /// Service for executing shell commands
 #[derive(Clone, Debug)]

@@ -281,7 +281,7 @@ pub enum Command {
     #[strum(props(usage = "Logout of the current session"))]
     /// Logs out of the current session.
     Logout,
-    
+
     /// Configure application settings
     #[strum(props(usage = "Configure application settings"))]
     Config,
