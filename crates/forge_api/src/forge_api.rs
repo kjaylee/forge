@@ -164,7 +164,6 @@ impl<A: Services, F: CommandInfra> API for ForgeAPI<A, F> {
         self.services.read_app_config().await
     }
 
-
     async fn modify_app_config<Fx>(&self, f: Fx) -> Result<AppConfig>
     where
         Fx: FnOnce(&mut AppConfig) + Send + Sync,
