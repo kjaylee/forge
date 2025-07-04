@@ -159,9 +159,9 @@ impl TryFrom<Response> for ChatCompletionMessage {
                                         .map(forge_domain::ReasoningFull::from)
                                         .collect();
 
-                                resp = resp.add_reasoning_detail(
-                                    forge_domain::Reasoning::Full(converted_details),
-                                );
+                                resp = resp.add_reasoning_detail(forge_domain::Reasoning::Full(
+                                    converted_details,
+                                ));
                             }
 
                             if let Some(tool_calls) = &message.tool_calls {
@@ -202,9 +202,9 @@ impl TryFrom<Response> for ChatCompletionMessage {
                                         .into_iter()
                                         .map(forge_domain::ReasoningPart::from)
                                         .collect();
-                                resp = resp.add_reasoning_detail(
-                                    forge_domain::Reasoning::Part(converted_details),
-                                );
+                                resp = resp.add_reasoning_detail(forge_domain::Reasoning::Part(
+                                    converted_details,
+                                ));
                             }
 
                             if let Some(tool_calls) = &delta.tool_calls {

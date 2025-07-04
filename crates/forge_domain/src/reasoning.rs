@@ -38,40 +38,25 @@ impl Reasoning {
     pub fn from_parts(parts: Vec<Vec<ReasoningPart>>) -> Vec<ReasoningFull> {
         // We merge based on index.
         // eg. [ [a,b,c], [d,e,f], [g,h,i] ] -> [a,d,g], [b,e,h], [c,f,i]
-
-        // Find the maximum length of the inner vectors
-        let max_length = parts.iter().map(|v| v.len()).max().unwrap_or(0);
-
-        // For each index, collect all parts at that index
+        let max_length = parts.iter().map(Vec::len).max().unwrap_or(0);
         (0..max_length)
-            .map(|i| {
-                let mut merged = ReasoningFull { text: None, signature: None };
+            .map(|index| {
+                let text = parts
+                    .iter()
+                    .filter_map(|part_vec| part_vec.get(index)?.text.as_deref())
+                    .collect::<String>();
 
-                // Go through each part vector and get the element at the current index if it exists
-                for part_vec in &parts {
-                    if i < part_vec.len() {
-                        let part = &part_vec[i];
+                let signature = parts
+                    .iter()
+                    .filter_map(|part_vec| part_vec.get(index)?.signature.as_deref())
+                    .collect::<String>();
 
-                        // Merge the text
-                        if let Some(text) = &part.text {
-                            match &mut merged.text {
-                                Some(merged_text) => merged_text.push_str(text),
-                                None => merged.text = Some(text.clone()),
-                            }
-                        }
-
-                        // Merge the signature
-                        if let Some(signature) = &part.signature {
-                            match &mut merged.signature {
-                                Some(merged_signature) => merged_signature.push_str(signature),
-                                None => merged.signature = Some(signature.clone()),
-                            }
-                        }
-                    }
+                ReasoningFull {
+                    text: (!text.is_empty()).then_some(text),
+                    signature: (!signature.is_empty()).then_some(signature),
                 }
-
-                merged
             })
+            .filter(|reasoning| reasoning.text.is_some() || reasoning.signature.is_some())
             .collect()
     }
 }

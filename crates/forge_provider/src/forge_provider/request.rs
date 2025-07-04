@@ -3,8 +3,8 @@ use std::vec;
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use forge_domain::{
-    Context, ContextMessage, ModelId,ToolCallFull, ToolCallId, ToolDefinition,
-    ToolName, ToolResult, ToolValue,
+    Context, ContextMessage, ModelId, ToolCallFull, ToolCallId, ToolDefinition, ToolName,
+    ToolResult, ToolValue,
 };
 use serde::{Deserialize, Serialize};
 

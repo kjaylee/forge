@@ -3,9 +3,8 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 
-use crate::{Reasoning, ReasoningFull};
-
 use super::{ToolCall, ToolCallFull};
+use crate::{Reasoning, ReasoningFull};
 
 #[derive(Default, Clone, Debug, Serialize, PartialEq)]
 pub struct Usage {

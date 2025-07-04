@@ -2,7 +2,8 @@ use anyhow::Context as _;
 use tokio_stream::StreamExt;
 
 use crate::{
-    ChatCompletionMessage, ChatCompletionMessageFull, Reasoning, ReasoningFull, ToolCallFull, ToolCallPart, Usage
+    ChatCompletionMessage, ChatCompletionMessageFull, Reasoning, ReasoningFull, ToolCallFull,
+    ToolCallPart, Usage,
 };
 
 /// Extension trait for ResultStream to provide additional functionality
@@ -144,7 +145,6 @@ impl ResultStreamExt<anyhow::Error> for crate::BoxStream<ChatCompletionMessage, 
             .into_iter()
             .chain(Reasoning::from_parts(partial_reasoning_details))
             .collect();
-
 
         Ok(ChatCompletionMessageFull {
             content,

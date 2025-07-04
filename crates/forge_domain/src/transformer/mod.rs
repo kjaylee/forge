@@ -73,15 +73,15 @@ where
 }
 
 // Re-export specific transformers
+mod drop_reasoning_details;
 mod image_handling;
 mod set_model;
 mod transform_tool_calls;
-mod drop_reasoning_details;
 
+pub use drop_reasoning_details::DropReasoningDetails;
 pub use image_handling::ImageHandling;
 pub use set_model::SetModel;
 pub use transform_tool_calls::TransformToolCalls;
-pub use drop_reasoning_details::DropReasoningDetails;
 
 #[cfg(test)]
 mod tests {
