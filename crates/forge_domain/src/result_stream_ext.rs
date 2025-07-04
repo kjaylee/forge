@@ -2,7 +2,7 @@ use anyhow::Context as _;
 use tokio_stream::StreamExt;
 
 use crate::{
-    ChatCompletionMessage, ChatCompletionMessageFull, ReasoningDetail, ReasoningDetailFull, ToolCallFull, ToolCallPart, Usage
+    ChatCompletionMessage, ChatCompletionMessageFull, Reasoning, ReasoningFull, ToolCallFull, ToolCallPart, Usage
 };
 
 /// Extension trait for ResultStream to provide additional functionality
@@ -140,9 +140,9 @@ impl ResultStreamExt<anyhow::Error> for crate::BoxStream<ChatCompletionMessage, 
             .filter_map(|message| message.reasoning_details.as_ref())
             .flat_map(|details| details.iter().filter_map(|d| d.as_partial().cloned()))
             .collect::<Vec<_>>();
-        let total_reasoning_details: Vec<ReasoningDetailFull> = initial_reasoning_details
+        let total_reasoning_details: Vec<ReasoningFull> = initial_reasoning_details
             .into_iter()
-            .chain(ReasoningDetail::from_parts(partial_reasoning_details))
+            .chain(Reasoning::from_parts(partial_reasoning_details))
             .collect();
 
 

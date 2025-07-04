@@ -80,15 +80,15 @@ pub struct ReasoningDetail {
     pub signature: Option<String>,
 }
 
-impl From<ReasoningDetail> for forge_domain::ReasoningDetailFull {
+impl From<ReasoningDetail> for forge_domain::ReasoningFull {
     fn from(detail: ReasoningDetail) -> Self {
-        forge_domain::ReasoningDetailFull { text: detail.text, signature: detail.signature }
+        forge_domain::ReasoningFull { text: detail.text, signature: detail.signature }
     }
 }
 
-impl From<ReasoningDetail> for forge_domain::ReasoningDetailPart {
+impl From<ReasoningDetail> for forge_domain::ReasoningPart {
     fn from(detail: ReasoningDetail) -> Self {
-        forge_domain::ReasoningDetailPart { text: detail.text, signature: detail.signature }
+        forge_domain::ReasoningPart { text: detail.text, signature: detail.signature }
     }
 }
 
@@ -152,15 +152,15 @@ impl TryFrom<Response> for ChatCompletionMessage {
                             }
 
                             if let Some(reasoning_details) = &message.reasoning_details {
-                                let converted_details: Vec<forge_domain::ReasoningDetailFull> =
+                                let converted_details: Vec<forge_domain::ReasoningFull> =
                                     reasoning_details
                                         .clone()
                                         .into_iter()
-                                        .map(forge_domain::ReasoningDetailFull::from)
+                                        .map(forge_domain::ReasoningFull::from)
                                         .collect();
 
                                 resp = resp.add_reasoning_detail(
-                                    forge_domain::ReasoningDetail::Full(converted_details),
+                                    forge_domain::Reasoning::Full(converted_details),
                                 );
                             }
 
@@ -196,14 +196,14 @@ impl TryFrom<Response> for ChatCompletionMessage {
                             }
 
                             if let Some(reasoning_details) = &delta.reasoning_details {
-                                let converted_details: Vec<forge_domain::ReasoningDetailPart> =
+                                let converted_details: Vec<forge_domain::ReasoningPart> =
                                     reasoning_details
                                         .clone()
                                         .into_iter()
-                                        .map(forge_domain::ReasoningDetailPart::from)
+                                        .map(forge_domain::ReasoningPart::from)
                                         .collect();
                                 resp = resp.add_reasoning_detail(
-                                    forge_domain::ReasoningDetail::Part(converted_details),
+                                    forge_domain::Reasoning::Part(converted_details),
                                 );
                             }
 

@@ -44,6 +44,7 @@ mod transformer;
 mod update;
 mod workflow;
 mod xml;
+mod reasoning;
 
 pub use agent::*;
 pub use attachment::*;
@@ -90,3 +91,4 @@ pub use transformer::*;
 pub use update::*;
 pub use workflow::*;
 pub use xml::*;
+pub use reasoning::*;

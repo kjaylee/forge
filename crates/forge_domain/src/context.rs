@@ -7,7 +7,7 @@ use super::{ToolCallFull, ToolResult};
 use crate::temperature::Temperature;
 use crate::top_k::TopK;
 use crate::top_p::TopP;
-use crate::{ConversationId, Image, ModelId, ReasoningDetailFull, ToolChoice, ToolDefinition, ToolValue};
+use crate::{ConversationId, Image, ModelId, ReasoningFull, ToolChoice, ToolDefinition, ToolValue};
 
 /// Represents a message being sent to the LLM provider
 /// NOTE: ToolResults message are part of the larger Request object and not part
@@ -118,7 +118,7 @@ impl ContextMessage {
 
     pub fn assistant(
         content: impl ToString,
-        reasoning_details: Option<Vec<ReasoningDetailFull>>,
+        reasoning_details: Option<Vec<ReasoningFull>>,
         tool_calls: Option<Vec<ToolCallFull>>,
     ) -> Self {
         let tool_calls =
@@ -172,13 +172,13 @@ pub struct TextMessage {
     pub tool_calls: Option<Vec<ToolCallFull>>,
     // note: this used to track model used for this message.
     pub model: Option<ModelId>,
-    pub reasoning_details: Option<Vec<ReasoningDetailFull>>,
+    pub reasoning_details: Option<Vec<ReasoningFull>>,
 }
 
 impl TextMessage {
     pub fn assistant(
         content: impl ToString,
-        reasoning_details: Option<Vec<ReasoningDetailFull>>,
+        reasoning_details: Option<Vec<ReasoningFull>>,
         model: Option<ModelId>,
     ) -> Self {
         Self {
@@ -287,7 +287,7 @@ impl Context {
     pub fn append_message(
         self,
         content: impl ToString,
-        reasoning_details: Option<Vec<ReasoningDetailFull>>,
+        reasoning_details: Option<Vec<ReasoningFull>>,
         tool_records: Vec<(ToolCallFull, ToolResult)>,
     ) -> Self {
         // Adding tool calls
