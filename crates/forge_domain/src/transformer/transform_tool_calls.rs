@@ -37,7 +37,7 @@ impl Transformer for TransformToolCalls {
                         role: text_msg.role.clone(),
                         content: text_msg.content.clone(),
                         tool_calls: None,
-                        reasoning: text_msg.reasoning.clone(),
+                        reasoning_details: text_msg.reasoning_details.clone(),
                         model: text_msg.model.clone(),
                     }));
                 }

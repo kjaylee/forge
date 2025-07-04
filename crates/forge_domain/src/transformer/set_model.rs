@@ -101,14 +101,14 @@ mod tests {
                 content: "System message".to_string(),
                 tool_calls: None,
                 model: None,
-                reasoning: None,
+                reasoning_details: None,
             }))
             .add_message(ContextMessage::Text(TextMessage {
                 role: Role::Assistant,
                 content: "Assistant message".to_string(),
                 tool_calls: None,
                 model: None,
-                reasoning: None,
+                reasoning_details: None,
             }))
             .add_message(ContextMessage::user("User message", None));
 

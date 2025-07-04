@@ -23,6 +23,7 @@ pub struct Usage {
 pub struct ChatCompletionMessage {
     pub content: Option<Content>,
     pub reasoning: Option<Content>,
+    pub reasoning_details: Option<Vec<ReasoningDetail>>,
     pub tool_calls: Vec<ToolCall>,
     pub finish_reason: Option<FinishReason>,
     pub usage: Option<Usage>,
@@ -57,6 +58,85 @@ impl Content {
 
     pub fn is_part(&self) -> bool {
         matches!(self, Content::Part(_))
+    }
+}
+
+/// Represents a reasoning detail that may be included in the response
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct ReasoningDetailPart {
+    pub text: Option<String>,
+    pub signature: Option<String>,
+}
+
+/// Represents a reasoning detail that may be included in the response
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct ReasoningDetailFull {
+    pub text: Option<String>,
+    pub signature: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ReasoningDetail {
+    Part(Vec<ReasoningDetailPart>),
+    Full(Vec<ReasoningDetailFull>),
+}
+
+impl ReasoningDetail {
+    pub fn as_partial(&self) -> Option<&Vec<ReasoningDetailPart>> {
+        match self {
+            ReasoningDetail::Part(parts) => Some(parts),
+            ReasoningDetail::Full(_) => None,
+        }
+    }
+
+    pub fn as_full(&self) -> Option<&Vec<ReasoningDetailFull>> {
+        match self {
+            ReasoningDetail::Part(_) => None,
+            ReasoningDetail::Full(full) => Some(full),
+        }
+    }
+
+    pub fn from_parts(parts: Vec<Vec<ReasoningDetailPart>>) -> Vec<ReasoningDetailFull> {
+        // We merge based on index.
+        // eg. [ [a,b,c], [d,e,f], [g,h,i] ] -> [a,d,g], [b,e,h], [c,f,i]
+        
+        // Find the maximum length of the inner vectors
+        let max_length = parts.iter().map(|v| v.len()).max().unwrap_or(0);
+        
+        // For each index, collect all parts at that index
+        (0..max_length)
+            .map(|i| {
+                let mut merged = ReasoningDetailFull {
+                    text: None,
+                    signature: None,
+                };
+                
+                // Go through each part vector and get the element at the current index if it exists
+                for part_vec in &parts {
+                    if i < part_vec.len() {
+                        let part = &part_vec[i];
+                        
+                        // Merge the text
+                        if let Some(text) = &part.text {
+                            match &mut merged.text {
+                                Some(merged_text) => merged_text.push_str(text),
+                                None => merged.text = Some(text.clone()),
+                            }
+                        }
+                        
+                        // Merge the signature
+                        if let Some(signature) = &part.signature {
+                            match &mut merged.signature {
+                                Some(merged_signature) => merged_signature.push_str(signature),
+                                None => merged.signature = Some(signature.clone()),
+                            }
+                        }
+                    }
+                }
+                
+                merged
+            })
+            .collect()
     }
 }
 
@@ -95,6 +175,16 @@ impl ChatCompletionMessage {
         ChatCompletionMessage::default().content(content.into())
     }
 
+    pub fn add_reasoning_detail(mut self, detail: impl Into<ReasoningDetail>) -> Self {
+        let detail = detail.into();
+        if let Some(ref mut details) = self.reasoning_details {
+            details.push(detail);
+        } else {
+            self.reasoning_details = Some(vec![detail]);
+        }
+        self
+    }
+
     pub fn add_tool_call(mut self, call_tool: impl Into<ToolCall>) -> Self {
         self.tool_calls.push(call_tool.into());
         self
@@ -129,6 +219,7 @@ pub struct ChatCompletionMessageFull {
     pub content: String,
     pub reasoning: Option<String>,
     pub tool_calls: Vec<ToolCallFull>,
+    pub reasoning_details: Option<Vec<ReasoningDetailFull>>,
     pub usage: Usage,
 }
 
@@ -139,6 +230,193 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    #[test]
+    fn test_reasoning_detail_from_parts() {
+        // Create a fixture with three vectors of ReasoningDetailPart
+        let fixture = vec![
+            // First vector [a, b, c]
+            vec![
+                ReasoningDetailPart {
+                    text: Some("a-text".to_string()),
+                    signature: Some("a-sig".to_string()),
+                },
+                ReasoningDetailPart {
+                    text: Some("b-text".to_string()),
+                    signature: Some("b-sig".to_string()),
+                },
+                ReasoningDetailPart {
+                    text: Some("c-text".to_string()),
+                    signature: Some("c-sig".to_string()),
+                },
+            ],
+            // Second vector [d, e, f]
+            vec![
+                ReasoningDetailPart {
+                    text: Some("d-text".to_string()),
+                    signature: Some("d-sig".to_string()),
+                },
+                ReasoningDetailPart {
+                    text: Some("e-text".to_string()),
+                    signature: Some("e-sig".to_string()),
+                },
+                ReasoningDetailPart {
+                    text: Some("f-text".to_string()),
+                    signature: Some("f-sig".to_string()),
+                },
+            ],
+            // Third vector [g, h, i]
+            vec![
+                ReasoningDetailPart {
+                    text: Some("g-text".to_string()),
+                    signature: Some("g-sig".to_string()),
+                },
+                ReasoningDetailPart {
+                    text: Some("h-text".to_string()),
+                    signature: Some("h-sig".to_string()),
+                },
+                ReasoningDetailPart {
+                    text: Some("i-text".to_string()),
+                    signature: Some("i-sig".to_string()),
+                },
+            ],
+        ];
+
+        // Execute the function to get the actual result
+        let actual = ReasoningDetail::from_parts(fixture);
+
+        // Define the expected result
+        let expected = vec![
+            // First merged vector [a, d, g]
+            ReasoningDetailFull {
+                text: Some("a-textd-textg-text".to_string()),
+                signature: Some("a-sigd-sigg-sig".to_string()),
+            },
+            // Second merged vector [b, e, h]
+            ReasoningDetailFull {
+                text: Some("b-texte-texth-text".to_string()),
+                signature: Some("b-sige-sigh-sig".to_string()),
+            },
+            // Third merged vector [c, f, i]
+            ReasoningDetailFull {
+                text: Some("c-textf-texti-text".to_string()),
+                signature: Some("c-sigf-sigi-sig".to_string()),
+            },
+        ];
+
+        // Assert that the actual result matches the expected result
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_reasoning_detail_from_parts_with_different_lengths() {
+        // Create a fixture with vectors of different lengths
+        let fixture = vec![
+            vec![
+                ReasoningDetailPart {
+                    text: Some("a-text".to_string()),
+                    signature: Some("a-sig".to_string()),
+                },
+                ReasoningDetailPart {
+                    text: Some("b-text".to_string()),
+                    signature: Some("b-sig".to_string()),
+                },
+            ],
+            vec![
+                ReasoningDetailPart {
+                    text: Some("c-text".to_string()),
+                    signature: Some("c-sig".to_string()),
+                },
+            ],
+            vec![
+                ReasoningDetailPart {
+                    text: Some("d-text".to_string()),
+                    signature: Some("d-sig".to_string()),
+                },
+                ReasoningDetailPart {
+                    text: Some("e-text".to_string()),
+                    signature: Some("e-sig".to_string()),
+                },
+                ReasoningDetailPart {
+                    text: Some("f-text".to_string()),
+                    signature: Some("f-sig".to_string()),
+                },
+            ],
+        ];
+
+        // Execute the function to get the actual result
+        let actual = ReasoningDetail::from_parts(fixture);
+
+        // Define the expected result
+        let expected = vec![
+            // First merged vector [a, c, d]
+            ReasoningDetailFull {
+                text: Some("a-textc-textd-text".to_string()),
+                signature: Some("a-sigc-sigd-sig".to_string()),
+            },
+            // Second merged vector [b, e]
+            ReasoningDetailFull {
+                text: Some("b-texte-text".to_string()),
+                signature: Some("b-sige-sig".to_string()),
+            },
+            // Third merged vector [f]
+            ReasoningDetailFull {
+                text: Some("f-text".to_string()),
+                signature: Some("f-sig".to_string()),
+            },
+        ];
+
+        // Assert that the actual result matches the expected result
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_reasoning_detail_from_parts_with_none_values() {
+        // Create a fixture with some None values
+        let fixture = vec![
+            vec![
+                ReasoningDetailPart {
+                    text: Some("a-text".to_string()),
+                    signature: None,
+                },
+            ],
+            vec![
+                ReasoningDetailPart {
+                    text: None,
+                    signature: Some("b-sig".to_string()),
+                },
+            ],
+        ];
+
+        // Execute the function to get the actual result
+        let actual = ReasoningDetail::from_parts(fixture);
+
+        // Define the expected result
+        let expected = vec![
+            ReasoningDetailFull {
+                text: Some("a-text".to_string()),
+                signature: Some("b-sig".to_string()),
+            },
+        ];
+
+        // Assert that the actual result matches the expected result
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_reasoning_detail_from_empty_parts() {
+        // Empty fixture
+        let fixture: Vec<Vec<ReasoningDetailPart>> = vec![];
+
+        // Execute the function to get the actual result
+        let actual = ReasoningDetail::from_parts(fixture);
+
+        // Define the expected result - should be an empty vector
+        let expected: Vec<ReasoningDetailFull> = vec![];
+
+        // Assert that the actual result matches the expected result
+        assert_eq!(actual, expected);
+    }
 
     #[test]
     fn test_finish_reason_from_str() {

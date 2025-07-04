@@ -7,7 +7,7 @@ use super::{ToolCallFull, ToolResult};
 use crate::temperature::Temperature;
 use crate::top_k::TopK;
 use crate::top_p::TopP;
-use crate::{ConversationId, Image, ModelId, ToolChoice, ToolDefinition, ToolValue};
+use crate::{ConversationId, Image, ModelId, ReasoningDetailFull, ToolChoice, ToolDefinition, ToolValue};
 
 /// Represents a message being sent to the LLM provider
 /// NOTE: ToolResults message are part of the larger Request object and not part
@@ -99,7 +99,7 @@ impl ContextMessage {
             role: Role::User,
             content: content.to_string(),
             tool_calls: None,
-            reasoning: None,
+            reasoning_details: None,
             model,
         }
         .into()
@@ -111,14 +111,14 @@ impl ContextMessage {
             content: content.to_string(),
             tool_calls: None,
             model: None,
-            reasoning: None,
+            reasoning_details: None,
         }
         .into()
     }
 
     pub fn assistant(
         content: impl ToString,
-        reasoning: Option<String>,
+        reasoning_details: Option<Vec<ReasoningDetailFull>>,
         tool_calls: Option<Vec<ToolCallFull>>,
     ) -> Self {
         let tool_calls =
@@ -127,7 +127,7 @@ impl ContextMessage {
             role: Role::Assistant,
             content: content.to_string(),
             tool_calls,
-            reasoning,
+            reasoning_details,
             model: None,
         }
         .into()
@@ -172,22 +172,20 @@ pub struct TextMessage {
     pub tool_calls: Option<Vec<ToolCallFull>>,
     // note: this used to track model used for this message.
     pub model: Option<ModelId>,
-    /// note: not sent to the LLM provider, but used for reasoning
-    /// and debugging purposes.
-    pub reasoning: Option<String>,
+    pub reasoning_details: Option<Vec<ReasoningDetailFull>>,
 }
 
 impl TextMessage {
     pub fn assistant(
         content: impl ToString,
-        reasoning: Option<String>,
+        reasoning_details: Option<Vec<ReasoningDetailFull>>,
         model: Option<ModelId>,
     ) -> Self {
         Self {
             role: Role::Assistant,
             content: content.to_string(),
             tool_calls: None,
-            reasoning,
+            reasoning_details,
             model,
         }
     }
@@ -289,13 +287,13 @@ impl Context {
     pub fn append_message(
         self,
         content: impl ToString,
-        reasoning: Option<String>,
+        reasoning_details: Option<Vec<ReasoningDetailFull>>,
         tool_records: Vec<(ToolCallFull, ToolResult)>,
     ) -> Self {
         // Adding tool calls
         self.add_message(ContextMessage::assistant(
             content,
-            reasoning,
+            reasoning_details,
             Some(
                 tool_records
                     .iter()

@@ -70,6 +70,26 @@ pub struct ResponseMessage {
     pub role: Option<String>,
     pub tool_calls: Option<Vec<ToolCall>>,
     pub refusal: Option<String>,
+    pub reasoning_details: Option<Vec<ReasoningDetail>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ReasoningDetail {
+    pub r#type: Option<String>,
+    pub text: Option<String>,
+    pub signature: Option<String>,
+}
+
+impl From<ReasoningDetail> for forge_domain::ReasoningDetailFull {
+    fn from(detail: ReasoningDetail) -> Self {
+        forge_domain::ReasoningDetailFull { text: detail.text, signature: detail.signature }
+    }
+}
+
+impl From<ReasoningDetail> for forge_domain::ReasoningDetailPart {
+    fn from(detail: ReasoningDetail) -> Self {
+        forge_domain::ReasoningDetailPart { text: detail.text, signature: detail.signature }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -131,6 +151,19 @@ impl TryFrom<Response> for ChatCompletionMessage {
                                 resp = resp.reasoning(Content::full(reasoning.clone()));
                             }
 
+                            if let Some(reasoning_details) = &message.reasoning_details {
+                                let converted_details: Vec<forge_domain::ReasoningDetailFull> =
+                                    reasoning_details
+                                        .clone()
+                                        .into_iter()
+                                        .map(forge_domain::ReasoningDetailFull::from)
+                                        .collect();
+
+                                resp = resp.add_reasoning_detail(
+                                    forge_domain::ReasoningDetail::Full(converted_details),
+                                );
+                            }
+
                             if let Some(tool_calls) = &message.tool_calls {
                                 for tool_call in tool_calls {
                                     resp = resp.add_tool_call(ToolCallFull {
@@ -160,6 +193,18 @@ impl TryFrom<Response> for ChatCompletionMessage {
 
                             if let Some(reasoning) = &delta.reasoning {
                                 resp = resp.reasoning(Content::part(reasoning.clone()));
+                            }
+
+                            if let Some(reasoning_details) = &delta.reasoning_details {
+                                let converted_details: Vec<forge_domain::ReasoningDetailPart> =
+                                    reasoning_details
+                                        .clone()
+                                        .into_iter()
+                                        .map(forge_domain::ReasoningDetailPart::from)
+                                        .collect();
+                                resp = resp.add_reasoning_detail(
+                                    forge_domain::ReasoningDetail::Part(converted_details),
+                                );
                             }
 
                             if let Some(tool_calls) = &delta.tool_calls {

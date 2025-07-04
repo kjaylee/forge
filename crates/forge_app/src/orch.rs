@@ -331,7 +331,7 @@ impl<S: AgentService> Orchestrator<S> {
             self.conversation.context = Some(context.clone());
             self.services.update(self.conversation.clone()).await?;
 
-            let ChatCompletionMessageFull { tool_calls, content, mut usage, reasoning } =
+            let ChatCompletionMessageFull { tool_calls, content, mut usage, reasoning, reasoning_details } =
                 crate::retry::retry_with_config(
                     &self.environment.retry_config,
                     || self.execute_chat_turn(&model_id, context.clone(), is_tool_supported),
@@ -417,7 +417,7 @@ impl<S: AgentService> Orchestrator<S> {
             // Process tool calls and update context
             context = context.append_message(
                 content.clone(),
-                reasoning,
+                reasoning_details,
                 self.execute_tool_calls(&agent, &tool_calls, &mut tool_context)
                     .await?,
             );

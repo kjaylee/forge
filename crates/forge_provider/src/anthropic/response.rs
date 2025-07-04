@@ -143,6 +143,10 @@ pub enum ContentBlock {
     InputJsonDelta {
         partial_json: String,
     },
+    Thinking {
+        thinking: Option<String>,
+        signature: Option<String>,
+    },
 }
 
 impl TryFrom<EventData> for ChatCompletionMessage {
@@ -185,6 +189,14 @@ impl TryFrom<ContentBlock> for ChatCompletionMessage {
         let result = match value {
             ContentBlock::Text { text } | ContentBlock::TextDelta { text } => {
                 ChatCompletionMessage::assistant(Content::part(text))
+            }
+            ContentBlock::Thinking { thinking, signature: _ } => {
+                if let Some(thinking) = thinking {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                        .reasoning(Content::part(thinking))
+                } else {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                }
             }
             ContentBlock::ToolUse { id, name, input } => {
                 // note: We've to check if the input is empty or null. else we end up adding

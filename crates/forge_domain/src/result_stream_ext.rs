@@ -1,7 +1,9 @@
 use anyhow::Context as _;
 use tokio_stream::StreamExt;
 
-use crate::{ChatCompletionMessage, ChatCompletionMessageFull, ToolCallFull, ToolCallPart, Usage};
+use crate::{
+    ChatCompletionMessage, ChatCompletionMessageFull, ReasoningDetail, ReasoningDetailFull, ToolCallFull, ToolCallPart, Usage
+};
 
 /// Extension trait for ResultStream to provide additional functionality
 #[async_trait::async_trait]
@@ -126,6 +128,25 @@ impl ResultStreamExt<anyhow::Error> for crate::BoxStream<ChatCompletionMessage, 
             .chain(xml_tool_calls)
             .collect();
 
+        // Collect reasoning details from all messages
+        let initial_reasoning_details = messages
+            .iter()
+            .filter_map(|message| message.reasoning_details.as_ref())
+            .flat_map(|details| details.iter().filter_map(|d| d.as_full().cloned()))
+            .flatten()
+            .collect::<Vec<_>>();
+        let partial_reasoning_details = messages
+            .iter()
+            .filter_map(|message| message.reasoning_details.as_ref())
+            .flat_map(|details| details.iter().filter_map(|d| d.as_partial().cloned()))
+            .collect::<Vec<_>>();
+
+        let total_reasoning_details: Vec<ReasoningDetailFull> = initial_reasoning_details
+            .into_iter()
+            .chain(ReasoningDetail::from_parts(partial_reasoning_details))
+            .collect();
+
+
         Ok(ChatCompletionMessageFull {
             content,
             tool_calls,
@@ -134,6 +155,11 @@ impl ResultStreamExt<anyhow::Error> for crate::BoxStream<ChatCompletionMessage, 
                 None
             } else {
                 Some(reasoning)
+            },
+            reasoning_details: if total_reasoning_details.is_empty() {
+                None
+            } else {
+                Some(total_reasoning_details)
             },
         })
     }
@@ -192,6 +218,7 @@ mod tests {
                 cost: None,
             },
             reasoning: None,
+            reasoning_details: None,
         };
 
         assert_eq!(actual, expected);
@@ -222,6 +249,7 @@ mod tests {
             tool_calls: vec![tool_call],
             usage: Usage::default(),
             reasoning: None,
+            reasoning_details: None,
         };
 
         assert_eq!(actual, expected);

@@ -61,7 +61,7 @@ mod tests {
                     content: "Using tool".to_string(),
                     tool_calls: Some(vec![tool_call]),
                     model: None,
-                    reasoning: None,
+                    reasoning_details: None,
                 }),
                 ContextMessage::Tool(tool_result),
             ],
