@@ -148,16 +148,9 @@ impl ResultStreamExt<anyhow::Error> for crate::BoxStream<ChatCompletionMessage, 
             content,
             tool_calls,
             usage,
-            reasoning: if reasoning.is_empty() {
-                None
-            } else {
-                Some(reasoning)
-            },
-            reasoning_details: if total_reasoning_details.is_empty() {
-                None
-            } else {
-                Some(total_reasoning_details)
-            },
+            reasoning: (!reasoning.is_empty()).then_some(reasoning),
+            reasoning_details: (!total_reasoning_details.is_empty())
+                .then_some(total_reasoning_details),
         })
     }
 }
