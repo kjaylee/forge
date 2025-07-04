@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Image, ToolCallFull, ToolCallId, ToolName};
 
-const REFLECTION_PROMPT: &str = include_str!("../../../templates/forge-partial-tool-error-reflection.hbs");
+const REFLECTION_PROMPT: &str =
+    include_str!("../../../templates/forge-partial-tool-error-reflection.hbs");
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 #[setters(into)]
@@ -56,10 +57,12 @@ impl ToolResult {
                     i += 1;
                 }
 
-                self.output =
-                    ToolOutput::text(Element::new("error")
-                    .append(Element::new("cause").cdata(message.join("\n")))
-                    .append(Element::new("reflection").text(REFLECTION_PROMPT))).is_error(true);
+                self.output = ToolOutput::text(
+                    Element::new("error")
+                        .append(Element::new("cause").cdata(message.join("\n")))
+                        .append(Element::new("reflection").text(REFLECTION_PROMPT)),
+                )
+                .is_error(true);
             }
         }
         self
