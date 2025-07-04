@@ -193,6 +193,8 @@ pub struct Request {
     pub session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream_options: Option<StreamOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<forge_domain::ReasoningConfig>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -291,6 +293,7 @@ impl From<Context> for Request {
             parallel_tool_calls: Some(false),
             stream_options: Some(StreamOptions { include_usage: Some(true) }),
             session_id: context.conversation_id.map(|id| id.to_string()),
+            reasoning: context.reasoning,
         }
     }
 }

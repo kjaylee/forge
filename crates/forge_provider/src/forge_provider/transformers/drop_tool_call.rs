@@ -71,6 +71,7 @@ mod tests {
             temperature: None,
             top_p: None,
             top_k: None,
+            reasoning: None,
         };
 
         let request = Request::from(context);
