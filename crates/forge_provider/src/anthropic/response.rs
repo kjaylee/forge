@@ -23,7 +23,8 @@ impl From<Model> for forge_domain::Model {
             description: None,
             context_length: None,
             tools_supported: Some(true),
-            supports_parallel_tool_calls: Some(false),
+            supports_parallel_tool_calls: None,
+            supports_reasoning: None, 
         }
     }
 }

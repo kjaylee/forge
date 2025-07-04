@@ -66,6 +66,7 @@ pub enum Choice {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ResponseMessage {
     pub content: Option<String>,
+    pub reasoning: Option<String>,
     pub role: Option<String>,
     pub tool_calls: Option<Vec<ToolCall>>,
     pub refusal: Option<String>,
@@ -117,7 +118,7 @@ impl TryFrom<Response> for ChatCompletionMessage {
                                     .and_then(|s| FinishReason::from_str(&s).ok()),
                             )
                         }
-                        Choice::NonStreaming { message, finish_reason, .. } => {
+                        Choice::NonStreaming { message, finish_reason,.. } => {
                             let mut resp = ChatCompletionMessage::assistant(Content::full(
                                 message.content.clone().unwrap_or_default(),
                             ))
@@ -126,6 +127,10 @@ impl TryFrom<Response> for ChatCompletionMessage {
                                     .clone()
                                     .and_then(|s| FinishReason::from_str(&s).ok()),
                             );
+                            if let Some(reasoning) = &message.reasoning {
+                                resp = resp.reasoning(Content::full(reasoning.clone()));
+                            }
+
                             if let Some(tool_calls) = &message.tool_calls {
                                 for tool_call in tool_calls {
                                     resp = resp.add_tool_call(ToolCallFull {
@@ -152,6 +157,11 @@ impl TryFrom<Response> for ChatCompletionMessage {
                                     .clone()
                                     .and_then(|s| FinishReason::from_str(&s).ok()),
                             );
+
+                            if let Some(reasoning) = &delta.reasoning {
+                                resp = resp.reasoning(Content::part(reasoning.clone()));
+                            }
+
                             if let Some(tool_calls) = &delta.tool_calls {
                                 for tool_call in tool_calls {
                                     resp = resp.add_tool_call(ToolCallPart {

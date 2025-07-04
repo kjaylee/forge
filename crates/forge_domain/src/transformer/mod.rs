@@ -116,6 +116,7 @@ mod tests {
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::assistant(
                 "I'll help you",
+                None,
                 Some(vec![tool_call]),
             ))
             .add_tool_results(vec![ToolResult {

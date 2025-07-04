@@ -186,11 +186,12 @@ mod tests {
                 }
                 'a' => {
                     context =
-                        context.add_message(ContextMessage::assistant("Assistant message", None))
+                        context.add_message(ContextMessage::assistant("Assistant message", None,None))
                 }
                 't' => {
                     context = context.add_message(ContextMessage::assistant(
                         "Assistant message with tool call",
+                        None,
                         Some(vec![tool_call.clone()]),
                     ))
                 }

@@ -22,6 +22,7 @@ pub struct Usage {
 #[setters(into, strip_option)]
 pub struct ChatCompletionMessage {
     pub content: Option<Content>,
+    pub reasoning: Option<Content>,
     pub tool_calls: Vec<ToolCall>,
     pub finish_reason: Option<FinishReason>,
     pub usage: Option<Usage>,
@@ -126,6 +127,7 @@ impl ChatCompletionMessage {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChatCompletionMessageFull {
     pub content: String,
+    pub reasoning: Option<String>,
     pub tool_calls: Vec<ToolCallFull>,
     pub usage: Usage,
 }

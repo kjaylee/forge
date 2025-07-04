@@ -44,8 +44,7 @@ impl ResultStreamExt<anyhow::Error> for crate::BoxStream<ChatCompletionMessage, 
 
             // Process content
             if let Some(content_part) = message.content.as_ref() {
-                let content_part = content_part.as_str().to_string();
-                content.push_str(&content_part);
+                content.push_str(content_part.as_str());
 
                 // Check for XML tool calls in the content, but only interrupt if flag is set
                 if should_interrupt_for_xml {
@@ -71,6 +70,14 @@ impl ResultStreamExt<anyhow::Error> for crate::BoxStream<ChatCompletionMessage, 
         let mut content = messages
             .iter()
             .flat_map(|m| m.content.iter())
+            .map(|content| content.as_str())
+            .collect::<Vec<_>>()
+            .join("");
+
+        // Collect reasoning tokens from all messages
+        let reasoning = messages
+            .iter()
+            .flat_map(|m| m.reasoning.iter())
             .map(|content| content.as_str())
             .collect::<Vec<_>>()
             .join("");
@@ -119,7 +126,16 @@ impl ResultStreamExt<anyhow::Error> for crate::BoxStream<ChatCompletionMessage, 
             .chain(xml_tool_calls)
             .collect();
 
-        Ok(ChatCompletionMessageFull { content, tool_calls, usage })
+        Ok(ChatCompletionMessageFull {
+            content,
+            tool_calls,
+            usage,
+            reasoning: if reasoning.is_empty() {
+                None
+            } else {
+                Some(reasoning)
+            },
+        })
     }
 }
 
@@ -175,6 +191,7 @@ mod tests {
                 cached_tokens: 0,
                 cost: None,
             },
+            reasoning: None,
         };
 
         assert_eq!(actual, expected);
@@ -204,6 +221,7 @@ mod tests {
             content: "Processing...".to_string(),
             tool_calls: vec![tool_call],
             usage: Usage::default(),
+            reasoning: None,
         };
 
         assert_eq!(actual, expected);

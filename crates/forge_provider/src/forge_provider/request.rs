@@ -406,6 +406,7 @@ mod tests {
             content: "Hello".to_string(),
             tool_calls: None,
             model: ModelId::new("gpt-3.5-turbo").into(),
+            reasoning: None,
         });
         let router_message = Message::from(user_message);
         assert_json_snapshot!(router_message);
@@ -428,6 +429,7 @@ mod tests {
             content: xml_content.to_string(),
             tool_calls: None,
             model: ModelId::new("gpt-3.5-turbo").into(),
+            reasoning: None,
         });
         let router_message = Message::from(message);
         assert_json_snapshot!(router_message);
@@ -446,6 +448,7 @@ mod tests {
             content: "Using tool".to_string(),
             tool_calls: Some(vec![tool_call]),
             model: ModelId::new("gpt-3.5-turbo").into(),
+            reasoning: None,
         });
         let router_message = Message::from(assistant_message);
         assert_json_snapshot!(router_message);

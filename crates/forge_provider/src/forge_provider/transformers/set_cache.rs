@@ -60,18 +60,21 @@ mod tests {
                         content: c.to_string(),
                         tool_calls: None,
                         model: None,
+                        reasoning: None,
                     }),
                     'u' => ContextMessage::Text(TextMessage {
                         role: Role::User,
                         content: c.to_string(),
                         tool_calls: None,
                         model: ModelId::new("gpt-4").into(),
+                        reasoning: None,
                     }),
                     'a' => ContextMessage::Text(TextMessage {
                         role: Role::Assistant,
                         content: c.to_string(),
                         tool_calls: None,
                         model: None,
+                        reasoning: None,
                     }),
                     _ => {
                         panic!("Invalid character in test message");

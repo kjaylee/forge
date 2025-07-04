@@ -653,9 +653,12 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
     fn handle_chat_response(&mut self, message: ChatResponse) -> Result<()> {
         match message {
-            ChatResponse::Text { mut text, is_complete, is_md, is_summary } => {
+            ChatResponse::Text { mut text, is_complete, is_md, is_summary, is_reasoning } => {
                 if is_complete && !text.trim().is_empty() {
-                    if is_md || is_summary {
+                    if is_reasoning {
+                        tracing::info!(message = %text, "Agent Reasoning");
+                        text = format!("<thinking>{}</thinking>", text).dimmed().to_string();
+                    } else if is_md || is_summary {
                         tracing::info!(message = %text, "Agent Response");
                         text = self.markdown.render(&text);
                     }
@@ -787,6 +790,7 @@ mod tests {
             context_length,
             tools_supported,
             supports_parallel_tool_calls: None,
+            supports_reasoning: None,
         }
     }
 

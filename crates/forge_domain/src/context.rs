@@ -99,6 +99,7 @@ impl ContextMessage {
             role: Role::User,
             content: content.to_string(),
             tool_calls: None,
+            reasoning: None,
             model,
         }
         .into()
@@ -110,17 +111,23 @@ impl ContextMessage {
             content: content.to_string(),
             tool_calls: None,
             model: None,
+            reasoning: None,
         }
         .into()
     }
 
-    pub fn assistant(content: impl ToString, tool_calls: Option<Vec<ToolCallFull>>) -> Self {
+    pub fn assistant(
+        content: impl ToString,
+        reasoning: Option<String>,
+        tool_calls: Option<Vec<ToolCallFull>>,
+    ) -> Self {
         let tool_calls =
             tool_calls.and_then(|calls| if calls.is_empty() { None } else { Some(calls) });
         TextMessage {
             role: Role::Assistant,
             content: content.to_string(),
             tool_calls,
+            reasoning,
             model: None,
         }
         .into()
@@ -165,14 +172,22 @@ pub struct TextMessage {
     pub tool_calls: Option<Vec<ToolCallFull>>,
     // note: this used to track model used for this message.
     pub model: Option<ModelId>,
+    /// note: not sent to the LLM provider, but used for reasoning
+    /// and debugging purposes.
+    pub reasoning: Option<String>,
 }
 
 impl TextMessage {
-    pub fn assistant(content: impl ToString, model: Option<ModelId>) -> Self {
+    pub fn assistant(
+        content: impl ToString,
+        reasoning: Option<String>,
+        model: Option<ModelId>,
+    ) -> Self {
         Self {
             role: Role::Assistant,
             content: content.to_string(),
             tool_calls: None,
+            reasoning,
             model,
         }
     }
@@ -274,11 +289,13 @@ impl Context {
     pub fn append_message(
         self,
         content: impl ToString,
+        reasoning: Option<String>,
         tool_records: Vec<(ToolCallFull, ToolResult)>,
     ) -> Self {
         // Adding tool calls
         self.add_message(ContextMessage::assistant(
             content,
+            reasoning,
             Some(
                 tool_records
                     .iter()
@@ -351,7 +368,7 @@ mod tests {
         let context = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User message", model.into()))
-            .add_message(ContextMessage::assistant("Assistant message", None));
+            .add_message(ContextMessage::assistant("Assistant message", None,None));
 
         // Get the token count
         let token_count = estimate_token_count(context.to_text().len());
@@ -375,7 +392,7 @@ mod tests {
         let fixture = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User message", None))
-            .add_message(ContextMessage::assistant("Assistant message", None));
+            .add_message(ContextMessage::assistant("Assistant message", None,None));
         let mut transformer = crate::transformer::ImageHandling::new();
         let actual = transformer.transform(fixture);
 
@@ -485,7 +502,7 @@ mod tests {
         let fixture = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User question", None))
-            .add_message(ContextMessage::assistant("Assistant response", None))
+            .add_message(ContextMessage::assistant("Assistant response", None,None))
             .add_tool_results(vec![ToolResult {
                 name: crate::ToolName::new("mixed_tool"),
                 call_id: Some(crate::ToolCallId::new("call1")),

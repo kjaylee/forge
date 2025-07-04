@@ -331,7 +331,7 @@ impl<S: AgentService> Orchestrator<S> {
             self.conversation.context = Some(context.clone());
             self.services.update(self.conversation.clone()).await?;
 
-            let ChatCompletionMessageFull { tool_calls, content, mut usage } =
+            let ChatCompletionMessageFull { tool_calls, content, mut usage, reasoning } =
                 crate::retry::retry_with_config(
                     &self.environment.retry_config,
                     || self.execute_chat_turn(&model_id, context.clone(), is_tool_supported),
@@ -392,15 +392,30 @@ impl<S: AgentService> Orchestrator<S> {
                     is_complete: true,
                     is_md: true,
                     is_summary: false,
+                    is_reasoning: false,
                 })
                 .await?;
             }
+            
+            if let Some(reasoning) = reasoning.as_ref() && !is_complete {
+                // If reasoning is present, send it as a separate message
+                self.send(ChatResponse::Text {
+                    text: reasoning.to_string(),
+                    is_complete: true,
+                    is_md: false,
+                    is_summary: false,
+                    is_reasoning: true,
+                })
+                .await?;
+            }
+
             let mut tool_context =
                 ToolCallContext::new(self.conversation.tasks.clone()).sender(self.sender.clone());
 
             // Process tool calls and update context
             context = context.append_message(
                 content.clone(),
+                reasoning,
                 self.execute_tool_calls(&agent, &tool_calls, &mut tool_context)
                     .await?,
             );
