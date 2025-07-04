@@ -1,11 +1,8 @@
 use anyhow::Context as _;
 use tokio_stream::StreamExt;
 
-use crate::{
-    ChatCompletionMessage, ChatCompletionMessageFull, ToolCallFull,
-    ToolCallPart, Usage,
-};
 use crate::reasoning::{Reasoning, ReasoningFull};
+use crate::{ChatCompletionMessage, ChatCompletionMessageFull, ToolCallFull, ToolCallPart, Usage};
 
 /// Extension trait for ResultStream to provide additional functionality
 #[async_trait::async_trait]

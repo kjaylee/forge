@@ -323,7 +323,6 @@ impl<S: AgentService> Orchestrator<S> {
             context = context.reasoning(reasoning.clone());
         }
 
-
         // Process attachments from the event if they exist
         let attachments = event.attachments.clone();
 

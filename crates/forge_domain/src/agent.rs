@@ -184,7 +184,7 @@ pub struct ReasoningConfig {
     /// Model thinks deeply, but the reasoning is hidden from you.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exclude: Option<bool>,
-    
+
     /// Enables reasoning at the “medium” effort level with no exclusions.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
