@@ -5,12 +5,9 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use convert_case::{Case, Casing};
-use forge_api::{
-    AgentId, ChatRequest, ChatResponse, Conversation, ConversationId, Event, InterruptionReason,
-    Model, ModelId, Workflow, API,
-};
+use forge_api::{AgentId, ChatRequest, ChatResponse, ChoiceType, ConfigOption, Conversation, ConversationId, Event, InterruptionReason, Model, ModelId, Workflow, API};
 use forge_display::{MarkdownFormat, TitleFormat};
-use forge_domain::{ChoiceType, ConfigOption, ForgeConfig, McpConfig, McpServerConfig, Provider, Scope};
+use forge_domain::{McpConfig, McpServerConfig, Provider, Scope};
 use forge_fs::ForgeFS;
 use forge_spinner::SpinnerManager;
 use forge_tracker::ToolCallPayload;
@@ -622,13 +619,9 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
     /// Get the current shell execution choice from config
     async fn get_current_shell_execution_choice(&self) -> Result<Option<ChoiceType>> {
-        let config_path = self.api.environment().global_config();
-
-        if let Ok(content) = ForgeFS::read_utf8(config_path.as_os_str()).await {
-            if let Ok(config) = serde_json::from_str::<ForgeConfig>(&content) {
-                if let Some(choices) = &config.choices {
-                    return Ok(choices.execute_shell_commands.clone());
-                }
+        if let Ok(config) = self.api.app_config().await {
+            if let Some(choices) = &config.choices {
+                return Ok(choices.execute_shell_commands.clone());
             }
         }
 
@@ -636,26 +629,17 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
     }
 
     async fn save_shell_execution_choice(&self, choice: ChoiceType) -> Result<()> {
-        // FIXME: After CLI auth merge,
-        // use API to update the config instead of ForgeFS directly.
+        self.api
+            .modify_config(|config| {
+                if config.choices.is_none() {
+                    config.choices = Some(Default::default());
+                }
 
-        let config_path = self.api.environment().global_config();
-
-        let content = ForgeFS::read_utf8(config_path.as_os_str())
-            .await
-            .unwrap_or_else(|_| "{}".to_string());
-        let mut config = serde_json::from_str::<ForgeConfig>(&content).unwrap_or_default();
-
-        if config.choices.is_none() {
-            config.choices = Some(Default::default());
-        }
-
-        if let Some(ref mut choices) = config.choices {
-            choices.execute_shell_commands = Some(choice);
-        }
-
-        let content = serde_json::to_string_pretty(&config)?;
-        ForgeFS::write(&config_path, content.as_bytes()).await?;
+                if let Some(ref mut choices) = config.choices {
+                    choices.execute_shell_commands = Some(choice);
+                }
+            })
+            .await?;
 
         Ok(())
     }

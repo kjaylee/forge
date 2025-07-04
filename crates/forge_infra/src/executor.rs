@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bytes::Bytes;
-use forge_domain::{ChoiceType, CommandOutput, Environment, ForgeConfig};
+use forge_domain::{CommandOutput, Environment};
 use forge_services::{
     CommandExecutionPrompt, CommandInfra, FileReaderInfra, FileWriterInfra, UserInfra,
 };
@@ -11,6 +11,7 @@ use strum::IntoEnumIterator;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 use tokio::sync::Mutex;
+use forge_app::{AppConfig, ChoiceType};
 
 /// Service for executing shell commands
 #[derive(Clone, Debug)]
@@ -136,10 +137,10 @@ impl<U: UserInfra, F: FileWriterInfra, R: FileReaderInfra> ForgeCommandExecutorS
     }
 
     async fn confirm_execution(&self, command: &str) -> anyhow::Result<()> {
-        let config_path = self.env.global_config();
+        let config_path = self.env.app_config();
 
         if let Ok(content) = self.file_reader_infra.read_utf8(&config_path).await {
-            if let Ok(config) = serde_json::from_str::<ForgeConfig>(&content) {
+            if let Ok(config) = serde_json::from_str::<AppConfig>(&content) {
                 if let Some(choices) = &config.choices {
                     if let Some(execute_shell_commands) = &choices.execute_shell_commands {
                         match execute_shell_commands {
@@ -181,14 +182,14 @@ impl<U: UserInfra, F: FileWriterInfra, R: FileReaderInfra> ForgeCommandExecutorS
 
     /// Save the user's shell execution preference to config
     async fn save_shell_execution_config(&self, accept: bool) -> anyhow::Result<()> {
-        let config_path = self.env.global_config();
+        let config_path = self.env.app_config();
 
         let content = self
             .file_reader_infra
             .read_utf8(&config_path)
             .await
             .unwrap_or_default();
-        let mut config = serde_json::from_str::<ForgeConfig>(&content).unwrap_or_default();
+        let mut config = serde_json::from_str::<AppConfig>(&content).unwrap_or_default();
 
         config.choices = Some(config.choices.unwrap_or_default());
 
@@ -264,7 +265,6 @@ impl<U: UserInfra, F: FileWriterInfra, R: FileReaderInfra> CommandInfra
 mod tests {
     use std::fmt::Display;
 
-    use forge_domain::Provider;
     use forge_fs::FileInfo;
     use pretty_assertions::assert_eq;
 

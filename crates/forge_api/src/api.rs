@@ -101,5 +101,5 @@ pub trait API: Sync + Send {
     /// Allows modification of the ForgeConfig
     async fn modify_config<Fn>(&self, f: Fn) -> Result<()>
     where
-        Fn: FnOnce(&mut ForgeConfig) + Send + Sync;
+        Fn: FnOnce(&mut AppConfig) + Send + Sync;
 }
