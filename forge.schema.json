@@ -185,6 +185,17 @@
             "null"
           ]
         },
+        "reasoning": {
+          "description": "Reasoning configuration for the agent. Controls the reasoning capabilities of the agent note: only works with forge and openrouter provider",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "subscribe": {
           "description": "Used to specify the events the agent is interested in",
           "type": [
@@ -371,11 +382,58 @@
         }
       }
     },
+    "Effort": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
     "MaxTokens": {
       "description": "A newtype for max_tokens values with built-in validation\n\nMax tokens controls the maximum number of tokens the model can generate: - Lower values (e.g., 100) limit response length for concise outputs - Higher values (e.g., 4000) allow for longer, more detailed responses - Valid range is 1 to 100,000 (reasonable upper bound for most models) - If not specified, the model provider's default will be used",
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
+    },
+    "ReasoningConfig": {
+      "type": "object",
+      "properties": {
+        "effort": {
+          "description": "Controls the effort level of the agent's reasoning",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Effort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled": {
+          "description": "Enables reasoning at the “medium” effort level with no exclusions.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "exclude": {
+          "description": "Model thinks deeply, but the reasoning is hidden from you.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "max_tokens": {
+          "description": "Controls how many tokens the model can spend thinking.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0.0
+        }
+      }
     },
     "String": {
       "type": "string"
