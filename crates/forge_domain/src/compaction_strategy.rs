@@ -185,8 +185,11 @@ mod tests {
                     ))
                 }
                 'a' => {
-                    context =
-                        context.add_message(ContextMessage::assistant("Assistant message", None,None))
+                    context = context.add_message(ContextMessage::assistant(
+                        "Assistant message",
+                        None,
+                        None,
+                    ))
                 }
                 't' => {
                     context = context.add_message(ContextMessage::assistant(

@@ -368,7 +368,7 @@ mod tests {
         let context = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User message", model.into()))
-            .add_message(ContextMessage::assistant("Assistant message", None,None));
+            .add_message(ContextMessage::assistant("Assistant message", None, None));
 
         // Get the token count
         let token_count = estimate_token_count(context.to_text().len());
@@ -392,7 +392,7 @@ mod tests {
         let fixture = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User message", None))
-            .add_message(ContextMessage::assistant("Assistant message", None,None));
+            .add_message(ContextMessage::assistant("Assistant message", None, None));
         let mut transformer = crate::transformer::ImageHandling::new();
         let actual = transformer.transform(fixture);
 
@@ -502,7 +502,7 @@ mod tests {
         let fixture = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User question", None))
-            .add_message(ContextMessage::assistant("Assistant response", None,None))
+            .add_message(ContextMessage::assistant("Assistant response", None, None))
             .add_tool_results(vec![ToolResult {
                 name: crate::ToolName::new("mixed_tool"),
                 call_id: Some(crate::ToolCallId::new("call1")),

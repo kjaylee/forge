@@ -118,7 +118,7 @@ impl TryFrom<Response> for ChatCompletionMessage {
                                     .and_then(|s| FinishReason::from_str(&s).ok()),
                             )
                         }
-                        Choice::NonStreaming { message, finish_reason,.. } => {
+                        Choice::NonStreaming { message, finish_reason, .. } => {
                             let mut resp = ChatCompletionMessage::assistant(Content::full(
                                 message.content.clone().unwrap_or_default(),
                             ))

@@ -24,7 +24,7 @@ impl From<Model> for forge_domain::Model {
             context_length: None,
             tools_supported: Some(true),
             supports_parallel_tool_calls: None,
-            supports_reasoning: None, 
+            supports_reasoning: None,
         }
     }
 }

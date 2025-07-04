@@ -657,7 +657,9 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 if is_complete && !text.trim().is_empty() {
                     if is_reasoning {
                         tracing::info!(message = %text, "Agent Reasoning");
-                        text = format!("<thinking>{}</thinking>", text).dimmed().to_string();
+                        text = format!("<thinking>{text}</thinking>")
+                            .dimmed()
+                            .to_string();
                     } else if is_md || is_summary {
                         tracing::info!(message = %text, "Agent Response");
                         text = self.markdown.render(&text);
