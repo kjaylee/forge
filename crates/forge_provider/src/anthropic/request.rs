@@ -119,6 +119,18 @@ impl TryFrom<ContextMessage> for Message {
                         .unwrap_or_default()
                         + 1,
                 );
+                
+                if let Some(reasoning) = chat_message.reasoning_details {
+                    if let Some((sig, text)) = reasoning.into_iter().find_map(|reasoning| {
+                        match (reasoning.signature, reasoning.text) {
+                            (Some(sig), Some(text)) => Some((sig, text)),
+                            _ => None,
+                        }
+                    }) {
+                        content
+                            .push(Content::Thinking { signature: Some(sig), thinking: Some(text) });
+                    }
+                }
 
                 if !chat_message.content.is_empty() {
                     // note: Anthropic does not allow empty text content.
@@ -129,6 +141,7 @@ impl TryFrom<ContextMessage> for Message {
                         content.push(tool_call.try_into()?);
                     }
                 }
+
                 match chat_message.role {
                     forge_domain::Role::User => Message { role: Role::User, content },
                     forge_domain::Role::Assistant => Message { role: Role::Assistant, content },
@@ -200,6 +213,12 @@ enum Content {
         is_error: Option<bool>,
         #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<CacheControl>,
+    },
+    Thinking {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        signature: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        thinking: Option<String>,
     },
 }
 

@@ -208,6 +208,7 @@ mod tests {
         let fixture = vec![
             vec![ReasoningPart { text: Some("a-text".to_string()), signature: None }],
             vec![ReasoningPart { text: None, signature: Some("b-sig".to_string()) }],
+            vec![ReasoningPart { text: Some("b-test".to_string()), signature: None }],
         ];
 
         // Execute the function to get the actual result
@@ -215,7 +216,7 @@ mod tests {
 
         // Define the expected result
         let expected = vec![ReasoningFull {
-            text: Some("a-text".to_string()),
+            text: Some("a-textb-test".to_string()),
             signature: Some("b-sig".to_string()),
         }];
 
