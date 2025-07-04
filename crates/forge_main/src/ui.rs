@@ -714,6 +714,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                     .map_err(|e| anyhow::anyhow!(e))?;
 
                     if result == "Yes" {
+                        self.spinner.start(None)?;
                         Box::pin(self.on_message("Continue".to_string())).await?;
                     }
                 }
