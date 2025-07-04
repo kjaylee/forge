@@ -19,10 +19,14 @@ pub enum ChatResponse {
         cause: Cause,
         duration: Duration,
     },
-    State {
-        // status of the loader state in the UI
-        stopped: bool,
+    Interrupt {
+        reason: InterruptionReason,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum InterruptionReason {
+    MaxRequestPerTurnLimitReached { limit: u64 },
 }
 
 #[derive(Clone)]

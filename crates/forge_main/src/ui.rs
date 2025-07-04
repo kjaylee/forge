@@ -6,8 +6,8 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use convert_case::{Case, Casing};
 use forge_api::{
-    AgentId, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
-    Workflow, API,
+    AgentId, ChatRequest, ChatResponse, Conversation, ConversationId, Event, InterruptionReason,
+    Model, ModelId, Workflow, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_domain::{McpConfig, McpServerConfig, Scope};
@@ -600,7 +600,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
         while let Some(message) = stream.next().await {
             match message {
-                Ok(message) => self.handle_chat_response(message)?,
+                Ok(message) => self.handle_chat_response(message).await?,
                 Err(err) => {
                     self.spinner.stop(None)?;
                     return Err(err);
@@ -651,7 +651,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
         Ok(())
     }
 
-    fn handle_chat_response(&mut self, message: ChatResponse) -> Result<()> {
+    async fn handle_chat_response(&mut self, message: ChatResponse) -> Result<()> {
         match message {
             ChatResponse::Text { mut text, is_complete, is_md, is_summary } => {
                 if is_complete && !text.trim().is_empty() {
@@ -696,13 +696,28 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 self.writeln(TitleFormat::error(cause.as_str()))?;
                 tracker::error_string(cause.into_string());
             }
-            ChatResponse::State { stopped } => {
-                if stopped {
+            ChatResponse::Interrupt { reason } => match reason {
+                InterruptionReason::MaxRequestPerTurnLimitReached { limit } => {
                     self.spinner.stop(None)?;
-                } else {
-                    self.spinner.start(None)?;
+                    let result = Select::new(
+                        &format!("User has reached the max request per turn limit of {limit}. Do you want to continue?"),
+                        vec!["Yes", "No"]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect(),
+                    )
+                    .with_render_config(
+                        RenderConfig::default().with_highlighted_option_prefix(Styled::new("➤")),
+                    )
+                    .with_starting_cursor(0)
+                    .prompt()
+                    .map_err(|e| anyhow::anyhow!(e))?;
+
+                    if result == "Yes" {
+                        Box::pin(self.on_message("Continue".to_string())).await?;
+                    }
                 }
-            }
+            },
         }
         Ok(())
     }
