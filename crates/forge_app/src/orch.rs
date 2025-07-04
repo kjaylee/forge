@@ -452,17 +452,28 @@ impl<S: AgentService> Orchestrator<S> {
             self.services.update(self.conversation.clone()).await?;
             request_count += 1;
 
-            // Agent has reached the maximum request per turn limit
-            if !is_complete && max_requests_per_turn.is_some_and(|max| request_count >= max) {
-                // raise an interrupt event to notify the user
-                self.send(ChatResponse::Interrupt {
-                    reason: InterruptionReason::MaxRequestPerTurnLimitReached {
-                        limit: max_requests_per_turn.unwrap() as u64,
-                    },
-                })
-                .await?;
-                // force completion
-                is_complete = true;
+            if !is_complete {
+                if let Some(max_request_allowed) = max_requests_per_turn {
+                    // Check if agent has reached the maximum request per turn limit
+                    if request_count > max_request_allowed {
+                        warn!(
+                            agent_id = %agent.id,
+                            model_id = %model_id,
+                            request_count,
+                            max_request_allowed,
+                            "Agent has reached the maximum request per turn limit"
+                        );
+                        // raise an interrupt event to notify the UI
+                        self.send(ChatResponse::Interrupt {
+                            reason: InterruptionReason::MaxRequestPerTurnLimitReached {
+                                limit: max_request_allowed as u64,
+                            },
+                        })
+                        .await?;
+                        // force completion
+                        is_complete = true;
+                    }
+                }
             }
         }
 
