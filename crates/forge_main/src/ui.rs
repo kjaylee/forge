@@ -700,7 +700,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 InterruptionReason::MaxRequestPerTurnLimitReached { limit } => {
                     self.spinner.stop(None)?;
                     let result = Select::new(
-                        &format!("User has reached the max request per turn limit of {limit}. Do you want to continue?"),
+                        &format!("You’ve reached the maximum allowed requests ({limit}) for this turn. Do you want to continue anyway?"),
                         vec!["Yes", "No"]
                             .into_iter()
                             .map(|s| s.to_string())
