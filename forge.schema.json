@@ -195,7 +195,7 @@
           ]
         },
         "reasoning": {
-          "description": "Reasoning configuration for the agent. Controls the reasoning capabilities of the agent note: only works with forge and openrouter provider",
+          "description": "Reasoning configuration for the agent. Controls the reasoning capabilities of the agent",
           "anyOf": [
             {
               "$ref": "#/definitions/ReasoningConfig"
@@ -409,7 +409,7 @@
       "type": "object",
       "properties": {
         "effort": {
-          "description": "Controls the effort level of the agent's reasoning",
+          "description": "Controls the effort level of the agent's reasoning supported by openrouter and forge provider",
           "anyOf": [
             {
               "$ref": "#/definitions/Effort"
@@ -420,21 +420,21 @@
           ]
         },
         "enabled": {
-          "description": "Enables reasoning at the “medium” effort level with no exclusions.",
+          "description": "Enables reasoning at the “medium” effort level with no exclusions. supported by openrouter, anthropic and forge provider",
           "type": [
             "boolean",
             "null"
           ]
         },
         "exclude": {
-          "description": "Model thinks deeply, but the reasoning is hidden from you.",
+          "description": "Model thinks deeply, but the reasoning is hidden from you. supported by openrouter and forge provider",
           "type": [
             "boolean",
             "null"
           ]
         },
         "max_tokens": {
-          "description": "Controls how many tokens the model can spend thinking.",
+          "description": "Controls how many tokens the model can spend thinking. supported by openrouter, anthropic and forge provider should be greater then 1024 but less than overall max_tokens",
           "type": [
             "integer",
             "null"
