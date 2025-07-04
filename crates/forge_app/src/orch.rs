@@ -485,15 +485,14 @@ impl<S: AgentService> Orchestrator<S> {
                         .to_string(),
                 );
             debug!(event_context = ?event_context, "Event context");
-            Some(self.services
-                .render(user_prompt.template.as_str(), &event_context)
-                .await?)
+            Some(
+                self.services
+                    .render(user_prompt.template.as_str(), &event_context)
+                    .await?,
+            )
         } else {
             // Use the raw event value as content if no user_prompt is provided
-            event
-                .value
-                .as_ref()
-                .map(|v| v.to_string())
+            event.value.as_ref().map(|v| v.to_string())
         };
 
         if let Some(content) = content {
