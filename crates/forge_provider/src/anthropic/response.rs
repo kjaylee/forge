@@ -1,4 +1,7 @@
-use forge_domain::{ChatCompletionMessage, Content, ModelId, ToolCallId, ToolCallPart, ToolName};
+use forge_domain::{
+    ChatCompletionMessage, Content, ModelId, Reasoning, ReasoningPart, ToolCallId, ToolCallPart,
+    ToolName,
+};
 use serde::Deserialize;
 
 use super::request::Role;
@@ -147,6 +150,15 @@ pub enum ContentBlock {
         thinking: Option<String>,
         signature: Option<String>,
     },
+    ThinkingDelta {
+        thinking: Option<String>,
+    },
+    SignatureDelta {
+        signature: Option<String>,
+    },
+    RedactedThinking {
+        data: Option<String>,
+    },
 }
 
 impl TryFrom<EventData> for ChatCompletionMessage {
@@ -190,13 +202,46 @@ impl TryFrom<ContentBlock> for ChatCompletionMessage {
             ContentBlock::Text { text } | ContentBlock::TextDelta { text } => {
                 ChatCompletionMessage::assistant(Content::part(text))
             }
-            ContentBlock::Thinking { thinking, signature: _ } => {
+            ContentBlock::Thinking { thinking, signature } => {
                 if let Some(thinking) = thinking {
                     ChatCompletionMessage::assistant(Content::part(""))
-                        .reasoning(Content::part(thinking))
+                        .reasoning(Content::part(thinking.clone()))
+                        .add_reasoning_detail(Reasoning::Part(vec![ReasoningPart {
+                            signature: signature,
+                            text: Some(thinking),
+                        }]))
                 } else {
                     ChatCompletionMessage::assistant(Content::part(""))
                 }
+            }
+            ContentBlock::RedactedThinking { data } => {
+                if let Some(data) = data {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                        .reasoning(Content::part(data.clone()))
+                        .add_reasoning_detail(Reasoning::Part(vec![ReasoningPart {
+                            signature: None,
+                            text: Some(data),
+                        }]))
+                } else {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                }
+            }
+            ContentBlock::ThinkingDelta { thinking } => {
+                if let Some(thinking) = thinking {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                        .reasoning(Content::part(thinking.clone()))
+                        .add_reasoning_detail(Reasoning::Part(vec![ReasoningPart {
+                            signature: None,
+                            text: Some(thinking),
+                        }]))
+                } else {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                }
+            }
+            ContentBlock::SignatureDelta { signature } => {
+                ChatCompletionMessage::assistant(Content::part("")).add_reasoning_detail(
+                    Reasoning::Part(vec![ReasoningPart { signature: signature, text: None }]),
+                )
             }
             ContentBlock::ToolUse { id, name, input } => {
                 // note: We've to check if the input is empty or null. else we end up adding

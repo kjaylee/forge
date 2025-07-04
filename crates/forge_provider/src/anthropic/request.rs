@@ -28,6 +28,14 @@ pub struct Request {
     top_k: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thinking: Option<Thinking>,
+}
+
+#[derive(Serialize, Default)]
+pub struct Thinking {
+    r#type: String,
+    budget_tokens: u64,
 }
 
 impl TryFrom<forge_domain::Context> for Request {
@@ -72,6 +80,15 @@ impl TryFrom<forge_domain::Context> for Request {
             top_p: request.top_p.map(|t| t.value()),
             top_k: request.top_k.map(|t| t.value() as u64),
             tool_choice: request.tool_choice.map(ToolChoice::from),
+            thinking: request.reasoning.and_then(|reasoning| {
+                match (reasoning.enabled, reasoning.max_tokens) {
+                    (Some(true), Some(max_tokens)) => Some(Thinking {
+                        r#type: "enabled".to_string(),
+                        budget_tokens: max_tokens as u64,
+                    }),
+                    _ => None,
+                }
+            }),
             ..Default::default()
         })
     }
