@@ -48,7 +48,7 @@ impl PartialEvent {
 
 impl From<PartialEvent> for Event {
     fn from(value: PartialEvent) -> Self {
-        Event::new(value.name, value.value)
+        Event::new(value.name, Some(value.value))
     }
 }
 
@@ -133,7 +133,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
     fn create_task_event<V: Into<Value>>(
         &self,
-        content: V,
+        content: Option<V>,
         event_name: &str,
     ) -> anyhow::Result<Event> {
         let operating_agent = &self.state.operating_agent;
