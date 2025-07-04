@@ -119,7 +119,7 @@ impl TryFrom<ContextMessage> for Message {
                         .unwrap_or_default()
                         + 1,
                 );
-                
+
                 if let Some(reasoning) = chat_message.reasoning_details {
                     if let Some((sig, text)) = reasoning.into_iter().find_map(|reasoning| {
                         match (reasoning.signature, reasoning.text) {

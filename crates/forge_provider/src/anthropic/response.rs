@@ -207,7 +207,7 @@ impl TryFrom<ContentBlock> for ChatCompletionMessage {
                     ChatCompletionMessage::assistant(Content::part(""))
                         .reasoning(Content::part(thinking.clone()))
                         .add_reasoning_detail(Reasoning::Part(vec![ReasoningPart {
-                            signature: signature,
+                            signature,
                             text: Some(thinking),
                         }]))
                 } else {
@@ -240,7 +240,7 @@ impl TryFrom<ContentBlock> for ChatCompletionMessage {
             }
             ContentBlock::SignatureDelta { signature } => {
                 ChatCompletionMessage::assistant(Content::part("")).add_reasoning_detail(
-                    Reasoning::Part(vec![ReasoningPart { signature: signature, text: None }]),
+                    Reasoning::Part(vec![ReasoningPart { signature, text: None }]),
                 )
             }
             ContentBlock::ToolUse { id, name, input } => {

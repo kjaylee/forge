@@ -273,7 +273,7 @@ mod tests {
         assert!(domain_error.is_some());
         assert!(matches!(domain_error.unwrap(), Error::Retryable(_)));
     }
-    
+
     #[tokio::test]
     async fn test_into_full_with_reasoning() {
         // Fixture: Create a stream with reasoning content across multiple messages
