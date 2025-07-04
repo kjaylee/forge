@@ -56,7 +56,7 @@ impl Reasoning {
                     signature: (!signature.is_empty()).then_some(signature),
                 }
             })
-            .filter(|reasoning| reasoning.text.is_some() || reasoning.signature.is_some())
+            .filter(|reasoning| reasoning.text.is_some() && reasoning.signature.is_some())
             .collect()
     }
 }
@@ -236,6 +236,36 @@ mod tests {
         let expected: Vec<ReasoningFull> = vec![];
 
         // Assert that the actual result matches the expected result
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_reasoning_detail_from_parts_filters_incomplete_reasoning() {
+        let fixture = vec![
+            vec![
+                ReasoningPart { text: Some("text-only".to_string()), signature: None },
+                ReasoningPart {
+                    text: Some("complete-text".to_string()),
+                    signature: Some("complete-sig".to_string()),
+                },
+                ReasoningPart { text: None, signature: None },
+            ],
+            vec![
+                ReasoningPart { text: Some("more-text".to_string()), signature: None },
+                ReasoningPart {
+                    text: Some("more-text2".to_string()),
+                    signature: Some("more-sig".to_string()),
+                },
+                ReasoningPart { text: None, signature: None },
+            ],
+        ];
+
+        let actual = Reasoning::from_parts(fixture);
+
+        let expected = vec![ReasoningFull {
+            text: Some("complete-textmore-text2".to_string()),
+            signature: Some("complete-sigmore-sig".to_string()),
+        }];
         assert_eq!(actual, expected);
     }
 }
