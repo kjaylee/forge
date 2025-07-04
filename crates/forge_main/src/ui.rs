@@ -750,7 +750,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                         "Maximum request ({limit}) per turn achieved"
                     )))?;
                     let result = Select::new(
-                        &format!("Do you want to continue anyway?"),
+                        &"Do you want to continue anyway?".to_string(),
                         vec!["Yes", "No"]
                             .into_iter()
                             .map(|s| s.to_string())
