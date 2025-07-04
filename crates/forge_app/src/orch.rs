@@ -327,7 +327,7 @@ impl<S: AgentService> Orchestrator<S> {
         let is_tool_supported = self.is_tool_supported(&agent)?;
         let mut request_count = 0;
 
-        // Retrive the number of requests allowed per tick.
+        // Retrieve the number of requests allowed per tick.
         let max_requests_per_turn = self.conversation.max_requests_per_turn;
 
         while !is_complete {
