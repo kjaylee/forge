@@ -319,6 +319,11 @@ impl<S: AgentService> Orchestrator<S> {
             context = context.max_tokens(max_tokens.value() as usize);
         }
 
+        if let Some(reasoning) = agent.reasoning.as_ref() {
+            context = context.reasoning(reasoning.clone());
+        }
+
+
         // Process attachments from the event if they exist
         let attachments = event.attachments.clone();
 
