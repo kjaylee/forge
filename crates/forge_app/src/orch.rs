@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_recursion::async_recursion;
 use derive_setters::Setters;
@@ -210,7 +211,7 @@ impl<S: AgentService> Orchestrator<S> {
             debug!(
                 conversation_id = %self.conversation.id.clone(),
                 event_name = %event.name,
-                event_value = %event.value,
+                event_value = %format!("{:?}", event.value),
                 "Dispatching event"
             );
             self.conversation.dispatch_event(event.clone())
@@ -324,6 +325,10 @@ impl<S: AgentService> Orchestrator<S> {
 
         let mut empty_tool_call_count = 0;
         let is_tool_supported = self.is_tool_supported(&agent)?;
+        let mut request_count = 0;
+
+        // Retrieve the number of requests allowed per tick.
+        let max_requests_per_turn = self.conversation.max_requests_per_turn;
 
         while !is_complete {
             // Set context for the current loop iteration
@@ -331,9 +336,23 @@ impl<S: AgentService> Orchestrator<S> {
             self.services.update(self.conversation.clone()).await?;
 
             let ChatCompletionMessageFull { tool_calls, content, mut usage } =
-                crate::retry::retry_with_config(&self.environment.retry_config, || {
-                    self.execute_chat_turn(&model_id, context.clone(), is_tool_supported)
-                })
+                crate::retry::retry_with_config(
+                    &self.environment.retry_config,
+                    || self.execute_chat_turn(&model_id, context.clone(), is_tool_supported),
+                    self.sender.as_ref().map(|sender| {
+                        let sender = sender.clone();
+                        let agent_id = agent.id.clone();
+                        let model_id = model_id.clone();
+                        move |error: &anyhow::Error, duration: Duration| {
+                            tracing::error!(agent_id = %agent_id, error = %error, model=%model_id, "Retry Attempt");
+                            let retry_event = ChatResponse::RetryAttempt {
+                                cause: error.into(),
+                                duration,
+                            };
+                            let _ = sender.try_send(Ok(retry_event));
+                        }
+                    }),
+                )
                 .await?;
 
             // Set estimated tokens
@@ -431,6 +450,29 @@ impl<S: AgentService> Orchestrator<S> {
             // Update context in the conversation
             self.conversation.context = Some(context.clone());
             self.services.update(self.conversation.clone()).await?;
+            request_count += 1;
+
+            if !is_complete && let Some(max_request_allowed) = max_requests_per_turn {
+                // Check if agent has reached the maximum request per turn limit
+                if request_count >= max_request_allowed {
+                    warn!(
+                        agent_id = %agent.id,
+                        model_id = %model_id,
+                        request_count,
+                        max_request_allowed,
+                        "Agent has reached the maximum request per turn limit"
+                    );
+                    // raise an interrupt event to notify the UI
+                    self.send(ChatResponse::Interrupt {
+                        reason: InterruptionReason::MaxRequestPerTurnLimitReached {
+                            limit: max_request_allowed as u64,
+                        },
+                    })
+                    .await?;
+                    // force completion
+                    is_complete = true;
+                }
+            }
         }
 
         Ok(())
@@ -443,7 +485,9 @@ impl<S: AgentService> Orchestrator<S> {
         variables: &HashMap<String, Value>,
         event: &Event,
     ) -> anyhow::Result<Context> {
-        let content = if let Some(user_prompt) = &agent.user_prompt {
+        let content = if let Some(user_prompt) = &agent.user_prompt
+            && event.value.is_some()
+        {
             let event_context = EventContext::new(event.clone())
                 .variables(variables.clone())
                 .current_time(
@@ -452,15 +496,17 @@ impl<S: AgentService> Orchestrator<S> {
                         .to_string(),
                 );
             debug!(event_context = ?event_context, "Event context");
-            self.services
-                .render(user_prompt.template.as_str(), &event_context)
-                .await?
+            Some(
+                self.services
+                    .render(user_prompt.template.as_str(), &event_context)
+                    .await?,
+            )
         } else {
             // Use the raw event value as content if no user_prompt is provided
-            event.value.to_string()
+            event.value.as_ref().map(|v| v.to_string())
         };
 
-        if !content.is_empty() {
+        if let Some(content) = content {
             context = context.add_message(ContextMessage::user(content, agent.model.clone()));
         }
 

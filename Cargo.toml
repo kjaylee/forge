@@ -86,6 +86,7 @@ tree-sitter-cpp = "0.23"
 tree-sitter-ruby = "0.23"
 url = { version = "2.5.4", features = ["serde"] }
 backon = "1.5.0"
+eserde = "0.1.7"
 uuid = { version = "1.11.0", features = [
     "v4",
     "fast-rng",
@@ -101,6 +102,7 @@ rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", rev = "3a9791
     "transport-child-process",
     "transport-sse-server",
 ] }
+open = "5.3.2"
 
 # Internal crates
 forge_api = { path = "crates/forge_api" }

@@ -184,6 +184,8 @@ impl ForgeCommandManager {
             "/config" => Ok(Command::Config),
             "/tools" => Ok(Command::Tools),
             "/agent" => Ok(Command::Agent),
+            "/login" => Ok(Command::Login),
+            "/logout" => Ok(Command::Logout),
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
@@ -271,9 +273,17 @@ pub enum Command {
         usage = "Switch between different AI agents. Use this command to change which agent handles your requests and see available options."
     ))]
     Agent,
-    /// Configure application settings interactively
-    /// This can be triggered with the '/config' command.
-    #[strum(props(usage = "Configure application settings interactively"))]
+
+    /// Log in
+    #[strum(props(usage = "Login"))]
+    Login,
+
+    #[strum(props(usage = "Logout of the current session"))]
+    /// Logs out of the current session.
+    Logout,
+    
+    /// Configure application settings
+    #[strum(props(usage = "Configure application settings"))]
     Config,
 }
 
@@ -296,6 +306,8 @@ impl Command {
             Command::Config => "/config",
             Command::Shell(_) => "!shell",
             Command::Agent => "/agent",
+            Command::Login => "/login",
+            Command::Logout => "/logout",
         }
     }
 

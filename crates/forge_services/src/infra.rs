@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use bytes::Bytes;
 use derive_more::Display;
+use reqwest::header::HeaderMap;
+use reqwest::Response;
 use forge_app::{WalkedFile, Walker};
 use forge_domain::{
     CommandOutput, Environment, McpServerConfig, ToolDefinition, ToolName, ToolOutput,
@@ -40,6 +42,7 @@ impl CommandExecutionPrompt {
 
 pub trait EnvironmentInfra: Send + Sync {
     fn get_environment(&self) -> Environment;
+    fn get_env_var(&self, key: &str) -> Option<String>;
 }
 
 /// Repository for accessing system environment information
@@ -187,4 +190,12 @@ pub trait WalkerInfra: Send + Sync {
     /// Walks the filesystem starting from the given directory with the
     /// specified configuration
     async fn walk(&self, config: Walker) -> anyhow::Result<Vec<WalkedFile>>;
+}
+
+// TODO: rename me, add Infra suffix
+#[async_trait::async_trait]
+pub trait HttpInfra: Send + Sync + 'static {
+    async fn get(&self, url: &str, headers: Option<HeaderMap>) -> anyhow::Result<Response>;
+    async fn post(&self, url: &str, body: Bytes) -> anyhow::Result<Response>;
+    async fn delete(&self, url: &str) -> anyhow::Result<Response>;
 }
