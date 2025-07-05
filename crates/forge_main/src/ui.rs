@@ -702,12 +702,9 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
     async fn handle_chat_response(&mut self, message: ChatResponse) -> Result<()> {
         match message {
-            ChatResponse::Text { mut text, is_complete, is_md, is_summary, is_reasoning } => {
+            ChatResponse::Text { mut text, is_complete, is_md, is_summary } => {
                 if is_complete && !text.trim().is_empty() {
-                    if is_reasoning {
-                        tracing::info!(message = %text, "Agent Reasoning");
-                        text = format!("<thinking>{text}</thinking>").dimmed().to_string();
-                    } else if is_md || is_summary {
+                    if is_md || is_summary {
                         tracing::info!(message = %text, "Agent Response");
                         text = self.markdown.render(&text);
                     }
@@ -762,6 +759,11 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
                 self.writeln(TitleFormat::action(title))?;
                 self.should_continue().await?;
+            }
+            ChatResponse::Reasoning { content } => {
+                if !content.trim().is_empty() {
+                    self.writeln(content.dimmed())?;
+                }
             }
         }
         Ok(())

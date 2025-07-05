@@ -11,7 +11,6 @@ pub enum ChatResponse {
         is_complete: bool,
         is_md: bool,
         is_summary: bool,
-        is_reasoning: bool,
     },
     ToolCallStart(ToolCallFull),
     ToolCallEnd(ToolResult),
@@ -22,6 +21,9 @@ pub enum ChatResponse {
     },
     Interrupt {
         reason: InterruptionReason,
+    },
+    Reasoning {
+        content: String,
     },
 }
 

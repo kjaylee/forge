@@ -16,22 +16,13 @@ impl From<ContentFormat> for ChatResponse {
                 is_complete: true,
                 is_md: false,
                 is_summary: false,
-                is_reasoning: false,
             },
-            ContentFormat::PlainText(text) => ChatResponse::Text {
-                text,
-                is_complete: true,
-                is_md: false,
-                is_summary: false,
-                is_reasoning: false,
-            },
-            ContentFormat::Markdown(text) => ChatResponse::Text {
-                text,
-                is_complete: true,
-                is_md: true,
-                is_summary: false,
-                is_reasoning: false,
-            },
+            ContentFormat::PlainText(text) => {
+                ChatResponse::Text { text, is_complete: true, is_md: false, is_summary: false }
+            }
+            ContentFormat::Markdown(text) => {
+                ChatResponse::Text { text, is_complete: true, is_md: true, is_summary: false }
+            }
         }
     }
 }

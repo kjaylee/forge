@@ -426,7 +426,6 @@ impl<S: AgentService> Orchestrator<S> {
                     is_complete: true,
                     is_md: true,
                     is_summary: false,
-                    is_reasoning: false,
                 })
                 .await?;
             }
@@ -435,14 +434,8 @@ impl<S: AgentService> Orchestrator<S> {
                 && !is_complete
             {
                 // If reasoning is present, send it as a separate message
-                self.send(ChatResponse::Text {
-                    text: reasoning.to_string(),
-                    is_complete: true,
-                    is_md: false,
-                    is_summary: false,
-                    is_reasoning: true,
-                })
-                .await?;
+                self.send(ChatResponse::Reasoning { content: reasoning.to_string() })
+                    .await?;
             }
 
             let mut tool_context =

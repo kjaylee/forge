@@ -35,7 +35,6 @@ impl ToolCallContext {
             is_complete: true,
             is_md: false,
             is_summary: false,
-            is_reasoning: false,
         })
         .await
     }
