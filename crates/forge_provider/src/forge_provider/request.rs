@@ -48,6 +48,8 @@ pub struct Message {
     pub tool_call_id: Option<ToolCallId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_details: Option<Vec<ReasoningDetail>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -200,6 +202,8 @@ pub struct Request {
     pub session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream_options: Option<StreamOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<forge_domain::ReasoningConfig>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -298,6 +302,7 @@ impl From<Context> for Request {
             parallel_tool_calls: Some(false),
             stream_options: Some(StreamOptions { include_usage: Some(true) }),
             session_id: context.conversation_id.map(|id| id.to_string()),
+            reasoning: context.reasoning,
         }
     }
 }
@@ -315,6 +320,13 @@ impl From<ToolCallFull> for ToolCall {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ReasoningDetail {
+    pub r#type: String,
+    pub text: Option<String>,
+    pub signature: Option<String>,
+}
+
 impl From<ContextMessage> for Message {
     fn from(value: ContextMessage) -> Self {
         match value {
@@ -326,6 +338,16 @@ impl From<ContextMessage> for Message {
                 tool_calls: chat_message
                     .tool_calls
                     .map(|tool_calls| tool_calls.into_iter().map(ToolCall::from).collect()),
+                reasoning_details: chat_message.reasoning_details.map(|details| {
+                    details
+                        .into_iter()
+                        .map(|detail| ReasoningDetail {
+                            r#type: "reasoning.text".to_string(),
+                            text: detail.text,
+                            signature: detail.signature,
+                        })
+                        .collect::<Vec<ReasoningDetail>>()
+                }),
             },
             ContextMessage::Tool(tool_result) => Message {
                 role: Role::Tool,
@@ -333,6 +355,7 @@ impl From<ContextMessage> for Message {
                 name: Some(tool_result.name.clone()),
                 content: Some(tool_result.into()),
                 tool_calls: None,
+                reasoning_details: None,
             },
             ContextMessage::Image(img) => {
                 let content = vec![ContentPart::ImageUrl {
@@ -344,6 +367,7 @@ impl From<ContextMessage> for Message {
                     name: None,
                     tool_call_id: None,
                     tool_calls: None,
+                    reasoning_details: None,
                 }
             }
             ContextMessage::Pdf(pdf) => {
@@ -439,6 +463,7 @@ mod tests {
             content: "Hello".to_string(),
             tool_calls: None,
             model: ModelId::new("gpt-3.5-turbo").into(),
+            reasoning_details: None,
         });
         let router_message = Message::from(user_message);
         assert_json_snapshot!(router_message);
@@ -461,6 +486,7 @@ mod tests {
             content: xml_content.to_string(),
             tool_calls: None,
             model: ModelId::new("gpt-3.5-turbo").into(),
+            reasoning_details: None,
         });
         let router_message = Message::from(message);
         assert_json_snapshot!(router_message);
@@ -479,6 +505,7 @@ mod tests {
             content: "Using tool".to_string(),
             tool_calls: Some(vec![tool_call]),
             model: ModelId::new("gpt-3.5-turbo").into(),
+            reasoning_details: None,
         });
         let router_message = Message::from(assistant_message);
         assert_json_snapshot!(router_message);
