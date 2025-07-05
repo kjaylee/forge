@@ -679,6 +679,9 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                             TitleFormat::action("Conversation HTML dump created".to_string())
                                 .sub_title(path.to_string()),
                         )?;
+
+                        open::that(path.as_str()).ok();
+
                         return Ok(());
                     }
                 } else {
@@ -691,7 +694,9 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                         TitleFormat::action("Conversation JSON dump created".to_string())
                             .sub_title(path.to_string()),
                     )?;
-                }
+
+                    open::that(path.as_str()).ok();
+                };
             } else {
                 return Err(anyhow::anyhow!("Could not create dump"))
                     .context(format!("Conversation: {conversation_id} was not found"));
