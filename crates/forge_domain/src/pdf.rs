@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub struct Pdf {
     filename: String,
     file_data: String,
+    // Anthropic needs just the base64 string, not the full data URL
+    file_data_base64: String,
     mime_type: String,
 }
 
@@ -23,6 +25,11 @@ impl Pdf {
     ) -> Self {
         let mime_type = mime_type.to_string();
         let content = format!("data:{mime_type};base64,{base64_encoded}");
-        Self { filename: name.to_string(), file_data: content, mime_type }
+        Self {
+            filename: name.to_string(),
+            file_data: content,
+            file_data_base64: base64_encoded,
+            mime_type,
+        }
     }
 }

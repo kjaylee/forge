@@ -128,8 +128,8 @@ impl TryFrom<ContextMessage> for Message {
             ContextMessage::Image(img) => {
                 Message { content: vec![Content::from(img)], role: Role::User }
             }
-            ContextMessage::Pdf(_) => {
-                todo!()
+            ContextMessage::Pdf(pdf) => {
+                Message { content: vec![Content::from(pdf)], role: Role::User }
             }
         })
     }
@@ -143,6 +143,19 @@ impl From<Image> for Content {
                 media_type: None,
                 data: None,
                 url: Some(value.url().clone()),
+            },
+        }
+    }
+}
+
+impl From<forge_domain::Pdf> for Content {
+    fn from(value: forge_domain::Pdf) -> Self {
+        Content::Image {
+            source: ImageSource {
+                type_: "base64".to_string(),
+                media_type: Some("application/pdf".to_string()),
+                data: Some(value.file_data_base64().to_string()),
+                url: None,
             },
         }
     }
