@@ -383,6 +383,7 @@ impl From<ContextMessage> for Message {
                     name: None,
                     tool_call_id: None,
                     tool_calls: None,
+                    reasoning_details: None,
                 }
             }
         }

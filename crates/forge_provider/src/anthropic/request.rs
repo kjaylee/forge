@@ -178,6 +178,7 @@ impl From<Image> for Content {
     }
 }
 
+// ref: https://docs.anthropic.com/en/docs/build-with-claude/pdf-support
 impl From<forge_domain::Pdf> for Content {
     fn from(value: forge_domain::Pdf) -> Self {
         Content::Image {
