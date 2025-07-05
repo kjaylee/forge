@@ -425,7 +425,6 @@ impl<S: AgentService> Orchestrator<S> {
                         .to_string(),
                     is_complete: true,
                     is_md: true,
-                    is_summary: false,
                 })
                 .await?;
             }

@@ -702,14 +702,21 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
     async fn handle_chat_response(&mut self, message: ChatResponse) -> Result<()> {
         match message {
-            ChatResponse::Text { mut text, is_complete, is_md, is_summary } => {
+            ChatResponse::Text { mut text, is_complete, is_md } => {
                 if is_complete && !text.trim().is_empty() {
-                    if is_md || is_summary {
+                    if is_md {
                         tracing::info!(message = %text, "Agent Response");
                         text = self.markdown.render(&text);
                     }
 
                     self.writeln(text)?;
+                }
+            }
+            ChatResponse::Summary { content } => {
+                if !content.trim().is_empty() {
+                    tracing::info!(message = %content, "Agent Completion Response");
+                    let rendered = self.markdown.render(&content);
+                    self.writeln(rendered)?;
                 }
             }
             ChatResponse::ToolCallStart(_) => {
