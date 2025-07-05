@@ -22,6 +22,7 @@ pub struct Event {
     pub email: Vec<String>,
     pub model: Option<String>,
     pub conversation: Option<Conversation>,
+    pub login: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -71,6 +72,7 @@ pub enum EventKind {
     Prompt(String),
     Error(String),
     Trace(Vec<u8>),
+    LoginComplete,
 }
 
 impl EventKind {
@@ -82,6 +84,7 @@ impl EventKind {
             Self::Error(_) => Name::from("error".to_string()),
             Self::ToolCall(_) => Name::from("tool_call".to_string()),
             Self::Trace(_) => Name::from("trace".to_string()),
+            Self::LoginComplete => Name::from("login_complete".to_string()),
         }
     }
     pub fn value(&self) -> String {
@@ -92,6 +95,7 @@ impl EventKind {
             Self::Error(content) => content.to_string(),
             Self::ToolCall(payload) => serde_json::to_string(&payload).unwrap_or_default(),
             Self::Trace(trace) => String::from_utf8_lossy(trace).to_string(),
+            Self::LoginComplete => "".to_string(),
         }
     }
 }

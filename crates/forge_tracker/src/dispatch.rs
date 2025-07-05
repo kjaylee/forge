@@ -5,6 +5,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use forge_domain::Conversation;
 use machineid_rs::{Encryption, HWIDComponent, IdBuilder};
+use sha2::{Digest, Sha256};
 use sysinfo::System;
 use tokio::process::Command;
 use tokio::sync::Mutex;
@@ -13,6 +14,7 @@ use tokio::time::Duration;
 use super::Result;
 use crate::can_track::can_track;
 use crate::collect::{posthog, Collect};
+use crate::error::Error;
 use crate::{Event, EventKind};
 
 const POSTHOG_API_SECRET: &str = match option_env!("POSTHOG_API_SECRET") {
@@ -75,6 +77,7 @@ impl Tracker {
         if self.can_track {
             // Create a new event
             let email = self.email().await;
+            let login = self.get_login_hash(&event_kind).await;
             let event = Event {
                 event_name: event_kind.name(),
                 event_value: event_kind.value(),
@@ -91,6 +94,7 @@ impl Tracker {
                 email: email.clone(),
                 model: self.model.lock().await.clone(),
                 conversation: self.conversation().await,
+                login,
             };
 
             // Dispatch the event to all collectors
@@ -117,6 +121,46 @@ impl Tracker {
     }
     pub async fn set_conversation(&self, conversation: Conversation) {
         *self.conversation.lock().await = Some(conversation);
+    }
+
+    async fn get_login_hash(&self, event_kind: &EventKind) -> Option<String> {
+        match event_kind {
+            EventKind::LoginComplete => {
+                // Read config file and hash email if available
+                (self.read_config_email_hash().await).ok()
+            }
+            _ => None,
+        }
+    }
+
+    async fn read_config_email_hash(&self) -> Result<String> {
+        use tokio::fs;
+
+        // Get config path - construct path manually
+        let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+        let config_path = home_dir.join("forge").join(".config.json");
+
+        // Read and parse config file
+        let config_content = fs::read_to_string(&config_path).await?;
+        let config: serde_json::Value = serde_json::from_str(&config_content)?;
+
+        // Extract email from keyInfo.email if available
+        if let Some(email) = config
+            .get("keyInfo")
+            .and_then(|ki| ki.get("email"))
+            .and_then(|e| e.as_str())
+        {
+            // Hash the email using SHA256
+            let mut hasher = Sha256::new();
+            hasher.update(email.as_bytes());
+            let result = hasher.finalize();
+            Ok(format!("{result:x}"))
+        } else {
+            Err(Error::IO(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "No email found in config",
+            )))
+        }
     }
 }
 
@@ -249,6 +293,13 @@ mod tests {
             .await
         {
             panic!("Tracker dispatch error: {e:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_login_complete_event() {
+        if let Err(e) = TRACKER.dispatch(EventKind::LoginComplete).await {
+            panic!("Login complete event dispatch error: {e:?}");
         }
     }
 }

@@ -32,3 +32,8 @@ pub fn prompt(text: String) {
 pub fn set_model(model: String) {
     std::mem::drop(tokio::spawn(async move { TRACKER.set_model(model).await }));
 }
+
+/// For login complete events
+pub fn login_complete() {
+    dispatch(EventKind::LoginComplete);
+}

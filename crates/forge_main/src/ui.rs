@@ -622,6 +622,9 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
         self.spinner.stop(None)?;
 
+        // Send login_complete event
+        tracker::login_complete();
+
         self.writeln(TitleFormat::info("Logon completed".to_string().as_str()))?;
 
         Ok(())
