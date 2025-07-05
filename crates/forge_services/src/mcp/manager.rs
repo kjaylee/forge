@@ -64,5 +64,6 @@ impl<I: McpServerInfra + FileReaderInfra + FileInfoInfra + EnvironmentInfra + Fi
                 true,
             )
             .await
+            .map_err(Into::into)
     }
 }

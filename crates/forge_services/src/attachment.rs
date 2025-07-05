@@ -1,3 +1,4 @@
+use crate::Result;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -20,7 +21,7 @@ impl<F: FileReaderInfra + EnvironmentInfra> ForgeChatRequest<F> {
     async fn prepare_attachments<T: AsRef<Path>>(
         &self,
         paths: HashSet<T>,
-    ) -> anyhow::Result<Vec<Attachment>> {
+    ) -> Result<Vec<Attachment>> {
         futures::future::join_all(
             paths
                 .into_iter()
@@ -29,10 +30,10 @@ impl<F: FileReaderInfra + EnvironmentInfra> ForgeChatRequest<F> {
         )
         .await
         .into_iter()
-        .collect::<anyhow::Result<Vec<_>>>()
+        .collect::<Result<Vec<_>>>()
     }
 
-    async fn populate_attachments(&self, mut path: PathBuf) -> anyhow::Result<Attachment> {
+    async fn populate_attachments(&self, mut path: PathBuf) -> Result<Attachment> {
         let extension = path.extension().map(|v| v.to_string_lossy().to_string());
 
         if !path.is_absolute() {
@@ -62,7 +63,7 @@ impl<F: FileReaderInfra + EnvironmentInfra> ForgeChatRequest<F> {
 #[async_trait::async_trait]
 impl<F: FileReaderInfra + EnvironmentInfra> AttachmentService for ForgeChatRequest<F> {
     async fn attachments(&self, url: &str) -> anyhow::Result<Vec<Attachment>> {
-        self.prepare_attachments(Attachment::parse_all(url)).await
+        self.prepare_attachments(Attachment::parse_all(url)).await.map_err(Into::into)
     }
 }
 
@@ -86,7 +87,7 @@ pub mod tests {
     use crate::{
         CommandInfra, EnvironmentInfra, FileDirectoryInfra, FileInfoInfra, FileReaderInfra,
         FileRemoverInfra, FileWriterInfra, McpClientInfra, McpServerInfra, SnapshotInfra,
-        UserInfra,
+        UserInfra, ForgeServicesError,
     };
 
     #[derive(Debug)]
@@ -159,9 +160,12 @@ pub mod tests {
                 Some((_, content)) => {
                     let bytes = content.clone();
                     String::from_utf8(bytes.to_vec())
-                        .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in file: {:?}: {}", path, e))
+                        .map_err(|e| ForgeServicesError::InvalidUtf8 { 
+                            path: path.to_path_buf(), 
+                            source: e 
+                        }.into())
                 }
-                None => Err(anyhow::anyhow!("File not found: {:?}", path)),
+                None => Err(ForgeServicesError::FileNotFound { path: path.to_path_buf() }.into()),
             }
         }
 
@@ -169,7 +173,7 @@ pub mod tests {
             let files = self.files.lock().unwrap();
             match files.iter().find(|v| v.0 == path) {
                 Some((_, content)) => Ok(content.to_vec()),
-                None => Err(anyhow::anyhow!("File not found: {:?}", path)),
+                None => Err(ForgeServicesError::FileNotFound { path: path.to_path_buf() }.into()),
             }
         }
 
@@ -201,7 +205,7 @@ pub mod tests {
     impl FileRemoverInfra for MockFileService {
         async fn remove(&self, path: &Path) -> anyhow::Result<()> {
             if !self.exists(path).await? {
-                return Err(anyhow::anyhow!("File not found: {:?}", path));
+                return Err(ForgeServicesError::FileNotFound { path: path.to_path_buf() }.into());
             }
             self.files.lock().unwrap().retain(|(p, _)| p != path);
             Ok(())
@@ -283,7 +287,7 @@ pub mod tests {
             if let Some((_, content)) = files.iter().find(|(p, _)| p == path) {
                 Ok(content.len() as u64)
             } else {
-                Err(anyhow::anyhow!("File not found: {}", path.display()))
+                Err(ForgeServicesError::FileNotFound { path: path.display().to_string().into() }.into())
             }
         }
     }
@@ -448,7 +452,7 @@ pub mod tests {
         ) -> anyhow::Result<Option<String>> {
             // For testing, we can just return the first option
             if options.is_empty() {
-                return Err(anyhow::anyhow!("No options provided"));
+                return Err(ForgeServicesError::NoOptionsProvided.into());
             }
             Ok(Some(options[0].clone()))
         }
@@ -461,7 +465,7 @@ pub mod tests {
         ) -> anyhow::Result<Option<Vec<String>>> {
             // For testing, we can just return all options
             if options.is_empty() {
-                return Err(anyhow::anyhow!("No options provided"));
+                return Err(ForgeServicesError::NoOptionsProvided.into());
             }
             Ok(Some(options))
         }

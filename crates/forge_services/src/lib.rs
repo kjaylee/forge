@@ -5,6 +5,7 @@ mod clipper;
 mod conversation;
 mod discovery;
 mod env;
+mod error;
 mod forge_services;
 mod infra;
 mod mcp;
@@ -17,5 +18,6 @@ mod workflow;
 
 pub use clipper::*;
 pub use discovery::*;
+pub use error::*;
 pub use forge_services::*;
 pub use infra::*;

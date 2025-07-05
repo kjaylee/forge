@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use anyhow::bail;
+use crate::{ForgeServicesError, Result};
 
 /// Ensures that the given path is absolute
 ///
@@ -9,10 +9,10 @@ use anyhow::bail;
 ///
 /// # Returns
 /// * `Ok(())` if the path is absolute
-/// * `Err(String)` with an error message if the path is relative
-pub fn assert_absolute_path(path: &Path) -> anyhow::Result<()> {
+/// * `Err(ForgeServicesError)` with an error message if the path is relative
+pub fn assert_absolute_path(path: &Path) -> Result<()> {
     if !path.is_absolute() {
-        bail!("Path must be absolute. Please provide an absolute path starting with '/' (Unix) or 'C:\\' (Windows)".to_string())
+        Err(ForgeServicesError::PathNotAbsolute)
     } else {
         Ok(())
     }

@@ -1,6 +1,7 @@
-use anyhow::{anyhow, Context};
 use forge_app::{HttpResponse, NetFetchService, ResponseContext};
 use reqwest::{Client, Url};
+
+use crate::{ForgeServicesError, Result};
 
 /// Retrieves content from URLs as markdown or raw text. Enables access to
 /// current online information including websites, APIs and documentation. Use
@@ -28,7 +29,7 @@ impl ForgeFetch {
 }
 
 impl ForgeFetch {
-    async fn check_robots_txt(&self, url: &Url) -> anyhow::Result<()> {
+    async fn check_robots_txt(&self, url: &Url) -> Result<()> {
         let robots_url = format!("{}://{}/robots.txt", url.scheme(), url.authority());
         let robots_response = self.client.get(&robots_url).send().await;
 
@@ -50,10 +51,9 @@ impl ForgeFetch {
                             path.to_string()
                         };
                         if path.starts_with(&disallowed) {
-                            return Err(anyhow!(
-                                "URL {} cannot be fetched due to robots.txt restrictions",
-                                url
-                            ));
+                            return Err(ForgeServicesError::RobotsTxtDisallowed { 
+                                url: url.to_string() 
+                            });
                         }
                     }
                 }
@@ -62,7 +62,7 @@ impl ForgeFetch {
         Ok(())
     }
 
-    async fn fetch_url(&self, url: &Url, force_raw: bool) -> anyhow::Result<HttpResponse> {
+    async fn fetch_url(&self, url: &Url, force_raw: bool) -> Result<HttpResponse> {
         self.check_robots_txt(url).await?;
 
         let response = self
@@ -70,15 +70,17 @@ impl ForgeFetch {
             .get(url.as_str())
             .send()
             .await
-            .map_err(|e| anyhow!("Failed to fetch URL {}: {}", url, e))?;
+            .map_err(|e| ForgeServicesError::HttpRequestFailed {
+                url: url.to_string(),
+                error: e.to_string(),
+            })?;
         let code = response.status().as_u16();
 
         if !response.status().is_success() {
-            return Err(anyhow!(
-                "Failed to fetch {} - status code {}",
-                url,
-                response.status()
-            ));
+            return Err(ForgeServicesError::HttpStatusError {
+                url: url.to_string(),
+                status_code: code,
+            });
         }
 
         let content_type = response
@@ -91,7 +93,10 @@ impl ForgeFetch {
         let page_raw = response
             .text()
             .await
-            .map_err(|e| anyhow!("Failed to read response content from {}: {}", url, e))?;
+            .map_err(|e| ForgeServicesError::HttpContentReadError {
+                url: url.to_string(),
+                error: e.to_string(),
+            })?;
 
         let is_page_html = page_raw[..100.min(page_raw.len())].contains("<html")
             || content_type.contains("text/html")
@@ -114,8 +119,11 @@ impl ForgeFetch {
 #[async_trait::async_trait]
 impl NetFetchService for ForgeFetch {
     async fn fetch(&self, url: String, raw: Option<bool>) -> anyhow::Result<HttpResponse> {
-        let url = Url::parse(&url).with_context(|| format!("Failed to parse URL: {url}"))?;
+        let url = Url::parse(&url).map_err(|e| ForgeServicesError::UrlParseError { 
+            url: url.clone(), 
+            error: e.to_string(),
+        })?;
 
-        self.fetch_url(&url, raw.unwrap_or(false)).await
+        self.fetch_url(&url, raw.unwrap_or(false)).await.map_err(Into::into)
     }
 }

@@ -15,6 +15,6 @@ impl<T: McpClientInfra> McpExecutor<T> {
         Ok(Self { client, tool_name })
     }
     pub async fn call_tool(&self, input: serde_json::Value) -> anyhow::Result<ToolOutput> {
-        self.client.call(&self.tool_name, input).await
+        self.client.call(&self.tool_name, input).await.map_err(Into::into)
     }
 }

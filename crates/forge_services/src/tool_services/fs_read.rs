@@ -1,11 +1,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::Context;
 use forge_app::{Content, FsReadService, ReadOutput};
 
-use crate::utils::assert_absolute_path;
-use crate::{EnvironmentInfra, FileInfoInfra, FileReaderInfra as InfraFsReadService};
+use crate::{utils::assert_absolute_path, EnvironmentInfra, FileInfoInfra, FileReaderInfra as InfraFsReadService, ForgeServicesError, Result};
 
 /// Resolves and validates line ranges, ensuring they are always valid
 /// and within the specified maximum size.
@@ -48,19 +46,19 @@ pub fn resolve_range(start_line: Option<u64>, end_line: Option<u64>, max_size: u
 ///
 /// # Returns
 /// * `Ok(())` if file size is within limits
-/// * `Err(anyhow::Error)` if file exceeds max_file_size
+/// * `Err(ForgeServicesError)` if file exceeds max_file_size
 async fn assert_file_size<F: FileInfoInfra>(
     infra: &F,
     path: &Path,
     max_file_size: u64,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     let file_size = infra.file_size(path).await?;
     if file_size > max_file_size {
-        return Err(anyhow::anyhow!(
-            "File size ({} bytes) exceeds the maximum allowed size of {} bytes",
-            file_size,
-            max_file_size
-        ));
+        return Err(ForgeServicesError::FileTooLarge {
+            path: path.display().to_string(),
+            size: file_size,
+            max_size: max_file_size,
+        });
     }
     Ok(())
 }
@@ -104,7 +102,10 @@ impl<F: FileInfoInfra + EnvironmentInfra + InfraFsReadService> FsReadService for
             .0
             .range_read_utf8(path, start_line, end_line)
             .await
-            .with_context(|| format!("Failed to read file content from {}", path.display()))?;
+            .map_err(|e| anyhow::Error::from(ForgeServicesError::FileReadError {
+                path: path.display().to_string(),
+                error: e.to_string(),
+            }))?;
 
         Ok(ReadOutput {
             content: Content::File(content),
@@ -125,7 +126,7 @@ mod tests {
     use crate::attachment::tests::MockFileService;
 
     // Helper to create a temporary file with specific content size
-    async fn create_test_file_with_size(size: usize) -> anyhow::Result<NamedTempFile> {
+    async fn create_test_file_with_size(size: usize) -> Result<NamedTempFile> {
         let file = NamedTempFile::new()?;
         let content = "x".repeat(size);
         fs::write(file.path(), content).await?;

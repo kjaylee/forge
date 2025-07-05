@@ -1,12 +1,11 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::bail;
 use forge_app::{ShellOutput, ShellService};
 use forge_domain::Environment;
 use strip_ansi_escapes::strip;
 
-use crate::{CommandInfra, EnvironmentInfra};
+use crate::{CommandInfra, EnvironmentInfra, ForgeServicesError, Result};
 
 // Strips out the ansi codes from content.
 fn strip_ansi(content: String) -> String {
@@ -32,11 +31,12 @@ impl<I: EnvironmentInfra> ForgeShell<I> {
         Self { env, infra }
     }
 
-    fn validate_command(command: &str) -> anyhow::Result<()> {
+    fn validate_command(command: &str) -> Result<()> {
         if command.trim().is_empty() {
-            bail!("Command string is empty or contains only whitespace");
+            Err(ForgeServicesError::EmptyCommand)
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 }
 

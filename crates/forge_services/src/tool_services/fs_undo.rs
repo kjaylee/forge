@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use forge_app::{FsUndoOutput, FsUndoService};
 
-use crate::utils::assert_absolute_path;
-use crate::{FileInfoInfra, FileReaderInfra, SnapshotInfra};
+use crate::{utils::assert_absolute_path, FileInfoInfra, FileReaderInfra, SnapshotInfra};
 
 /// Reverts the most recent file operation (create/modify/delete) on a specific
 /// file. Use this tool when you need to recover from incorrect file changes or

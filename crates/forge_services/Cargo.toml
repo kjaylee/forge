@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 tokio.workspace = true
@@ -25,7 +26,6 @@ forge_domain.workspace = true
 forge_fs.workspace = true
 moka2.workspace = true
 schemars.workspace = true
-anyhow.workspace = true
 futures.workspace = true
 reqwest.workspace = true
 regex.workspace = true

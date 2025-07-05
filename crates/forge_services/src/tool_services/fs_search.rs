@@ -2,12 +2,12 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::Context;
 use forge_app::{FsSearchService, Match, MatchResult, SearchResult, Walker};
 use grep_searcher::sinks::UTF8;
 
 use crate::infra::WalkerInfra;
 use crate::utils::assert_absolute_path;
+use crate::{ForgeServicesError, Result};
 
 // Using FSSearchInput from forge_domain
 
@@ -27,17 +27,17 @@ impl FSSearchHelper<'_> {
         self.regex
     }
 
-    fn get_file_pattern(&self) -> anyhow::Result<Option<glob::Pattern>> {
+    fn get_file_pattern(&self) -> Result<Option<glob::Pattern>> {
         Ok(match &self.file_pattern {
             Some(pattern) => Some(
                 glob::Pattern::new(pattern)
-                    .with_context(|| format!("Invalid glob pattern: {pattern}"))?,
+                    .map_err(|e| ForgeServicesError::GlobPatternError { source: e })?,
             ),
             None => None,
         })
     }
 
-    async fn match_file_path(&self, path: &Path) -> anyhow::Result<bool> {
+    async fn match_file_path(&self, path: &Path) -> Result<bool> {
         // Don't process directories
         if tokio::fs::metadata(path).await?.is_dir() {
             return Ok(false);
@@ -98,7 +98,7 @@ impl<W: WalkerInfra> FsSearchService for ForgeFsSearch<W> {
                 let pattern = format!("(?i){regex}"); // Case-insensitive by default
                 Some(
                     grep_regex::RegexMatcher::new(&pattern)
-                        .with_context(|| format!("Invalid regex pattern: {regex}"))?,
+                        .map_err(|e| ForgeServicesError::SearchPatternError { source: Box::new(e) })?,
                 )
             }
             None => None,
@@ -169,7 +169,7 @@ impl<W: WalkerInfra> ForgeFsSearch<W> {
                 .walker
                 .walk(Walker::unlimited().cwd(dir.to_path_buf()))
                 .await
-                .with_context(|| format!("Failed to walk directory '{}'", dir.display()))?
+                .map_err(|e| anyhow::Error::from(e))?
                 .into_iter()
                 .map(|file| dir.join(file.path))
                 .collect::<HashSet<_>>()
@@ -223,7 +223,7 @@ mod test {
         }
     }
 
-    async fn create_simple_test_directory() -> anyhow::Result<TempDir> {
+    async fn create_simple_test_directory() -> Result<TempDir> {
         let temp_dir = TempDir::new()?;
 
         fs::write(temp_dir.path().join("test.txt"), "hello test world").await?;

@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use anyhow::bail;
 use bytes::Bytes;
 use forge_app::{AuthService, Error, InitAuth, LoginInfo};
 use forge_domain::Provider;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 
-use crate::{EnvironmentInfra, HttpInfra};
+use crate::{EnvironmentInfra, ForgeServicesError, HttpInfra, Result};
 
 const AUTH_ROUTE: &str = "auth/sessions/";
 
@@ -19,7 +18,7 @@ impl<I: HttpInfra + EnvironmentInfra> ForgeAuthService<I> {
     pub fn new(infra: Arc<I>) -> Self {
         Self { infra }
     }
-    async fn init(&self) -> anyhow::Result<InitAuth> {
+    async fn init(&self) -> Result<InitAuth> {
         let init_url = format!(
             "{}{AUTH_ROUTE}",
             self.infra
@@ -28,13 +27,13 @@ impl<I: HttpInfra + EnvironmentInfra> ForgeAuthService<I> {
         );
         let resp = self.infra.post(&init_url, Bytes::new()).await?;
         if !resp.status().is_success() {
-            bail!("Failed to initialize auth")
+            return Err(ForgeServicesError::AuthInitializationFailed);
         }
 
         Ok(serde_json::from_slice(&resp.bytes().await?)?)
     }
 
-    async fn login(&self, auth: &InitAuth) -> anyhow::Result<LoginInfo> {
+    async fn login(&self, auth: &InitAuth) -> Result<LoginInfo> {
         let url = format!(
             "{}{AUTH_ROUTE}{}",
             self.infra
@@ -45,7 +44,8 @@ impl<I: HttpInfra + EnvironmentInfra> ForgeAuthService<I> {
         let mut headers = HeaderMap::new();
         headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", auth.token))?,
+            HeaderValue::from_str(&format!("Bearer {}", auth.token))
+                .map_err(ForgeServicesError::external)?,
         );
 
         let response = self.infra.get(&url, Some(headers)).await?;
@@ -54,7 +54,7 @@ impl<I: HttpInfra + EnvironmentInfra> ForgeAuthService<I> {
                 &response.bytes().await?,
             )?),
             202 => Err(Error::AuthInProgress.into()),
-            status => bail!("HTTP {}: Authentication failed", status),
+            status => Err(ForgeServicesError::AuthenticationFailed { status }),
         }
     }
 }
@@ -62,10 +62,10 @@ impl<I: HttpInfra + EnvironmentInfra> ForgeAuthService<I> {
 #[async_trait::async_trait]
 impl<I: HttpInfra + EnvironmentInfra> AuthService for ForgeAuthService<I> {
     async fn init_auth(&self) -> anyhow::Result<InitAuth> {
-        self.init().await
+        self.init().await.map_err(Into::into)
     }
 
     async fn login(&self, auth: &InitAuth) -> anyhow::Result<LoginInfo> {
-        self.login(auth).await
+        self.login(auth).await.map_err(Into::into)
     }
 }

@@ -110,7 +110,7 @@ impl<F: FileWriterInfra + FileReaderInfra> WorkflowService for ForgeWorkflowServ
         let resolved_path = self.resolve_path(Some(path_buf)).await;
 
         let content = self.serialize_workflow(workflow)?;
-        self.infra.write(&resolved_path, content.into(), true).await
+        self.infra.write(&resolved_path, content.into(), true).await.map_err(Into::into)
     }
 
     async fn update_workflow<Func>(&self, path: Option<&Path>, f: Func) -> anyhow::Result<Workflow>

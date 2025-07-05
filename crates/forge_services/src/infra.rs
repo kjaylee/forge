@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
 use bytes::Bytes;
 use forge_app::{WalkedFile, Walker};
 use forge_domain::{
@@ -9,6 +8,8 @@ use forge_domain::{
 use forge_snaps::Snapshot;
 use reqwest::header::HeaderMap;
 use reqwest::Response;
+
+
 
 pub trait EnvironmentInfra: Send + Sync {
     fn get_environment(&self) -> Environment;
@@ -96,10 +97,10 @@ pub trait FileDirectoryInfra {
 #[async_trait::async_trait]
 pub trait SnapshotInfra: Send + Sync {
     // Creation
-    async fn create_snapshot(&self, file_path: &Path) -> Result<Snapshot>;
+    async fn create_snapshot(&self, file_path: &Path) -> anyhow::Result<Snapshot>;
 
     /// Restores the most recent snapshot for the given file path
-    async fn undo_snapshot(&self, file_path: &Path) -> Result<()>;
+    async fn undo_snapshot(&self, file_path: &Path) -> anyhow::Result<()>;
 }
 
 /// Service for executing shell commands

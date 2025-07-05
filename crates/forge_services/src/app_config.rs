@@ -27,6 +27,7 @@ impl<I: FileReaderInfra + FileWriterInfra + EnvironmentInfra> ForgeConfigService
                 false,
             )
             .await
+            .map_err(Into::into)
     }
 }
 

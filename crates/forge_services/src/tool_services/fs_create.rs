@@ -1,12 +1,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::Context;
 use bytes::Bytes;
 use forge_app::{FsCreateOutput, FsCreateService};
 
 use crate::utils::assert_absolute_path;
-use crate::{tool_services, FileDirectoryInfra, FileInfoInfra, FileReaderInfra, FileWriterInfra};
+use crate::{tool_services, FileDirectoryInfra, FileInfoInfra, FileReaderInfra, FileWriterInfra, ForgeServicesError};
 
 /// Use it to create a new file at a specified path with the provided content.
 /// Always provide absolute paths for file locations. The tool
@@ -34,14 +33,13 @@ impl<F: FileDirectoryInfra + FileInfoInfra + FileReaderInfra + FileWriterInfra +
         capture_snapshot: bool,
     ) -> anyhow::Result<FsCreateOutput> {
         let path = Path::new(&path);
-        assert_absolute_path(path)?;
+        assert_absolute_path(path).map_err(|e| anyhow::Error::new(e))?;
         // Validate file content if it's a supported language file
         let syntax_warning = tool_services::syn::validate(path, &content);
         if let Some(parent) = Path::new(&path).parent() {
             self.0
                 .create_dirs(parent)
-                .await
-                .with_context(|| format!("Failed to create directories: {}", path.display()))?;
+                .await?;
         }
         // Check if the file exists
         let file_exists = self.0.is_file(path).await?;
@@ -49,12 +47,7 @@ impl<F: FileDirectoryInfra + FileInfoInfra + FileReaderInfra + FileWriterInfra +
         // If file exists and overwrite flag is not set, return an error with the
         // existing content
         if file_exists && !overwrite {
-            // Special message for the LLM
-            return Err(anyhow::anyhow!(
-                "Cannot overwrite existing file: overwrite flag not set.",
-            ))
-            // What the user sees
-            .with_context(|| format!("File already exists at {}", path.display()));
+            return Err(anyhow::Error::new(ForgeServicesError::FileOverwriteNotAllowed));
         }
 
         // record the file content before they're modified
