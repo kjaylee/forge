@@ -53,7 +53,7 @@ impl Payload {
         }
     }
 
-    fn new_identify(api_key: String, distinct_id: String, login: HashMap<String, Value>) -> Self {
+    fn new_identify(api_key: String, distinct_id: String, set: HashMap<String, Value>) -> Self {
         Self {
             api_key,
             event: "$set".to_string(),
@@ -61,7 +61,7 @@ impl Payload {
             properties: None,
             // We use `$set` instead of `$set_once` for `login` to allow updating properties.
             // With `$set_once`, if the `login` property already exists, it won't be updated.
-            set: Some(login),
+            set: Some(set),
             timestamp: Some(chrono::Utc::now().naive_utc()),
         }
     }
