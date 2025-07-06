@@ -64,8 +64,23 @@ impl Tracker {
     }
 
     pub async fn set_login<S: Into<String>>(&'static self, login: S) {
+        let login_value = login.into();
         let mut guard = self.login.lock().await;
-        *guard = Some(login.into());
+        *guard = Some(login_value.clone());
+
+        // Identify the user with PostHog
+        if self.can_track {
+            let mut properties = std::collections::HashMap::new();
+            properties.insert("login".to_string(), serde_json::Value::String(login_value));
+
+            let distinct_id = client_id();
+            for collector in self.collectors.as_ref() {
+                collector
+                    .identify(distinct_id.clone(), properties.clone())
+                    .await
+                    .ok();
+            }
+        }
     }
 
     pub async fn init_ping(&'static self, duration: Duration) {
@@ -98,7 +113,6 @@ impl Tracker {
                 email: email.clone(),
                 model: self.model.lock().await.clone(),
                 conversation: self.conversation().await,
-                login: self.login.lock().await.clone(),
             };
 
             // Dispatch the event to all collectors

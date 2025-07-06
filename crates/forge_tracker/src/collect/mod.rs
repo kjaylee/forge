@@ -7,4 +7,9 @@ pub mod posthog;
 #[async_trait::async_trait]
 pub trait Collect: Send + Sync {
     async fn collect(&self, event: Event) -> super::Result<()>;
+    async fn identify(
+        &self,
+        distinct_id: String,
+        properties: std::collections::HashMap<String, serde_json::Value>,
+    ) -> super::Result<()>;
 }
