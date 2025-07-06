@@ -732,7 +732,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
         let auth = self.api.init_login().await?;
         open::that(auth.auth_url.as_str()).ok();
         self.writeln(TitleFormat::info(
-            format!("Logon here: {}", auth.auth_url).as_str(),
+            format!("Login here: {}", auth.auth_url).as_str(),
         ))?;
         self.spinner.start(Some("Waiting for login to complete"))?;
 
@@ -740,7 +740,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
         self.spinner.stop(None)?;
 
-        self.writeln(TitleFormat::info("Logon completed".to_string().as_str()))?;
+        self.writeln(TitleFormat::info("Login completed".to_string().as_str()))?;
 
         Ok(())
     }
@@ -797,6 +797,9 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                             TitleFormat::action("Conversation HTML dump created".to_string())
                                 .sub_title(path.to_string()),
                         )?;
+
+                        open::that(path.as_str()).ok();
+
                         return Ok(());
                     }
                 } else {
@@ -809,7 +812,9 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                         TitleFormat::action("Conversation JSON dump created".to_string())
                             .sub_title(path.to_string()),
                     )?;
-                }
+
+                    open::that(path.as_str()).ok();
+                };
             } else {
                 return Err(anyhow::anyhow!("Could not create dump"))
                     .context(format!("Conversation: {conversation_id} was not found"));
@@ -820,14 +825,21 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
     async fn handle_chat_response(&mut self, message: ChatResponse) -> Result<()> {
         match message {
-            ChatResponse::Text { mut text, is_complete, is_md, is_summary } => {
+            ChatResponse::Text { mut text, is_complete, is_md } => {
                 if is_complete && !text.trim().is_empty() {
-                    if is_md || is_summary {
+                    if is_md {
                         tracing::info!(message = %text, "Agent Response");
                         text = self.markdown.render(&text);
                     }
 
                     self.writeln(text)?;
+                }
+            }
+            ChatResponse::Summary { content } => {
+                if !content.trim().is_empty() {
+                    tracing::info!(message = %content, "Agent Completion Response");
+                    let rendered = self.markdown.render(&content);
+                    self.writeln(rendered)?;
                 }
             }
             ChatResponse::ToolCallStart(_) => {
@@ -877,6 +889,11 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
                 self.writeln(TitleFormat::action(title))?;
                 self.should_continue().await?;
+            }
+            ChatResponse::Reasoning { content } => {
+                if !content.trim().is_empty() {
+                    self.writeln(content.dimmed())?;
+                }
             }
         }
         Ok(())
@@ -989,6 +1006,7 @@ mod tests {
             context_length,
             tools_supported,
             supports_parallel_tool_calls: None,
+            supports_reasoning: None,
         }
     }
 
