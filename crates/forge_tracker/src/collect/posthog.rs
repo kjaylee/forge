@@ -88,7 +88,7 @@ impl Tracker {
     fn create_identify_request(
         &self,
         distinct_id: String,
-        properties: HashMap<String, serde_json::Value>,
+        set: HashMap<String, serde_json::Value>,
     ) -> Result<reqwest::Request> {
         let url = reqwest::Url::parse("https://us.i.posthog.com/capture/")?;
         let mut request = reqwest::Request::new(reqwest::Method::POST, url);
@@ -97,7 +97,7 @@ impl Tracker {
             HeaderValue::from_static("application/json"),
         );
 
-        let payload = Payload::new_identify(self.api_secret.to_string(), distinct_id, properties);
+        let payload = Payload::new_identify(self.api_secret.to_string(), distinct_id, set);
 
         let _ = request
             .body_mut()
@@ -121,9 +121,9 @@ impl Collect for Tracker {
     async fn identify(
         &self,
         distinct_id: String,
-        properties: HashMap<String, serde_json::Value>,
+        set: HashMap<String, serde_json::Value>,
     ) -> Result<()> {
-        let request = self.create_identify_request(distinct_id, properties)?;
+        let request = self.create_identify_request(distinct_id, set)?;
         let client = reqwest::Client::new();
         client.execute(request).await?;
 

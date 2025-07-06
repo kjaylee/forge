@@ -70,13 +70,13 @@ impl Tracker {
 
         // Identify the user with PostHog
         if self.can_track {
-            let mut properties = std::collections::HashMap::new();
-            properties.insert("login".to_string(), serde_json::Value::String(login_value));
+            let mut set = std::collections::HashMap::new();
+            set.insert("login".to_string(), serde_json::Value::String(login_value));
 
             let distinct_id = client_id();
             for collector in self.collectors.as_ref() {
                 collector
-                    .identify(distinct_id.clone(), properties.clone())
+                    .identify(distinct_id.clone(), set.clone())
                     .await
                     .ok();
             }
