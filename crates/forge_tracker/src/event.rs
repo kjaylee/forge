@@ -94,7 +94,7 @@ impl EventKind {
             Self::Error(content) => content.to_string(),
             Self::ToolCall(payload) => serde_json::to_string(&payload).unwrap_or_default(),
             Self::Trace(trace) => String::from_utf8_lossy(trace).to_string(),
-            Self::Login => "".to_string()
+            Self::Login => "".to_string(),
         }
     }
 }

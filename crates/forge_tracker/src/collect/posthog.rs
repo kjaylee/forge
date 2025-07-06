@@ -53,11 +53,7 @@ impl Payload {
         }
     }
 
-    fn new_identify(
-        api_key: String,
-        distinct_id: String,
-        login: HashMap<String, Value>,
-    ) -> Self {
+    fn new_identify(api_key: String, distinct_id: String, login: HashMap<String, Value>) -> Self {
         Self {
             api_key,
             event: "$set".to_string(),
