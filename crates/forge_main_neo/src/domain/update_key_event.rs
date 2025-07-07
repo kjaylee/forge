@@ -610,4 +610,20 @@ mod tests {
         // Spotlight should be hidden after command execution
         assert!(!state.spotlight.is_visible);
     }
+
+     #[test]
+    fn test_handle_prompt_submit_with_empty_input() {
+        let mut fixture = State::default();
+        fixture.editor.mode = EditorMode::Normal;
+        fixture.editor.clear();
+
+        let key_event = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+
+        let actual = handle_prompt_submit(&mut fixture, key_event);
+        let expected = Command::Empty;
+
+        assert_eq!(actual, expected);
+        assert_eq!(fixture.messages.len(), 0);
+        assert!(!fixture.show_spinner);
+    }
 }
