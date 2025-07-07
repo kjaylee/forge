@@ -59,8 +59,6 @@ impl Payload {
             event: "$set".to_string(),
             distinct_id,
             properties: None,
-            // We use `$set` instead of `$set_once` for `login` to allow updating properties.
-            // With `$set_once`, if the `login` property already exists, it won't be updated.
             set: Some(set),
             timestamp: Some(chrono::Utc::now().naive_utc()),
         }
