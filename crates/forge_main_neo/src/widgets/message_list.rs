@@ -39,7 +39,7 @@ fn messages_to_lines(messages: &[Message]) -> Vec<Line<'_>> {
                 ChatResponse::Usage(_) => vec![].into_iter(),
                 ChatResponse::Interrupt { reason: _ } => {
                     todo!()
-                },
+                }
                 ChatResponse::Reasoning { content } => {
                     if !content.trim().is_empty() {
                         Text::from(content.dimmed().to_string()).lines.into_iter()
@@ -57,7 +57,7 @@ fn messages_to_lines(messages: &[Message]) -> Vec<Line<'_>> {
                 }
                 ChatResponse::RetryAttempt { cause: _, duration: _ } => {
                     todo!()
-                },
+                }
             },
         })
         .collect()
