@@ -141,10 +141,10 @@ fn handle_prompt_submit(
 
     if key_event.code == KeyCode::Enter && state.editor.mode == EditorMode::Normal {
         let message = state.take_lines().join("\n");
-        state.add_user_message(message.clone());
         if message.trim().is_empty() {
             Command::Empty
         } else {
+            state.add_user_message(message.clone());
             state.show_spinner = true;
             let chat_command = Command::ChatMessage {
                 message,
