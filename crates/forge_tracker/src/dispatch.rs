@@ -68,10 +68,17 @@ impl Tracker {
         let mut guard = self.login.lock().await;
         *guard = Some(login_value.clone());
 
+        self.identify(&login_value).await;
+    }
+
+    async fn identify(&self, login_value: &str) {
         // Identify the user with PostHog
         if self.can_track {
             let mut set = std::collections::HashMap::new();
-            set.insert("login".to_string(), serde_json::Value::String(login_value));
+            set.insert(
+                "login".to_string(),
+                serde_json::Value::String(login_value.to_string()),
+            );
 
             let distinct_id = client_id();
             for collector in self.collectors.as_ref() {
