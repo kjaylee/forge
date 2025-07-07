@@ -1,3 +1,4 @@
+use color_eyre::owo_colors::OwoColorize;
 use forge_api::ChatResponse;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span, Text};
@@ -19,7 +20,7 @@ fn messages_to_lines(messages: &[Message]) -> Vec<Line<'_>> {
             ])]
             .into_iter(),
             Message::Assistant(response) => match response {
-                ChatResponse::Text { text, is_complete, is_md, is_summary: _ } => {
+                ChatResponse::Text { text, is_complete, is_md } => {
                     if *is_complete {
                         if *is_md {
                             // Use Text::from() which handles newlines automatically and more
@@ -36,6 +37,27 @@ fn messages_to_lines(messages: &[Message]) -> Vec<Line<'_>> {
                 ChatResponse::ToolCallStart(_) => vec![].into_iter(),
                 ChatResponse::ToolCallEnd(_) => vec![].into_iter(),
                 ChatResponse::Usage(_) => vec![].into_iter(),
+                ChatResponse::Interrupt { reason: _ } => {
+                    todo!()
+                },
+                ChatResponse::Reasoning { content } => {
+                    if !content.trim().is_empty() {
+                        Text::from(content.dimmed().to_string()).lines.into_iter()
+                    } else {
+                        vec![].into_iter()
+                    }
+                }
+                ChatResponse::Summary { content } => {
+                    if !content.trim().is_empty() {
+                        let rendered_text = forge_display::MarkdownFormat::new().render(content);
+                        Text::from(rendered_text).lines.into_iter()
+                    } else {
+                        vec![].into_iter()
+                    }
+                }
+                ChatResponse::RetryAttempt { cause: _, duration: _ } => {
+                    todo!()
+                },
             },
         })
         .collect()
