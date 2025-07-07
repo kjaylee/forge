@@ -15,28 +15,26 @@ use strum_macros::EnumIter;
 
 #[derive(Debug, Clone, PartialEq, Display, EnumIter)]
 pub enum CommandExecutionPrompt {
-    #[display("Accept command")]
-    Accept,
-    #[display("Reject command")]
-    Reject,
-    #[display("Accept command (remember)")]
-    AcceptAndRemember,
-    #[display("Reject command (remember)")]
-    RejectAndRemember,
+    #[display("Yes")]
+    Yes,
+    #[display("Yes and don't ask for {command} in\n{project}")]
+    YesAndRemember {
+        command: String,
+        project: String,
+    },
+    #[display("No")]
+    No,
 }
 
 impl CommandExecutionPrompt {
     pub fn is_accept(&self) -> bool {
         matches!(
             self,
-            CommandExecutionPrompt::Accept | CommandExecutionPrompt::AcceptAndRemember
+            CommandExecutionPrompt::Yes | CommandExecutionPrompt::YesAndRemember { command: _, project: _ }
         )
     }
     pub fn is_remember(&self) -> bool {
-        matches!(
-            self,
-            CommandExecutionPrompt::AcceptAndRemember | CommandExecutionPrompt::RejectAndRemember
-        )
+        matches!(self, CommandExecutionPrompt::YesAndRemember { command: _, project: _ })
     }
 }
 

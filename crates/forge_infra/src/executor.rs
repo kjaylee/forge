@@ -138,18 +138,24 @@ impl<U: UserInfra, F: FileWriterInfra, R: FileReaderInfra> ForgeCommandExecutorS
 
     async fn confirm_execution(&self, command: &str) -> anyhow::Result<()> {
         let config_path = self.env.app_config();
+        // FIXME: identify commands more accurately
+        // example: `echo` should be individual command
+        // whereas `cargo build` should and `cargo run` should be treated differently.
+        // and use this command to allow/deny execution per command per project.
+        let command = command
+            .split_whitespace()
+            .next()
+            .unwrap_or(command)
+            .to_string();
 
         if let Ok(content) = self.file_reader_infra.read_utf8(&config_path).await {
             if let Ok(config) = serde_json::from_str::<AppConfig>(&content) {
                 if let Some(choices) = &config.choices {
-                    if let Some(execute_shell_commands) = &choices.execute_shell_commands {
+                    if let Some(execute_shell_commands) =
+                        &choices.execute_shell_commands.get(&self.env.project_hash)
+                    {
                         match execute_shell_commands {
                             ChoiceType::Allow => return Ok(()),
-                            ChoiceType::Reject => {
-                                return Err(anyhow::anyhow!(
-                                    "Shell command execution disabled by saved preference"
-                                ))
-                            }
                             ChoiceType::AskEveryTime => {}
                         }
                     }
@@ -157,13 +163,13 @@ impl<U: UserInfra, F: FileWriterInfra, R: FileReaderInfra> ForgeCommandExecutorS
             }
         }
 
-        let confirmation_message = format!("Execute shell command: '{command}'?");
-
         match self
             .user_infra
             .select_one(
-                &confirmation_message,
-                CommandExecutionPrompt::iter().collect(),
+                "Do you want to proceed?",
+                CommandExecutionPrompt::iter()
+                    .map(|v| populate_prompt(v, command, &self.env.cwd))
+                    .collect(),
             )
             .await?
         {
@@ -194,11 +200,14 @@ impl<U: UserInfra, F: FileWriterInfra, R: FileReaderInfra> ForgeCommandExecutorS
         config.choices = Some(config.choices.unwrap_or_default());
 
         if let Some(ref mut choices) = config.choices {
-            choices.execute_shell_commands = Some(if accept {
-                ChoiceType::Allow
-            } else {
-                ChoiceType::Reject
-            });
+            choices.execute_shell_commands.insert(
+                self.env.project_hash.to_string(),
+                if accept {
+                    ChoiceType::Allow
+                } else {
+                    ChoiceType::AskEveryTime
+                },
+            );
         }
 
         let content = serde_json::to_string(&config)?;
@@ -207,6 +216,21 @@ impl<U: UserInfra, F: FileWriterInfra, R: FileReaderInfra> ForgeCommandExecutorS
             .await?;
 
         Ok(())
+    }
+}
+
+fn populate_prompt(
+    prompt: CommandExecutionPrompt,
+    command: &str,
+    path: &PathBuf,
+) -> CommandExecutionPrompt {
+    match prompt {
+        CommandExecutionPrompt::Yes => CommandExecutionPrompt::Yes,
+        CommandExecutionPrompt::YesAndRemember { .. } => CommandExecutionPrompt::YesAndRemember {
+            command: command.to_string(),
+            project: path.to_string_lossy().to_string(),
+        },
+        CommandExecutionPrompt::No => CommandExecutionPrompt::No,
     }
 }
 
@@ -291,6 +315,7 @@ mod tests {
             stdout_max_suffix_length: 0,
             http: Default::default(),
             max_file_size: 10_000_000,
+            project_hash: "1".to_string(),
         }
     }
 

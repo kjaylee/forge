@@ -1,5 +1,6 @@
 use derive_more::{Display, From};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use strum_macros::EnumIter;
 
 #[derive(Deserialize)]
@@ -35,7 +36,6 @@ pub struct LoginInfo {
 #[serde(rename_all = "camelCase")]
 pub enum ChoiceType {
     Allow,
-    Reject,
     #[default]
     #[display("Ask every time")]
     AskEveryTime,
@@ -44,8 +44,8 @@ pub enum ChoiceType {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChoicesConfig {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub execute_shell_commands: Option<ChoiceType>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub execute_shell_commands: HashMap<String, ChoiceType>,
 }
 #[derive(Clone, Debug, Display, EnumIter)]
 pub enum ConfigOption {

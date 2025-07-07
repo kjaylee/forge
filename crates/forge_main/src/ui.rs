@@ -622,9 +622,13 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
 
     /// Get the current shell execution choice from config
     async fn get_current_shell_execution_choice(&self) -> Result<Option<ChoiceType>> {
+        let env = self.api.environment();
         if let Ok(config) = self.api.app_config().await {
             if let Some(choices) = &config.choices {
-                return Ok(choices.execute_shell_commands.clone());
+                return Ok(choices
+                    .execute_shell_commands
+                    .get(&env.project_hash)
+                    .cloned());
             }
         }
 
@@ -632,6 +636,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
     }
 
     async fn save_shell_execution_choice(&self, choice: ChoiceType) -> Result<()> {
+        let env = self.api.environment();
         self.api
             .modify_config(|config| {
                 if config.choices.is_none() {
@@ -639,7 +644,9 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 }
 
                 if let Some(ref mut choices) = config.choices {
-                    choices.execute_shell_commands = Some(choice);
+                    choices
+                        .execute_shell_commands
+                        .insert(env.project_hash.clone(), choice.clone());
                 }
             })
             .await?;
