@@ -141,10 +141,10 @@ fn handle_prompt_submit(
 
     if key_event.code == KeyCode::Enter && state.editor.mode == EditorMode::Normal {
         let message = state.take_lines().join("\n");
-        state.add_user_message(message.clone());
         if message.trim().is_empty() {
             Command::Empty
         } else {
+            state.add_user_message(message.clone());
             state.show_spinner = true;
             let chat_command = Command::ChatMessage {
                 message,
@@ -609,5 +609,21 @@ mod tests {
         assert_eq!(actual_command, expected_command);
         // Spotlight should be hidden after command execution
         assert!(!state.spotlight.is_visible);
+    }
+
+     #[test]
+    fn test_handle_prompt_submit_with_empty_input() {
+        let mut fixture = State::default();
+        fixture.editor.mode = EditorMode::Normal;
+        fixture.editor.clear();
+
+        let key_event = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+
+        let actual = handle_prompt_submit(&mut fixture, key_event);
+        let expected = Command::Empty;
+
+        assert_eq!(actual, expected);
+        assert_eq!(fixture.messages.len(), 0);
+        assert!(!fixture.show_spinner);
     }
 }
