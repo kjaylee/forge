@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use ratatui::crossterm::event;
+use ratatui::crossterm::event::{self};
 use tokio::sync::mpsc::Sender;
 
 use crate::domain::Action;
