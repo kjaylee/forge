@@ -47,12 +47,12 @@ pub enum Tools {
     ForgeToolNetFetch(NetFetch),
     ForgeToolFollowup(Followup),
     ForgeToolAttemptCompletion(AttemptCompletion),
-    ForgeToolTaskListAppend(TaskListAppend),
-    ForgeToolTaskListAppendMultiple(TaskListAppendMultiple),
-    ForgeToolTaskListUpdate(TaskListUpdate),
-    ForgeToolTaskListList(TaskListList),
-    ForgeToolTaskListClear(TaskListClear),
-    ForgeToolTaskListDone(TaskListDone),
+    ForgeToolTaskAppend(TaskListAppend),
+    ForgeToolTaskAppendMultiple(TaskListAppendMultiple),
+    ForgeToolTaskUpdate(TaskListUpdate),
+    ForgeToolTaskList(TaskListList),
+    ForgeToolTaskClear(TaskListClear),
+    ForgeToolTaskDone(TaskListDone),
 }
 
 /// Input structure for agent tool calls. This serves as the generic schema
@@ -590,12 +590,12 @@ impl ToolDescription for Tools {
             Tools::ForgeToolFsRemove(v) => v.description(),
             Tools::ForgeToolFsUndo(v) => v.description(),
             Tools::ForgeToolFsCreate(v) => v.description(),
-            Tools::ForgeToolTaskListAppend(v) => v.description(),
-            Tools::ForgeToolTaskListAppendMultiple(v) => v.description(),
-            Tools::ForgeToolTaskListUpdate(v) => v.description(),
-            Tools::ForgeToolTaskListList(v) => v.description(),
-            Tools::ForgeToolTaskListClear(v) => v.description(),
-            Tools::ForgeToolTaskListDone(v) => v.description(),
+            Tools::ForgeToolTaskAppend(v) => v.description(),
+            Tools::ForgeToolTaskAppendMultiple(v) => v.description(),
+            Tools::ForgeToolTaskUpdate(v) => v.description(),
+            Tools::ForgeToolTaskList(v) => v.description(),
+            Tools::ForgeToolTaskClear(v) => v.description(),
+            Tools::ForgeToolTaskDone(v) => v.description(),
         }
     }
 }
@@ -630,14 +630,14 @@ impl Tools {
             Tools::ForgeToolFsRemove(_) => gen.into_root_schema_for::<FSRemove>(),
             Tools::ForgeToolFsUndo(_) => gen.into_root_schema_for::<FSUndo>(),
             Tools::ForgeToolFsCreate(_) => gen.into_root_schema_for::<FSWrite>(),
-            Tools::ForgeToolTaskListAppend(_) => gen.into_root_schema_for::<TaskListAppend>(),
-            Tools::ForgeToolTaskListAppendMultiple(_) => {
+            Tools::ForgeToolTaskAppend(_) => gen.into_root_schema_for::<TaskListAppend>(),
+            Tools::ForgeToolTaskAppendMultiple(_) => {
                 gen.into_root_schema_for::<TaskListAppendMultiple>()
             }
-            Tools::ForgeToolTaskListUpdate(_) => gen.into_root_schema_for::<TaskListUpdate>(),
-            Tools::ForgeToolTaskListList(_) => gen.into_root_schema_for::<TaskListList>(),
-            Tools::ForgeToolTaskListClear(_) => gen.into_root_schema_for::<TaskListClear>(),
-            Tools::ForgeToolTaskListDone(_) => gen.into_root_schema_for::<TaskListDone>(),
+            Tools::ForgeToolTaskUpdate(_) => gen.into_root_schema_for::<TaskListUpdate>(),
+            Tools::ForgeToolTaskList(_) => gen.into_root_schema_for::<TaskListList>(),
+            Tools::ForgeToolTaskClear(_) => gen.into_root_schema_for::<TaskListClear>(),
+            Tools::ForgeToolTaskDone(_) => gen.into_root_schema_for::<TaskListDone>(),
         }
     }
 
