@@ -66,7 +66,7 @@ impl<T: API + 'static> Executor<T> {
 
         let event = Event::new(
             format!("{}/{}", AgentId::FORGE.as_str(), event_type),
-            Value::String(message.clone()),
+            Some(Value::String(message.clone())),
         );
 
         // Create chat request
