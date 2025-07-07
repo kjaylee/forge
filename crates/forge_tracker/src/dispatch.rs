@@ -75,8 +75,9 @@ impl Tracker {
         // Identify the user with PostHog
         if self.can_track {
             let mut set = std::collections::HashMap::new();
-            // We use `$set` instead of `$set_once` for `login` to allow updating properties.
-            // With `$set_once`, if the `login` property already exists, it won't be updated.
+            // We use `$set` instead of `$set_once` for `login` to allow updating
+            // properties. With `$set_once`, if the `login` property already
+            // exists, it won't be updated.
             set.insert(
                 "login".to_string(),
                 serde_json::Value::String(login_value.to_string()),
