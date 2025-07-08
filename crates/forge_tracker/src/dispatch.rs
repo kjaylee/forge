@@ -37,7 +37,7 @@ pub struct Tracker {
     start_time: DateTime<Utc>,
     email: Arc<Mutex<Option<Vec<String>>>>,
     model: Arc<Mutex<Option<String>>>,
-    login: Arc<Mutex<Option<String>>>,
+    login: Arc<Mutex<Option<Identity>>>,
     conversation: Arc<Mutex<Option<Conversation>>>,
 }
 
@@ -67,9 +67,9 @@ impl Tracker {
     pub async fn set_login<S: Into<String>>(&'static self, login: S) {
         let login_value = login.into();
         let mut guard = self.login.lock().await;
-        *guard = Some(login_value.clone());
         let id = Identity { login: login_value };
-        self.dispatch(EventKind::Login, Some(id)).await.ok();
+        *guard = Some(id);
+        self.dispatch(EventKind::Login).await.ok();
     }
 
     pub async fn init_ping(&'static self, duration: Duration) {
@@ -77,12 +77,12 @@ impl Tracker {
         tokio::task::spawn(async move {
             loop {
                 interval.tick().await;
-                let _ = self.dispatch(EventKind::Ping, None).await;
+                let _ = self.dispatch(EventKind::Ping).await;
             }
         });
     }
 
-    pub async fn dispatch(&self, event_kind: EventKind, identity: Option<Identity>) -> Result<()> {
+    pub async fn dispatch(&self, event_kind: EventKind) -> Result<()> {
         if self.can_track {
             // Create a new event
             let email = self.email().await;
@@ -102,7 +102,7 @@ impl Tracker {
                 email: email.clone(),
                 model: self.model.lock().await.clone(),
                 conversation: self.conversation().await,
-                identity,
+                identity: self.login.lock().await.clone(),
             };
 
             // Dispatch the event to all collectors

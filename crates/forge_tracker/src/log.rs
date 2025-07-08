@@ -75,7 +75,7 @@ impl std::io::Write for PostHogWriter {
         let tracker = self.tracker.clone();
         let event_kind = crate::EventKind::Trace(buf.to_vec());
         self.runtime.spawn(async move {
-            let _ = tracker.dispatch(event_kind, None).await;
+            let _ = tracker.dispatch(event_kind).await;
         });
         Ok(buf.len())
     }

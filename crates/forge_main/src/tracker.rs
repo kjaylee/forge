@@ -6,7 +6,7 @@ use crate::TRACKER;
 /// Generic dispatcher for any event
 pub fn dispatch(event: EventKind) {
     std::mem::drop(tokio::spawn(
-        async move { TRACKER.dispatch(event, None).await },
+        async move { TRACKER.dispatch(event).await },
     ));
 }
 
