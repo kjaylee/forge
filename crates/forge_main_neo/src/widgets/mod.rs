@@ -9,4 +9,4 @@ mod status_bar;
 mod welcome;
 
 pub use app::App;
-pub use autocomplete::AutocompleteWidget;
+pub use autocomplete::HistoryAutocompleteWidget;

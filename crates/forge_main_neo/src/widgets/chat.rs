@@ -4,7 +4,7 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::widgets::{Block, Padding, StatefulWidget, Widget};
 
 use crate::domain::State;
-use crate::widgets::autocomplete::AutocompleteWidget;
+use crate::widgets::autocomplete::HistoryAutocompleteWidget;
 use crate::widgets::message_list::MessageList;
 use crate::widgets::spotlight::SpotlightWidget;
 use crate::widgets::status_bar::StatusBar;
@@ -66,7 +66,7 @@ impl StatefulWidget for ChatWidget {
             .render(user_block.inner(user_area), buf);
 
         // Render autocomplete suggestions if applicable
-        AutocompleteWidget.render(user_block.inner(user_area), buf, state);
+        HistoryAutocompleteWidget.render(user_block.inner(user_area), buf, state);
 
         // Render blocks
         message_block.render(messages_area, buf);

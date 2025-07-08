@@ -23,7 +23,7 @@ fn handle_autocomplete_completion(
     match key_event.code {
         // Tab or Right arrow completes autocomplete suggestion (not just during history navigation)
         KeyCode::Tab | KeyCode::Right => {
-            if crate::widgets::AutocompleteWidget::apply_suggestion(state) {
+            if crate::widgets::HistoryAutocompleteWidget::apply_suggestion(state) {
                 Some(Command::Empty)
             } else {
                 None

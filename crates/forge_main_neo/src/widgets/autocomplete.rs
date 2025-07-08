@@ -18,7 +18,7 @@ use crate::domain::{EditorStateExt, State};
 /// - Does not modify state during rendering (pure UI component)
 /// - Provides completion text that can be applied via key events
 #[derive(Debug, PartialEq)]
-pub struct AutocompleteWidget;
+pub struct HistoryAutocompleteWidget;
 
 /// Represents an autocomplete suggestion with metadata
 #[derive(Debug, Clone, PartialEq)]
@@ -31,7 +31,7 @@ pub struct AutocompleteSuggestion {
     pub history_index: usize,
 }
 
-impl AutocompleteWidget {
+impl HistoryAutocompleteWidget {
     /// Check if autocomplete should be shown
     /// 
     /// Returns true when all conditions are met:
@@ -90,7 +90,7 @@ impl AutocompleteWidget {
     }
 }
 
-impl StatefulWidget for AutocompleteWidget {
+impl StatefulWidget for HistoryAutocompleteWidget {
     type State = State;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State)
@@ -158,7 +158,7 @@ mod tests {
     fn test_should_show_returns_true_when_conditions_met() {
         let fixture = create_test_state_with_history();
 
-        let actual = AutocompleteWidget::should_show(&fixture);
+        let actual = HistoryAutocompleteWidget::should_show(&fixture);
         let expected = true;
         assert_eq!(actual, expected);
     }
@@ -168,7 +168,7 @@ mod tests {
         let mut fixture = create_test_state_with_history();
         fixture.spotlight.is_visible = true;
 
-        let actual = AutocompleteWidget::should_show(&fixture);
+        let actual = HistoryAutocompleteWidget::should_show(&fixture);
         let expected = false;
         assert_eq!(actual, expected);
     }
@@ -178,7 +178,7 @@ mod tests {
         let mut fixture = create_test_state_with_history();
         fixture.editor.mode = EditorMode::Normal;
 
-        let actual = AutocompleteWidget::should_show(&fixture);
+        let actual = HistoryAutocompleteWidget::should_show(&fixture);
         let expected = false;
         assert_eq!(actual, expected);
     }
@@ -188,7 +188,7 @@ mod tests {
         let mut fixture = create_test_state_with_history();
         fixture.history.clear();
 
-        let actual = AutocompleteWidget::should_show(&fixture);
+        let actual = HistoryAutocompleteWidget::should_show(&fixture);
         let expected = false;
         assert_eq!(actual, expected);
     }
@@ -198,7 +198,7 @@ mod tests {
         let mut fixture = create_test_state_with_history();
         fixture.editor.set_text_insert_mode("".to_string());
 
-        let actual = AutocompleteWidget::should_show(&fixture);
+        let actual = HistoryAutocompleteWidget::should_show(&fixture);
         let expected = false;
         assert_eq!(actual, expected);
     }
@@ -207,7 +207,7 @@ mod tests {
     fn test_get_suggestion_returns_completion() {
         let fixture = create_test_state_with_history();
 
-        let actual = AutocompleteWidget::get_suggestion(&fixture);
+        let actual = HistoryAutocompleteWidget::get_suggestion(&fixture);
         let expected = Some(AutocompleteSuggestion {
             completion_text: "ond command".to_string(),
             full_match: "second command".to_string(),
@@ -221,7 +221,7 @@ mod tests {
         let mut fixture = create_test_state_with_history();
         fixture.editor.set_text_insert_mode("xyz".to_string());
 
-        let actual = AutocompleteWidget::get_suggestion(&fixture);
+        let actual = HistoryAutocompleteWidget::get_suggestion(&fixture);
         let expected = None;
         assert_eq!(actual, expected);
     }
@@ -233,7 +233,7 @@ mod tests {
             .editor
             .set_text_insert_mode("second command".to_string());
 
-        let actual = AutocompleteWidget::get_suggestion(&fixture);
+        let actual = HistoryAutocompleteWidget::get_suggestion(&fixture);
         let expected = None; // Full match, no completion needed
         assert_eq!(actual, expected);
     }
@@ -242,7 +242,7 @@ mod tests {
     fn test_apply_suggestion_completes_text() {
         let mut fixture = create_test_state_with_history();
 
-        let actual = AutocompleteWidget::apply_suggestion(&mut fixture);
+        let actual = HistoryAutocompleteWidget::apply_suggestion(&mut fixture);
         let expected = true;
         assert_eq!(actual, expected);
         assert_eq!(fixture.editor.get_text(), "second command");
@@ -253,7 +253,7 @@ mod tests {
         let mut fixture = create_test_state_with_history();
         fixture.editor.set_text_insert_mode("xyz".to_string());
 
-        let actual = AutocompleteWidget::apply_suggestion(&mut fixture);
+        let actual = HistoryAutocompleteWidget::apply_suggestion(&mut fixture);
         let expected = false;
         assert_eq!(actual, expected);
         assert_eq!(fixture.editor.get_text(), "xyz"); // Unchanged
