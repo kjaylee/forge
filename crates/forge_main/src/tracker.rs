@@ -34,5 +34,5 @@ pub fn set_model(model: String) {
 }
 
 pub fn login(login: String) {
-    std::mem::drop(tokio::spawn(TRACKER.set_login(login)));
+    std::mem::drop(tokio::spawn(TRACKER.login(login)));
 }
