@@ -63,7 +63,6 @@ impl<
             + FileWriterInfra
             + FileInfoInfra
             + FileReaderInfra
-            + FileDirectoryInfra
             + HttpInfra
             + WalkerInfra,
     > ForgeServices<F>
