@@ -430,7 +430,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 tracker::login(
                     config
                         .key_info
-                        .map(|v| v.auth_provider_id)
+                        .and_then(|v| v.auth_provider_id)
                         .unwrap_or_default(),
                 );
             }
@@ -618,7 +618,7 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 tracker::login(
                     config
                         .key_info
-                        .map(|v| v.auth_provider_id)
+                        .and_then(|v| v.auth_provider_id)
                         .unwrap_or_default(),
                 );
                 self.api.provider().await
