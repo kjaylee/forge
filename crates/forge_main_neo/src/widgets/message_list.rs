@@ -1,8 +1,10 @@
 use color_eyre::owo_colors::OwoColorize;
 use forge_api::ChatResponse;
+use ratatui::layout::Size;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Paragraph, StatefulWidget, Widget, Wrap};
+use ratatui::widgets::{Paragraph, StatefulWidget, Wrap};
+use tui_scrollview::ScrollView;
 
 use crate::domain::{Message, State};
 use crate::widgets::spinner::Spinner;
@@ -78,8 +80,16 @@ impl StatefulWidget for MessageList {
         if state.show_spinner {
             lines.push(s.to_line(state));
         }
-        Paragraph::new(lines)
-            .wrap(Wrap { trim: false })
-            .render(area, buf);
+
+        // Create the scroll view
+        let mut scroll_view = ScrollView::new(Size::new(area.width, area.height))
+            .horizontal_scrollbar_visibility(tui_scrollview::ScrollbarVisibility::Never);
+
+        // Render the paragraph into the scroll view's buffer
+        let paragraph = Paragraph::new(lines).wrap(Wrap { trim: false });
+        scroll_view.render_widget(paragraph, scroll_view.area());
+
+        // Render the scroll view into the main buffer
+        scroll_view.render(area, buf, &mut state.message_scroll_state);
     }
 }

@@ -5,6 +5,7 @@ use edtui::EditorState;
 use forge_api::{ChatResponse, ConversationId};
 use throbber_widgets_tui::ThrobberState;
 use tokio_util::sync::CancellationToken;
+use tui_scrollview::ScrollViewState;
 
 use crate::domain::spotlight::SpotlightState;
 use crate::domain::{EditorStateExt, Message, Workspace};
@@ -19,6 +20,7 @@ pub struct State {
     pub show_spinner: bool,
     pub spotlight: SpotlightState,
     pub conversation: ConversationState,
+    pub message_scroll_state: ScrollViewState,
 }
 
 impl Default for State {
@@ -34,6 +36,7 @@ impl Default for State {
             show_spinner: Default::default(),
             spotlight: Default::default(),
             conversation: Default::default(),
+            message_scroll_state: ScrollViewState::default(),
         }
     }
 }
@@ -85,11 +88,15 @@ impl State {
     /// Add a user message to the chat
     pub fn add_user_message(&mut self, message: String) {
         self.messages.push(Message::User(message));
+        // Auto-scroll to bottom when new message is added
+        self.message_scroll_state.scroll_to_bottom();
     }
 
     /// Add an assistant message to the chat
     pub fn add_assistant_message(&mut self, message: ChatResponse) {
         self.messages.push(Message::Assistant(message));
+        // Auto-scroll to bottom when new message is added
+        self.message_scroll_state.scroll_to_bottom();
     }
 }
 

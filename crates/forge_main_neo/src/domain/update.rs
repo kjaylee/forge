@@ -67,9 +67,10 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
     use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+
+    use super::*;
     use crate::domain::EditorStateExt;
 
     #[test]
@@ -77,7 +78,7 @@ mod tests {
         let mut fixture_state = State::default();
         // Set editor to Insert mode so text input works
         fixture_state.editor.mode = edtui::EditorMode::Insert;
-        
+
         let fixture_action = Action::CrossTerm(Event::Key(KeyEvent::new_with_kind(
             KeyCode::Char('a'),
             KeyModifiers::NONE,
@@ -88,7 +89,7 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        
+
         let actual_editor_text = fixture_state.editor.get_text();
         let expected_editor_text = "a".to_string();
         assert_eq!(actual_editor_text, expected_editor_text);
@@ -108,7 +109,7 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        
+
         let actual_editor_text = fixture_state.editor.get_text();
         let expected_editor_text = initial_editor_text;
         assert_eq!(actual_editor_text, expected_editor_text);
@@ -128,7 +129,7 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        
+
         let actual_editor_text = fixture_state.editor.get_text();
         let expected_editor_text = initial_editor_text;
         assert_eq!(actual_editor_text, expected_editor_text);
@@ -145,7 +146,7 @@ mod tests {
 
         // Assert on command output
         assert_eq!(actual_command, expected_command);
-        
+
         let actual_editor_text = fixture_state.editor.get_text();
         let expected_editor_text = initial_editor_text;
         assert_eq!(actual_editor_text, expected_editor_text);

@@ -193,6 +193,29 @@ fn handle_spotlight_toggle(
     }
 }
 
+fn handle_message_scroll(
+    state: &mut State,
+    key_event: ratatui::crossterm::event::KeyEvent,
+) -> bool {
+    use ratatui::crossterm::event::KeyCode;
+
+    if state.spotlight.is_visible || state.editor.mode != EditorMode::Normal {
+        return false;
+    }
+
+    match key_event.code {
+        KeyCode::Up => {
+            state.message_scroll_state.scroll_up();
+            true
+        }
+        KeyCode::Down => {
+            state.message_scroll_state.scroll_down();
+            true
+        }
+        _ => false,
+    }
+}
+
 fn handle_editor_default(
     editor: &mut edtui::EditorState,
     key_event: ratatui::crossterm::event::KeyEvent,
@@ -243,6 +266,12 @@ pub fn handle_key_event(
         // When spotlight is not visible, route events to main editor
         // Capture original editor mode before any modifications
         let original_editor_mode = state.editor.mode;
+
+        // Handle message scrolling first (only in normal mode)
+        let scroll_cmd = handle_message_scroll(state, key_event);
+        if scroll_cmd {
+            return Command::Empty;
+        }
 
         // Check if navigation was handled first
         let line_nav_handled = handle_line_navigation(&mut state.editor, key_event);
@@ -503,6 +532,106 @@ mod tests {
     }
 
     #[test]
+    fn test_message_scroll_up_in_normal_mode() {
+        let mut state = create_test_state_with_text();
+        state.editor.mode = EditorMode::Normal;
+        state.spotlight.is_visible = false;
+        let initial_offset = state.message_scroll_state.offset();
+        let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        // Scroll state should have changed
+        let new_offset = state.message_scroll_state.offset();
+        assert!(new_offset.y < initial_offset.y || (initial_offset.y == 0 && new_offset.y == 0));
+    }
+
+    #[test]
+    fn test_message_scroll_down_in_normal_mode() {
+        let mut state = create_test_state_with_text();
+        state.editor.mode = EditorMode::Normal;
+        state.spotlight.is_visible = false;
+        let initial_offset = state.message_scroll_state.offset();
+        let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        // Scroll state should have changed
+        let new_offset = state.message_scroll_state.offset();
+        assert!(new_offset.y >= initial_offset.y);
+    }
+
+    #[test]
+    fn test_message_scroll_disabled_when_spotlight_visible() {
+        let mut state = create_test_state_with_text();
+        state.editor.mode = EditorMode::Normal;
+        state.spotlight.is_visible = true;
+        let initial_offset = state.message_scroll_state.offset();
+        let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        // Scroll state should not have changed when spotlight is visible
+        assert_eq!(state.message_scroll_state.offset(), initial_offset);
+    }
+
+    #[test]
+    fn test_message_scroll_disabled_in_insert_mode() {
+        let mut state = create_test_state_with_text();
+        state.editor.mode = EditorMode::Insert;
+        state.spotlight.is_visible = false;
+        let initial_offset = state.message_scroll_state.offset();
+        let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        // Scroll state should not have changed when in insert mode
+        assert_eq!(state.message_scroll_state.offset(), initial_offset);
+    }
+
+    #[test]
+    fn test_page_up_scrolls_message_list() {
+        let mut state = create_test_state_with_text();
+        state.editor.mode = EditorMode::Normal;
+        state.spotlight.is_visible = false;
+        let initial_offset = state.message_scroll_state.offset();
+        let key_event = KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE);
+
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        // Scroll state should have changed
+        let new_offset = state.message_scroll_state.offset();
+        assert!(new_offset.y < initial_offset.y || (initial_offset.y == 0 && new_offset.y == 0));
+    }
+
+    #[test]
+    fn test_page_down_scrolls_message_list() {
+        let mut state = create_test_state_with_text();
+        state.editor.mode = EditorMode::Normal;
+        state.spotlight.is_visible = false;
+        let initial_offset = state.message_scroll_state.offset();
+        let key_event = KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE);
+
+        let actual_command = handle_key_event(&mut state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        // Scroll state should have changed
+        let new_offset = state.message_scroll_state.offset();
+        assert!(new_offset.y >= initial_offset.y);
+    }
+
+    #[test]
     fn test_spotlight_navigation_up_down() {
         let mut state = create_test_state_with_text();
         state.spotlight.is_visible = true;
@@ -611,7 +740,7 @@ mod tests {
         assert!(!state.spotlight.is_visible);
     }
 
-     #[test]
+    #[test]
     fn test_handle_prompt_submit_with_empty_input() {
         let mut fixture = State::default();
         fixture.editor.mode = EditorMode::Normal;
