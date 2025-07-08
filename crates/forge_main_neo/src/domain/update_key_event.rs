@@ -21,13 +21,9 @@ fn handle_autocomplete_completion(
     }
 
     match key_event.code {
-        KeyCode::Tab | KeyCode::Right if state.history.is_active() => {
-            if let Some((_, suggestion)) = crate::widgets::AutocompleteWidget::get_suggestion(state)
-            {
-                let current_text = state.editor.get_text();
-                let completed_text = format!("{current_text}{suggestion}");
-                state.editor.set_text_insert_mode(completed_text);
-                state.history.reset_navigation();
+        // Tab or Right arrow completes autocomplete suggestion (not just during history navigation)
+        KeyCode::Tab | KeyCode::Right => {
+            if crate::widgets::AutocompleteWidget::apply_suggestion(state) {
                 Some(Command::Empty)
             } else {
                 None

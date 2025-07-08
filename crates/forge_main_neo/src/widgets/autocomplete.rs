@@ -7,25 +7,51 @@ use ratatui::widgets::{StatefulWidget, Widget};
 use crate::domain::{EditorStateExt, State};
 
 /// Autocomplete widget for showing inline history suggestions
+/// 
+/// This widget displays dimmed text suggestions based on command history.
+/// It integrates with the History domain to provide intelligent autocompletion
+/// that helps users quickly complete commands they've used before.
+/// 
+/// The widget follows these principles:
+/// - Only shows suggestions in insert mode when not in spotlight
+/// - Displays suggestions as dimmed text after the cursor
+/// - Does not modify state during rendering (pure UI component)
+/// - Provides completion text that can be applied via key events
 #[derive(Debug, PartialEq)]
 pub struct AutocompleteWidget;
 
+/// Represents an autocomplete suggestion with metadata
+#[derive(Debug, Clone, PartialEq)]
+pub struct AutocompleteSuggestion {
+    /// The text to complete the current input
+    pub completion_text: String,
+    /// The full matched entry from history
+    pub full_match: String,
+    /// Index in history for this suggestion
+    pub history_index: usize,
+}
+
 impl AutocompleteWidget {
     /// Check if autocomplete should be shown
+    /// 
+    /// Returns true when all conditions are met:
+    /// - Not in spotlight mode (spotlight takes precedence)
+    /// - Editor is in insert mode (only show during text input)
+    /// - History has entries to suggest from
+    /// - Current input is not empty (need something to match against)
     pub fn should_show(state: &State) -> bool {
-        // Show autocomplete when:
-        // 1. Not in spotlight mode
-        // 2. Editor is in insert mode
-        // 3. There are history entries that match current input
-        // 4. Current input is not empty
         !state.spotlight.is_visible
             && state.editor.mode == edtui::EditorMode::Insert
             && !state.history.is_empty()
             && !state.editor.get_text().is_empty()
     }
 
-    /// Get the suggestion text to display inline
-    pub fn get_suggestion(state: &State) -> Option<(usize, String)> {
+    /// Get the autocomplete suggestion for the current input
+    /// 
+    /// Returns a suggestion if one is available, or None if no suggestion
+    /// should be shown. This method caches the matching logic to avoid
+    /// redundant computations.
+    pub fn get_suggestion(state: &State) -> Option<AutocompleteSuggestion> {
         if !Self::should_show(state) {
             return None;
         }
@@ -34,13 +60,32 @@ impl AutocompleteWidget {
         if let Some((index, full_match)) = state.history.get_matching_entry(&current_text) {
             // Return only the completion part (suffix after current input)
             if full_match.len() > current_text.len() {
-                let completion = &full_match[current_text.len()..];
-                Some((index, completion.to_string()))
+                let completion_text = full_match[current_text.len()..].to_string();
+                Some(AutocompleteSuggestion {
+                    completion_text,
+                    full_match,
+                    history_index: index,
+                })
             } else {
                 None // Full match, no completion needed
             }
         } else {
             None
+        }
+    }
+
+    /// Apply the autocomplete suggestion to the editor
+    /// 
+    /// This is a helper method that can be called from key event handlers
+    /// to complete the current input with the suggestion.
+    pub fn apply_suggestion(state: &mut State) -> bool {
+        if let Some(suggestion) = Self::get_suggestion(state) {
+            let current_text = state.editor.get_text();
+            let completed_text = format!("{current_text}{}", suggestion.completion_text);
+            state.editor.set_text_insert_mode(completed_text);
+            true
+        } else {
+            false
         }
     }
 }
@@ -52,7 +97,7 @@ impl StatefulWidget for AutocompleteWidget {
     where
         Self: Sized,
     {
-        if let Some((index, suggestion)) = Self::get_suggestion(state) {
+        if let Some(suggestion) = Self::get_suggestion(state) {
             let cursor_col = state.editor.cursor.col as u16;
 
             // Calculate position after the cursor
@@ -66,10 +111,10 @@ impl StatefulWidget for AutocompleteWidget {
 
             // Calculate how much of the suggestion we can display
             let available_width = (area.x + area.width).saturating_sub(suggestion_x);
-            let display_text = if suggestion.len() > available_width as usize {
-                &suggestion[..available_width as usize]
+            let display_text = if suggestion.completion_text.len() > available_width as usize {
+                &suggestion.completion_text[..available_width as usize]
             } else {
-                &suggestion
+                &suggestion.completion_text
             };
 
             // Create dimmed text spans
@@ -86,10 +131,7 @@ impl StatefulWidget for AutocompleteWidget {
                 height: 1,
             };
 
-            state.history.set_current_position(Some(index));
             Widget::render(suggestion_line, suggestion_area, buf);
-        } else {
-            state.history.set_current_position(None);
         }
     }
 }
@@ -166,7 +208,11 @@ mod tests {
         let fixture = create_test_state_with_history();
 
         let actual = AutocompleteWidget::get_suggestion(&fixture);
-        let expected = Some((1, "ond command".to_string())); // "sec" + "ond command" = "second command"
+        let expected = Some(AutocompleteSuggestion {
+            completion_text: "ond command".to_string(),
+            full_match: "second command".to_string(),
+            history_index: 1,
+        });
         assert_eq!(actual, expected);
     }
 
@@ -192,36 +238,24 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    // #[test]
-    // fn test_from_state_returns_widget_when_suggestion_available() {
-    //     let fixture = create_test_state_with_history();
+    #[test]
+    fn test_apply_suggestion_completes_text() {
+        let mut fixture = create_test_state_with_history();
 
-    //     let actual = AutocompleteWidget::from_state(&fixture);
-    //     assert!(actual.is_some());
+        let actual = AutocompleteWidget::apply_suggestion(&mut fixture);
+        let expected = true;
+        assert_eq!(actual, expected);
+        assert_eq!(fixture.editor.get_text(), "second command");
+    }
 
-    //     let widget = actual.unwrap();
-    //     assert_eq!(widget.suggestion, "ond command");
-    //     assert_eq!(widget.cursor_col, 3); // cursor after "sec"
-    // }
+    #[test]
+    fn test_apply_suggestion_returns_false_when_no_suggestion() {
+        let mut fixture = create_test_state_with_history();
+        fixture.editor.set_text_insert_mode("xyz".to_string());
 
-    // #[test]
-    // fn test_from_state_returns_none_when_no_suggestion() {
-    //     let mut fixture = create_test_state_with_history();
-    //     fixture.editor.set_text_insert_mode("xyz".to_string());
-
-    //     let actual = AutocompleteWidget::from_state(&fixture);
-    //     let expected = None;
-    //     assert_eq!(actual, expected);
-    // }
-
-    // #[test]
-    // fn test_new_creates_widget_with_correct_fields() {
-    //     let suggestion = "test suggestion".to_string();
-    //     let cursor_col = 5;
-
-    //     let actual = AutocompleteWidget::new(suggestion.clone(), cursor_col);
-
-    //     assert_eq!(actual.suggestion, suggestion);
-    //     assert_eq!(actual.cursor_col, cursor_col);
-    // }
+        let actual = AutocompleteWidget::apply_suggestion(&mut fixture);
+        let expected = false;
+        assert_eq!(actual, expected);
+        assert_eq!(fixture.editor.get_text(), "xyz"); // Unchanged
+    }
 }

@@ -26,6 +26,7 @@ impl History {
         Self { entries: VecDeque::new(), max_size, current_position: None }
     }
 
+    #[allow(dead_code)]
     pub fn is_active(&self) -> bool {
         self.current_position.is_some()
     }
@@ -112,17 +113,20 @@ impl History {
     }
 
     /// Get the current entry if navigating
+    #[allow(dead_code)]
     pub fn current_entry(&self) -> Option<String> {
         self.current_position
             .and_then(|pos| self.entries.get(pos).cloned())
     }
 
     /// Get all entries (most recent first)
+    #[allow(dead_code)]
     pub fn get_entries(&self) -> Vec<String> {
         self.entries.iter().cloned().collect()
     }
 
     /// Get the number of entries in history
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
@@ -132,11 +136,13 @@ impl History {
         self.entries.is_empty()
     }
 
+    #[allow(dead_code)]
     pub fn set_current_position(&mut self, position: Option<usize>) {
         self.current_position = position;
     }
 
     /// Clear all history
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.entries.clear();
         self.current_position = None;
