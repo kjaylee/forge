@@ -5,6 +5,7 @@ use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Paragraph, StatefulWidget, Wrap};
 use tui_scrollview::ScrollView;
+use ratatui::prelude::Widget;
 
 use crate::domain::{Message, State};
 use crate::widgets::spinner::Spinner;
@@ -81,13 +82,23 @@ impl StatefulWidget for MessageList {
             lines.push(s.to_line(state));
         }
 
-        // Create the scroll view
-        let mut scroll_view = ScrollView::new(Size::new(area.width, area.height))
+        // Calculate content height based on the number of lines
+        let content_height = lines.len() as u16;
+        
+        // Calculate width - reserve space for scrollbar if content exceeds area height
+        let width = if content_height > area.height {
+            area.width.saturating_sub(1)
+        } else {
+            area.width
+        };
+
+        // Create the scroll view with proper content dimensions
+        let mut scroll_view = ScrollView::new(Size::new(width, content_height))
             .horizontal_scrollbar_visibility(tui_scrollview::ScrollbarVisibility::Never);
 
         // Render the paragraph into the scroll view's buffer
         let paragraph = Paragraph::new(lines).wrap(Wrap { trim: false });
-        scroll_view.render_widget(paragraph, scroll_view.area());
+        paragraph.render(scroll_view.area(), scroll_view.buf_mut());
 
         // Render the scroll view into the main buffer
         scroll_view.render(area, buf, &mut state.message_scroll_state);
