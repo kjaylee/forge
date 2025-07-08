@@ -5,9 +5,7 @@ use crate::TRACKER;
 /// Helper functions to eliminate duplication of tokio::spawn + TRACKER patterns
 /// Generic dispatcher for any event
 pub fn dispatch(event: EventKind) {
-    std::mem::drop(tokio::spawn(
-        async move { TRACKER.dispatch(event).await },
-    ));
+    std::mem::drop(tokio::spawn(async move { TRACKER.dispatch(event).await }));
 }
 
 /// For error events with Debug formatting
