@@ -12,38 +12,42 @@ use crate::domain::{Command, EditorStateExt, State};
 fn handle_autocomplete_completion(
     state: &mut State,
     key_event: ratatui::crossterm::event::KeyEvent,
-) -> Option<Command> {
+) -> bool {
     use ratatui::crossterm::event::KeyCode;
 
     // Only handle autocomplete when not in spotlight and in insert mode
     if state.spotlight.is_visible || state.editor.mode != EditorMode::Insert {
-        return None;
+        return false;
     }
 
     match key_event.code {
         // Tab or Right arrow completes autocomplete suggestion (not just during history navigation)
         KeyCode::Tab | KeyCode::Right => {
             if crate::widgets::HistoryAutocompleteWidget::apply_suggestion(state) {
-                Some(Command::Empty)
+                true
             } else {
-                None
+                false
             }
         }
         KeyCode::Up => {
             // Navigate to previous matching entry
             if let Some(entry) = state.history.navigate_previous() {
                 state.editor.set_text_insert_mode(entry);
+                true
+            } else {
+                false
             }
-            Some(Command::Empty)
         }
         KeyCode::Down => {
             // Navigate to next matching entry
             if let Some(entry) = state.history.navigate_next() {
                 state.editor.set_text_insert_mode(entry);
+                true
+            } else {
+                false
             }
-            Some(Command::Empty)
         }
-        _ => None,
+        _ => false,
     }
 }
 
@@ -302,8 +306,8 @@ pub fn handle_key_event(
         let original_editor_mode = state.editor.mode;
 
         // Check history navigation first
-        if let Some(history_cmd) = handle_autocomplete_completion(state, key_event) {
-            return history_cmd;
+        if handle_autocomplete_completion(state, key_event) {
+            return Command::Empty;
         }
 
         // Check if navigation was handled first
