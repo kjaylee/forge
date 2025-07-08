@@ -61,9 +61,10 @@ impl<S: SnapshotInfra> FileWriterInfra for ForgeFileWriteService<S> {
 mod tests {
     use std::sync::Arc;
 
-    use super::*;
     use forge_snaps::Snapshot;
     use tempfile::tempdir;
+
+    use super::*;
 
     struct MockSnapshotService;
 
