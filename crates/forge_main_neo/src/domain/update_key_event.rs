@@ -203,12 +203,12 @@ fn handle_message_scroll(
         return false;
     }
 
-    match (key_event.code, key_event.modifiers) {
-        (KeyCode::Up, KeyModifiers::NONE) => {
+    match key_event.code {
+        KeyCode::Up => {
             state.message_scroll_state.scroll_up();
             true
         }
-        (KeyCode::Down, KeyModifiers::NONE) => {
+        KeyCode::Down => {
             state.message_scroll_state.scroll_down();
             true
         }
