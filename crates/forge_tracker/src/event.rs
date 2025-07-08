@@ -22,6 +22,12 @@ pub struct Event {
     pub email: Vec<String>,
     pub model: Option<String>,
     pub conversation: Option<Conversation>,
+    pub identity: Option<Identity>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Identity {
+    pub login: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

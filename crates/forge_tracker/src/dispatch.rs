@@ -13,6 +13,7 @@ use tokio::time::Duration;
 use super::Result;
 use crate::can_track::can_track;
 use crate::collect::{posthog, Collect};
+use crate::event::Identity;
 use crate::{Event, EventKind};
 
 const POSTHOG_API_SECRET: &str = match option_env!("POSTHOG_API_SECRET") {
@@ -67,31 +68,8 @@ impl Tracker {
         let login_value = login.into();
         let mut guard = self.login.lock().await;
         *guard = Some(login_value.clone());
-
-        self.identify(&login_value).await;
-    }
-
-    async fn identify(&self, login_value: &str) {
-        // Identify the user with PostHog
-        if self.can_track {
-            let mut set = std::collections::HashMap::new();
-            // We use `$set` instead of `$set_once` for `login` to allow updating
-            // properties. With `$set_once`, if the `login` property already
-            // exists, it won't be updated.
-            set.insert(
-                "login".to_string(),
-                serde_json::Value::String(login_value.to_string()),
-            );
-
-            let distinct_id = client_id();
-            for collector in self.collectors.as_ref() {
-                collector
-                    .identify(distinct_id.clone(), set.clone())
-                    .await
-                    .ok();
-            }
-        }
-        self.dispatch(EventKind::Login).await.ok();
+        let id = Identity { login: login_value };
+        self.dispatch(EventKind::Login, Some(id)).await.ok();
     }
 
     pub async fn init_ping(&'static self, duration: Duration) {
@@ -99,12 +77,12 @@ impl Tracker {
         tokio::task::spawn(async move {
             loop {
                 interval.tick().await;
-                let _ = self.dispatch(EventKind::Ping).await;
+                let _ = self.dispatch(EventKind::Ping, None).await;
             }
         });
     }
 
-    pub async fn dispatch(&self, event_kind: EventKind) -> Result<()> {
+    pub async fn dispatch(&self, event_kind: EventKind, identity: Option<Identity>) -> Result<()> {
         if self.can_track {
             // Create a new event
             let email = self.email().await;
@@ -124,6 +102,7 @@ impl Tracker {
                 email: email.clone(),
                 model: self.model.lock().await.clone(),
                 conversation: self.conversation().await,
+                identity,
             };
 
             // Dispatch the event to all collectors
