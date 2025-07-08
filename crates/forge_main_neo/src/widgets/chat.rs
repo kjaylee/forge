@@ -45,9 +45,6 @@ impl StatefulWidget for ChatWidget {
             SpotlightWidget.render(messages_area, buf, state)
         }
 
-        // Get inline suggestion for rendering
-        let suggestion = AutocompleteWidget::get_suggestion(state);
-
         // User input area block with status bar (now at bottom)
         let user_block = Block::bordered()
             .padding(Padding::new(0, 0, 0, 1))
@@ -68,17 +65,8 @@ impl StatefulWidget for ChatWidget {
             .wrap(true)
             .render(user_block.inner(user_area), buf);
 
-        // Render inline suggestion if available
-        if let Some(suggestion_text) = suggestion {
-            let editor_area = user_block.inner(user_area);
-            let cursor_col = state.editor.cursor.col as u16;
-            AutocompleteWidget::render_inline_suggestion(
-                editor_area,
-                buf,
-                &suggestion_text,
-                cursor_col,
-            );
-        }
+        // Render autocomplete suggestions if applicable
+        AutocompleteWidget.render(user_block.inner(user_area), buf, state);
 
         // Render blocks
         message_block.render(messages_area, buf);

@@ -19,19 +19,19 @@ fn handle_autocomplete_completion(
     if state.spotlight.is_visible || state.editor.mode != EditorMode::Insert {
         return None;
     }
-    let suggestion_shown = crate::widgets::AutocompleteWidget::get_suggestion(state);
-    if suggestion_shown.is_none() || suggestion_shown.as_ref().map_or(true, |s| s.is_empty()) {
-        return None;
-    }
 
     match key_event.code {
-        KeyCode::Tab | KeyCode::Right => {
-            let current_text = state.editor.get_text();
-            let suggestion = suggestion_shown.unwrap_or_default();
-            let completed_text = format!("{current_text}{suggestion}");
-            state.editor.set_text_insert_mode(completed_text);
-            state.history.reset_navigation();
-            Some(Command::Empty)
+        KeyCode::Tab | KeyCode::Right if state.history.is_active() => {
+            if let Some((_, suggestion)) = crate::widgets::AutocompleteWidget::get_suggestion(state)
+            {
+                let current_text = state.editor.get_text();
+                let completed_text = format!("{current_text}{suggestion}");
+                state.editor.set_text_insert_mode(completed_text);
+                state.history.reset_navigation();
+                Some(Command::Empty)
+            } else {
+                None
+            }
         }
         KeyCode::Up => {
             // Navigate to previous matching entry
