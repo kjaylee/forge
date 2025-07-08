@@ -1,6 +1,7 @@
 mod action;
 mod command;
 mod editor_helpers;
+mod history;
 mod message;
 mod slash_command;
 mod spotlight;
@@ -12,6 +13,7 @@ mod workspace;
 pub use action::*;
 pub use command::*;
 pub use editor_helpers::*;
+pub use history::*;
 pub use message::*;
 pub use state::*;
 pub use update::*;

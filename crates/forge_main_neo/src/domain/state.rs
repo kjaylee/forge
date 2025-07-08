@@ -7,7 +7,7 @@ use throbber_widgets_tui::ThrobberState;
 use tokio_util::sync::CancellationToken;
 
 use crate::domain::spotlight::SpotlightState;
-use crate::domain::{EditorStateExt, Message, Workspace};
+use crate::domain::{EditorStateExt, History, Message, Workspace};
 
 #[derive(Clone)]
 pub struct State {
@@ -19,6 +19,7 @@ pub struct State {
     pub show_spinner: bool,
     pub spotlight: SpotlightState,
     pub conversation: ConversationState,
+    pub history: History,
 }
 
 impl Default for State {
@@ -34,6 +35,7 @@ impl Default for State {
             show_spinner: Default::default(),
             spotlight: Default::default(),
             conversation: Default::default(),
+            history: Default::default(),
         }
     }
 }
@@ -84,6 +86,8 @@ impl State {
 
     /// Add a user message to the chat
     pub fn add_user_message(&mut self, message: String) {
+        // Add to history before adding to messages
+        self.history.add_entry(message.clone());
         self.messages.push(Message::User(message));
     }
 

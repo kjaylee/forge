@@ -9,6 +9,48 @@ use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 use crate::domain::spotlight::SpotlightState;
 use crate::domain::{Command, EditorStateExt, State};
 
+fn handle_autocomplete_completion(
+    state: &mut State,
+    key_event: ratatui::crossterm::event::KeyEvent,
+) -> Option<Command> {
+    use ratatui::crossterm::event::KeyCode;
+
+    // Only handle autocomplete when not in spotlight and in insert mode
+    if state.spotlight.is_visible || state.editor.mode != EditorMode::Insert {
+        return None;
+    }
+    let suggestion_shown = crate::widgets::AutocompleteWidget::get_suggestion(state);
+    if suggestion_shown.is_none() || suggestion_shown.as_ref().map_or(true, |s| s.is_empty()) {
+        return None;
+    }
+
+    match key_event.code {
+        KeyCode::Tab | KeyCode::Right => {
+            let current_text = state.editor.get_text();
+            let suggestion = suggestion_shown.unwrap_or_default();
+            let completed_text = format!("{current_text}{suggestion}");
+            state.editor.set_text_insert_mode(completed_text);
+            state.history.reset_navigation();
+            Some(Command::Empty)
+        }
+        KeyCode::Up => {
+            // Navigate to previous matching entry
+            if let Some(entry) = state.history.navigate_previous() {
+                state.editor.set_text_insert_mode(entry);
+            }
+            Some(Command::Empty)
+        }
+        KeyCode::Down => {
+            // Navigate to next matching entry
+            if let Some(entry) = state.history.navigate_next() {
+                state.editor.set_text_insert_mode(entry);
+            }
+            Some(Command::Empty)
+        }
+        _ => None,
+    }
+}
+
 fn handle_spotlight_input_change(state: &mut State) {
     // Reset selection index when input changes to ensure it's within bounds
     // of the filtered results
@@ -193,11 +235,29 @@ fn handle_spotlight_toggle(
     }
 }
 
-fn handle_editor_default(
+fn handle_editor_default_spotlight(
     editor: &mut edtui::EditorState,
     key_event: ratatui::crossterm::event::KeyEvent,
 ) -> Command {
     EditorEventHandler::default().on_key_event(key_event, editor);
+    Command::Empty
+}
+
+fn handle_editor_default(
+    state: &mut State,
+    key_event: ratatui::crossterm::event::KeyEvent,
+) -> Command {
+    use ratatui::crossterm::event::KeyCode;
+
+    // Reset history navigation when user starts typing
+    match key_event.code {
+        KeyCode::Char(_) | KeyCode::Backspace | KeyCode::Delete => {
+            state.history.reset_navigation();
+        }
+        _ => {}
+    }
+
+    EditorEventHandler::default().on_key_event(key_event, &mut state.editor);
     Command::Empty
 }
 
@@ -224,7 +284,8 @@ pub fn handle_key_event(
 
             // Only call editor default if no navigation was handled
             let result_cmd = if !line_nav_handled && !word_nav_handled {
-                let editor_cmd = handle_editor_default(&mut state.spotlight.editor, key_event);
+                let editor_cmd =
+                    handle_editor_default_spotlight(&mut state.spotlight.editor, key_event);
                 // Reset selection index when input changes
                 handle_spotlight_input_change(state);
                 cmd.and(editor_cmd)
@@ -244,13 +305,18 @@ pub fn handle_key_event(
         // Capture original editor mode before any modifications
         let original_editor_mode = state.editor.mode;
 
+        // Check history navigation first
+        if let Some(history_cmd) = handle_autocomplete_completion(state, key_event) {
+            return history_cmd;
+        }
+
         // Check if navigation was handled first
         let line_nav_handled = handle_line_navigation(&mut state.editor, key_event);
         let word_nav_handled = handle_word_navigation(&mut state.editor, key_event);
 
         // Only call editor default and spotlight show if no navigation was handled
         if !line_nav_handled && !word_nav_handled {
-            handle_editor_default(&mut state.editor, key_event)
+            handle_editor_default(state, key_event)
                 .and(handle_spotlight_show(state, key_event))
                 .and(handle_spotlight_toggle(
                     state,
@@ -611,7 +677,7 @@ mod tests {
         assert!(!state.spotlight.is_visible);
     }
 
-     #[test]
+    #[test]
     fn test_handle_prompt_submit_with_empty_input() {
         let mut fixture = State::default();
         fixture.editor.mode = EditorMode::Normal;

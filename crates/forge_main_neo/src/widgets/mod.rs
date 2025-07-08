@@ -1,4 +1,5 @@
 mod app;
+pub mod autocomplete;
 mod bordered_panel;
 mod chat;
 mod message_list;
@@ -8,3 +9,4 @@ mod status_bar;
 mod welcome;
 
 pub use app::App;
+pub use autocomplete::AutocompleteWidget;
