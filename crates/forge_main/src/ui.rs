@@ -341,6 +341,10 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 self.spinner.start(None)?;
                 self.on_message(Some(content.clone())).await?;
             }
+            Command::Retry => {
+                self.spinner.start(None)?;
+                self.on_message(None).await?;
+            }
             Command::Forge => {
                 self.on_agent_change(AgentId::FORGE).await?;
             }
