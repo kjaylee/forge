@@ -43,6 +43,15 @@ impl ContextMessage {
                                 .sum()
                         })
                         .unwrap_or(0)
+                    + text_message
+                        .reasoning_details
+                        .as_ref()
+                        .map_or(0, |details| {
+                            details
+                                .iter()
+                                .map(|rd| rd.text.as_ref().map_or(0, |text| text.chars().count()))
+                                .sum::<usize>()
+                        })
             }
             ContextMessage::Tool(tool_result) => tool_result
                 .output
@@ -71,6 +80,14 @@ impl ContextMessage {
                             "<forge_tool_call name=\"{}\"><![CDATA[{}]]></forge_tool_call>",
                             call.name,
                             serde_json::to_string(&call.arguments).unwrap()
+                        ));
+                    }
+                }
+                if let Some(reasoning_details) = &message.reasoning_details {
+                    for reasoning_detail in reasoning_details {
+                        lines.push_str(&format!(
+                            "<reasoning_detail>{}</reasoning_detail>",
+                            serde_json::to_string(reasoning_detail).unwrap()
                         ));
                     }
                 }
