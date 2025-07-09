@@ -2,11 +2,11 @@ use crate::{Context, Transformer};
 
 /// A transformer that normalizes reasoning details across assistant messages.
 ///
-/// This transformer checks if the first assistant message with tool call has reasoning
-/// details. If it does, all assistant messages keep their reasoning details.
-/// If it doesn't, reasoning details are removed from all assistant messages.
-/// This normalizes reasoning behavior across all assistant messages in the
-/// conversation.
+/// This transformer checks if the first assistant message with tool call has
+/// reasoning details. If it does, all assistant messages keep their reasoning
+/// details. If it doesn't, reasoning details are removed from all assistant
+/// messages. This normalizes reasoning behavior across all assistant messages
+/// in the conversation.
 #[derive(Default)]
 pub struct ReasoningNormalizer;
 
@@ -14,14 +14,15 @@ impl Transformer for ReasoningNormalizer {
     type Value = Context;
 
     fn transform(&mut self, mut context: Self::Value) -> Self::Value {
-        // First pass: check if the first assistant message with tool call has reasoning details
+        // First pass: check if the first assistant message with tool call has reasoning
+        // details
         let first_assistant_has_reasoning = context
             .messages
             .iter()
             .find(|message| message.has_role(crate::Role::Assistant) && message.has_tool_call())
             .map(|message| {
                 if let crate::ContextMessage::Text(text_msg) = message {
-                    text_msg.reasoning_details.is_some() 
+                    text_msg.reasoning_details.is_some()
                 } else {
                     false
                 }
