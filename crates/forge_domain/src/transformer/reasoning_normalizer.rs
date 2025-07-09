@@ -22,7 +22,7 @@ impl Transformer for ReasoningNormalizer {
             .map(|message| message.has_reasoning_details())
             .unwrap_or(false);
 
-        // // Second pass: apply the consistency rule
+        // Second pass: apply the consistency rule
         if !first_assistant_has_reasoning {
             // Remove reasoning details from all assistant messages
             for message in context.messages.iter_mut() {
