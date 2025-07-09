@@ -342,8 +342,22 @@ impl<A: API, F: Fn() -> A> UI<A, F> {
                 self.on_message(Some(content.clone())).await?;
             }
             Command::Retry => {
-                self.spinner.start(None)?;
-                self.on_message(None).await?;
+                let conversation_id = self.init_conversation().await?;
+                let conversation = self.api.conversation(&conversation_id).await?;
+                if let Some(conversation) = conversation {
+                    // check if there's something to retry.
+                    if conversation
+                        .context
+                        .map_or(true, |ctx| ctx.messages.len() <= 1)
+                    {
+                        self.writeln(TitleFormat::error("Nothing to retry"))?;
+                    } else {
+                        self.spinner.start(None)?;
+                        self.on_message(None).await?;
+                    }
+                } else {
+                    self.writeln(TitleFormat::error("Nothing to retry"))?;
+                }
             }
             Command::Forge => {
                 self.on_agent_change(AgentId::FORGE).await?;
