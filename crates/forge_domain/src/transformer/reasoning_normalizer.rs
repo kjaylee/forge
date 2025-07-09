@@ -2,11 +2,11 @@ use crate::{Context, Transformer};
 
 /// A transformer that normalizes reasoning details across assistant messages.
 ///
-/// This transformer checks if the first assistant message with tool call has
-/// reasoning details. If it does, all assistant messages keep their reasoning
-/// details. If it doesn't, reasoning details are removed from all assistant
-/// messages. This normalizes reasoning behavior across all assistant messages
-/// in the conversation.
+/// This transformer checks if the first assistant message has reasoning
+/// details. If it does, all assistant messages keep their reasoning details.
+/// If it doesn't, reasoning details are removed from all assistant messages.
+/// This normalizes reasoning behavior across all assistant messages in the
+/// conversation.
 #[derive(Default)]
 pub struct ReasoningNormalizer;
 
@@ -14,22 +14,15 @@ impl Transformer for ReasoningNormalizer {
     type Value = Context;
 
     fn transform(&mut self, mut context: Self::Value) -> Self::Value {
-        // First pass: check if the first assistant message with tool call has reasoning
-        // details
+        // First pass: check if the first assistant message reasoning details
         let first_assistant_has_reasoning = context
             .messages
             .iter()
-            .find(|message| message.has_role(crate::Role::Assistant) && message.has_tool_call())
-            .map(|message| {
-                if let crate::ContextMessage::Text(text_msg) = message {
-                    text_msg.reasoning_details.is_some()
-                } else {
-                    false
-                }
-            })
+            .find(|message| message.has_role(crate::Role::Assistant))
+            .map(|message| message.has_reasoning_details())
             .unwrap_or(false);
 
-        // Second pass: apply the consistency rule
+        // // Second pass: apply the consistency rule
         if !first_assistant_has_reasoning {
             // Remove reasoning details from all assistant messages
             for message in context.messages.iter_mut() {
@@ -90,11 +83,13 @@ mod tests {
                 model: None,
                 reasoning_details: Some(reasoning_details.clone()),
             }))
-            .add_message(ContextMessage::assistant(
-                "Third assistant without reasoning",
-                None,
-                None,
-            ))
+            .add_message(ContextMessage::Text(TextMessage {
+                role: Role::Assistant,
+                content: "Third assistant without reasoning".to_string(),
+                tool_calls: None,
+                model: None,
+                reasoning_details: None,
+            }))
     }
 
     fn create_context_first_assistant_no_reasoning() -> Context {
@@ -105,11 +100,13 @@ mod tests {
 
         Context::default()
             .add_message(ContextMessage::user("User message", None))
-            .add_message(ContextMessage::assistant(
-                "First assistant without reasoning",
-                None,
-                None,
-            ))
+            .add_message(ContextMessage::Text(TextMessage {
+                role: Role::Assistant,
+                content: "First assistant without reasoning".to_string(),
+                tool_calls: None,
+                model: None,
+                reasoning_details: None,
+            }))
             .add_message(ContextMessage::Text(TextMessage {
                 role: Role::Assistant,
                 content: "Second assistant with reasoning".to_string(),
@@ -139,7 +136,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reasoning_normalizer_removes_all_when_first_has_no_reasoning() {
+    fn test_reasoning_normalizer_removes_all_when_first_assistant_message_has_no_reasoning() {
         let fixture = create_context_first_assistant_no_reasoning();
         let mut transformer = ReasoningNormalizer::default();
         let actual = transformer.transform(fixture.clone());

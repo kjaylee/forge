@@ -177,6 +177,14 @@ impl ContextMessage {
             ContextMessage::Image(_) => false,
         }
     }
+
+    pub fn has_reasoning_details(&self) -> bool {
+        match self {
+            ContextMessage::Text(message) => message.reasoning_details.is_some(),
+            ContextMessage::Tool(_) => false,
+            ContextMessage::Image(_) => false,
+        }
+    }
 }
 
 //TODO: Rename to TextMessage
