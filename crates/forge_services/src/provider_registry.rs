@@ -50,7 +50,7 @@ impl<F: EnvironmentInfra> ProviderRegistry for ForgeProviderRegistry<F> {
 
         let provider = self
             .get_provider(config)
-            .context("Failed to resolve provider, maybe user is not logged in?")?;
+            .context("Failed to detect upstream provider")?;
         self.cache.write().await.replace(provider.clone());
         Ok(provider)
     }
@@ -60,10 +60,11 @@ fn resolve_env_provider<F: EnvironmentInfra>(
     url: Option<ProviderUrl>,
     env: &F,
 ) -> Option<Provider> {
-    let keys: [ProviderSearch; 5] = [
+    let keys: [ProviderSearch; 6] = [
         ("FORGE_KEY", Box::new(Provider::antinomy)),
         ("OPENROUTER_API_KEY", Box::new(Provider::open_router)),
         ("REQUESTY_API_KEY", Box::new(Provider::requesty)),
+        ("XAI_API_KEY", Box::new(Provider::xai)),
         ("OPENAI_API_KEY", Box::new(Provider::openai)),
         ("ANTHROPIC_API_KEY", Box::new(Provider::anthropic)),
     ];

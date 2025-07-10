@@ -35,20 +35,14 @@
 
 ## Quickstart
 
-Sign up at [Forgecode.dev](https://app.forgecode.dev/app/) to create a key for the Forge provider.
-
-Then set up your Forge provider key:
-
-```bash
-# .env
-FORGE_KEY=ForgeKey
-```
-
 Run Forge in interactive mode via npx
 
 ```bash
 npx forgecode@latest
 ```
+
+Connect through the Forge app and complete the OAuth process.
+This will open your browser to app.forgecode.dev where you can sign up or sign in with Google/GitHub.
 
 That's it! Forge is now ready to assist you with your development tasks.
 
@@ -217,6 +211,18 @@ REQUESTY_API_KEY=<your_requesty_api_key>
 ```
 
 _No changes in `forge.yaml` required_
+
+</details>
+
+<details>
+<summary><strong>x-ai</strong></summary>
+
+```bash
+# .env
+XAI_API_KEY=<your_xai_api_key>
+```
+
+switch the model using `/model` command in the Forge CLI.
 
 </details>
 
@@ -486,4 +492,3 @@ Your support drives Forge's continued evolution! By starring our GitHub reposito
 - Motivate our development team 💪
 - Enable us to prioritize new features 🛠️
 - Strengthen our open-source community 🌱
-
