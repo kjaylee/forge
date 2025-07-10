@@ -168,7 +168,7 @@ impl<U: UserInfra, F: FileWriterInfra, R: FileReaderInfra> ForgeCommandExecutorS
             .select_one(
                 "Do you want to proceed?",
                 CommandExecutionPrompt::iter()
-                    .map(|v| populate_prompt(v, command, &self.env.cwd))
+                    .map(|v| populate_prompt(v, &command, &self.env.cwd))
                     .collect(),
             )
             .await?
