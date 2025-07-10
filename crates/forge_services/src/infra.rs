@@ -18,10 +18,7 @@ pub enum CommandExecutionPrompt {
     #[display("Yes")]
     Yes,
     #[display("Yes and don't ask for {command} in\n{project}")]
-    YesAndRemember {
-        command: String,
-        project: String,
-    },
+    YesAndRemember { command: String, project: String },
     #[display("No")]
     No,
 }
@@ -30,11 +27,15 @@ impl CommandExecutionPrompt {
     pub fn is_accept(&self) -> bool {
         matches!(
             self,
-            CommandExecutionPrompt::Yes | CommandExecutionPrompt::YesAndRemember { command: _, project: _ }
+            CommandExecutionPrompt::Yes
+                | CommandExecutionPrompt::YesAndRemember { command: _, project: _ }
         )
     }
     pub fn is_remember(&self) -> bool {
-        matches!(self, CommandExecutionPrompt::YesAndRemember { command: _, project: _ })
+        matches!(
+            self,
+            CommandExecutionPrompt::YesAndRemember { command: _, project: _ }
+        )
     }
 }
 

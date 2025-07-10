@@ -157,7 +157,7 @@ fn project_hash(cwd: &PathBuf) -> String {
     cwd.hash(&mut hasher);
     let project_hash = hasher.finish();
 
-    format!("{:x}", project_hash)
+    format!("{project_hash:x}")
 }
 
 impl EnvironmentInfra for ForgeEnvironmentInfra {

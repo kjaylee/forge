@@ -6,8 +6,8 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use convert_case::{Case, Casing};
 use forge_api::{
-    AgentId, AppConfig, ChatRequest, ChatResponse, ChoiceType, ConfigOption, Conversation, ConversationId,
-    Event, InterruptionReason, Model, ModelId, Workflow, API,
+    AgentId, AppConfig, ChatRequest, ChatResponse, ChoiceType, ConfigOption, Conversation,
+    ConversationId, Event, InterruptionReason, Model, ModelId, Workflow, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_domain::{McpConfig, McpServerConfig, Provider, Scope};
