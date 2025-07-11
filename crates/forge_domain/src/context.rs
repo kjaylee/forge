@@ -30,28 +30,8 @@ impl ContextMessage {
                 if matches!(text_message.role, Role::User | Role::Assistant) =>
             {
                 text_message.content.chars().count()
-                    + text_message
-                        .tool_calls
-                        .as_ref()
-                        .map(|tool_calls| {
-                            tool_calls
-                                .iter()
-                                .map(|tc| {
-                                    tc.arguments.to_string().chars().count()
-                                        + tc.name.as_str().chars().count()
-                                })
-                                .sum()
-                        })
-                        .unwrap_or(0)
-                    + text_message
-                        .reasoning_details
-                        .as_ref()
-                        .map_or(0, |details| {
-                            details
-                                .iter()
-                                .map(|rd| rd.text.as_ref().map_or(0, |text| text.chars().count()))
-                                .sum::<usize>()
-                        })
+                    + tool_call_content_char_count(text_message)
+                    + reasoning_content_char_count(text_message)
             }
             ContextMessage::Tool(tool_result) => tool_result
                 .output
@@ -185,6 +165,33 @@ impl ContextMessage {
             ContextMessage::Image(_) => false,
         }
     }
+}
+
+fn tool_call_content_char_count(text_message: &TextMessage) -> usize {
+    text_message
+        .tool_calls
+        .as_ref()
+        .map(|tool_calls| {
+            tool_calls
+                .iter()
+                .map(|tc| {
+                    tc.arguments.to_string().chars().count() + tc.name.as_str().chars().count()
+                })
+                .sum()
+        })
+        .unwrap_or(0)
+}
+
+fn reasoning_content_char_count(text_message: &TextMessage) -> usize {
+    text_message
+        .reasoning_details
+        .as_ref()
+        .map_or(0, |details| {
+            details
+                .iter()
+                .map(|rd| rd.text.as_ref().map_or(0, |text| text.chars().count()))
+                .sum::<usize>()
+        })
 }
 
 //TODO: Rename to TextMessage
