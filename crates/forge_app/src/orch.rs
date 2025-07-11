@@ -303,7 +303,7 @@ impl<S: AgentService> Orchestrator<S> {
         let mut context = self.conversation.context.clone().unwrap_or_default();
 
         // attach the conversation ID to the context
-        context = context.conversation_id(self.conversation.id.clone());
+        context = context.conversation_id(self.conversation.id);
 
         // Reset all the available tools
         context = context.tools(self.get_allowed_tools(&agent)?);

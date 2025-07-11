@@ -14,6 +14,8 @@ use crate::{Agent, AgentId, Compact, Context, Error, Event, ModelId, Result, Too
 #[serde(transparent)]
 pub struct ConversationId(Uuid);
 
+impl Copy for ConversationId {}
+
 impl ConversationId {
     pub fn generate() -> Self {
         Self(Uuid::new_v4())
