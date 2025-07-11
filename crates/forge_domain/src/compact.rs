@@ -112,35 +112,344 @@ impl Compact {
     /// Determines if compaction should be triggered based on the current
     /// context
     pub fn should_compact(&self, context: &Context, token_count: usize) -> bool {
-        // Check if any of the thresholds have been exceeded
+        self.should_compact_due_to_tokens(token_count)
+            || self.should_compact_due_to_turns(context)
+            || self.should_compact_due_to_messages(context)
+    }
+
+    /// Checks if compaction should be triggered due to token count exceeding
+    /// threshold
+    fn should_compact_due_to_tokens(&self, token_count: usize) -> bool {
         if let Some(token_threshold) = self.token_threshold {
             debug!(tokens = ?token_count, "Token count");
             // use provided prompt_tokens if available, otherwise estimate token count
-            if token_count >= token_threshold {
-                return true;
-            }
+            token_count >= token_threshold
+        } else {
+            false
         }
+    }
 
+    /// Checks if compaction should be triggered due to turn count exceeding
+    /// threshold
+    fn should_compact_due_to_turns(&self, context: &Context) -> bool {
         if let Some(turn_threshold) = self.turn_threshold {
-            if context
+            context
                 .messages
                 .iter()
                 .filter(|message| message.has_role(Role::User))
                 .count()
                 >= turn_threshold
-            {
-                return true;
-            }
+        } else {
+            false
         }
+    }
 
+    /// Checks if compaction should be triggered due to message count exceeding
+    /// threshold
+    fn should_compact_due_to_messages(&self, context: &Context) -> bool {
         if let Some(message_threshold) = self.message_threshold {
             // Count messages directly from context
             let msg_count = context.messages.len();
-            if msg_count >= message_threshold {
-                return true;
-            }
+            msg_count >= message_threshold
+        } else {
+            false
         }
+    }
+}
 
-        false
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::{ContextMessage, TextMessage};
+
+    fn compact_fixture() -> Compact {
+        Compact::new(ModelId::new("test-model"))
+    }
+
+    fn compact_with_token_threshold_fixture(threshold: usize) -> Compact {
+        compact_fixture().token_threshold(threshold)
+    }
+
+    fn compact_with_turn_threshold_fixture(threshold: usize) -> Compact {
+        compact_fixture().turn_threshold(threshold)
+    }
+
+    fn compact_with_message_threshold_fixture(threshold: usize) -> Compact {
+        compact_fixture().message_threshold(threshold)
+    }
+
+    fn context_with_messages_fixture(messages: Vec<ContextMessage>) -> Context {
+        Context::default().messages(messages)
+    }
+
+    fn user_message_fixture(content: &str) -> ContextMessage {
+        ContextMessage::Text(TextMessage {
+            role: Role::User,
+            content: content.to_string(),
+            tool_calls: None,
+            model: None,
+            reasoning_details: None,
+        })
+    }
+
+    fn assistant_message_fixture(content: &str) -> ContextMessage {
+        ContextMessage::Text(TextMessage {
+            role: Role::Assistant,
+            content: content.to_string(),
+            tool_calls: None,
+            model: None,
+            reasoning_details: None,
+        })
+    }
+
+    fn system_message_fixture(content: &str) -> ContextMessage {
+        ContextMessage::Text(TextMessage {
+            role: Role::System,
+            content: content.to_string(),
+            tool_calls: None,
+            model: None,
+            reasoning_details: None,
+        })
+    }
+
+    #[test]
+    fn test_should_compact_due_to_tokens_exceeds_threshold() {
+        let fixture = compact_with_token_threshold_fixture(100);
+        let actual = fixture.should_compact_due_to_tokens(150);
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_tokens_under_threshold() {
+        let fixture = compact_with_token_threshold_fixture(100);
+        let actual = fixture.should_compact_due_to_tokens(50);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_tokens_equals_threshold() {
+        let fixture = compact_with_token_threshold_fixture(100);
+        let actual = fixture.should_compact_due_to_tokens(100);
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_tokens_no_threshold() {
+        let fixture = compact_fixture();
+        let actual = fixture.should_compact_due_to_tokens(1000);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_turns_exceeds_threshold() {
+        let fixture = compact_with_turn_threshold_fixture(2);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("First turn"),
+            assistant_message_fixture("Response"),
+            user_message_fixture("Second turn"),
+            assistant_message_fixture("Response"),
+            user_message_fixture("Third turn"),
+        ]);
+        let actual = fixture.should_compact_due_to_turns(&context);
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_turns_under_threshold() {
+        let fixture = compact_with_turn_threshold_fixture(3);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("First turn"),
+            assistant_message_fixture("Response"),
+        ]);
+        let actual = fixture.should_compact_due_to_turns(&context);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_turns_equals_threshold() {
+        let fixture = compact_with_turn_threshold_fixture(2);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("First turn"),
+            assistant_message_fixture("Response"),
+            user_message_fixture("Second turn"),
+        ]);
+        let actual = fixture.should_compact_due_to_turns(&context);
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_turns_no_threshold() {
+        let fixture = compact_fixture();
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("First turn"),
+            user_message_fixture("Second turn"),
+            user_message_fixture("Third turn"),
+        ]);
+        let actual = fixture.should_compact_due_to_turns(&context);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_turns_ignores_non_user_messages() {
+        let fixture = compact_with_turn_threshold_fixture(2);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("First turn"),
+            assistant_message_fixture("Response"),
+            system_message_fixture("System message"),
+            assistant_message_fixture("Another response"),
+        ]);
+        let actual = fixture.should_compact_due_to_turns(&context);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_messages_exceeds_threshold() {
+        let fixture = compact_with_message_threshold_fixture(3);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("Message 1"),
+            assistant_message_fixture("Message 2"),
+            user_message_fixture("Message 3"),
+            assistant_message_fixture("Message 4"),
+        ]);
+        let actual = fixture.should_compact_due_to_messages(&context);
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_messages_under_threshold() {
+        let fixture = compact_with_message_threshold_fixture(5);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("Message 1"),
+            assistant_message_fixture("Message 2"),
+        ]);
+        let actual = fixture.should_compact_due_to_messages(&context);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_messages_equals_threshold() {
+        let fixture = compact_with_message_threshold_fixture(3);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("Message 1"),
+            assistant_message_fixture("Message 2"),
+            user_message_fixture("Message 3"),
+        ]);
+        let actual = fixture.should_compact_due_to_messages(&context);
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_messages_no_threshold() {
+        let fixture = compact_fixture();
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("Message 1"),
+            assistant_message_fixture("Message 2"),
+            user_message_fixture("Message 3"),
+            assistant_message_fixture("Message 4"),
+            user_message_fixture("Message 5"),
+        ]);
+        let actual = fixture.should_compact_due_to_messages(&context);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_no_thresholds_set() {
+        let fixture = compact_fixture();
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("Message 1"),
+            assistant_message_fixture("Message 2"),
+        ]);
+        let actual = fixture.should_compact(&context, 1000);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_token_threshold_triggers() {
+        let fixture = compact_with_token_threshold_fixture(100);
+        let context = context_with_messages_fixture(vec![user_message_fixture("Message 1")]);
+        let actual = fixture.should_compact(&context, 150);
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_turn_threshold_triggers() {
+        let fixture = compact_with_turn_threshold_fixture(1);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("First turn"),
+            assistant_message_fixture("Response"),
+            user_message_fixture("Second turn"),
+        ]);
+        let actual = fixture.should_compact(&context, 50);
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_message_threshold_triggers() {
+        let fixture = compact_with_message_threshold_fixture(2);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("Message 1"),
+            assistant_message_fixture("Message 2"),
+            user_message_fixture("Message 3"),
+        ]);
+        let actual = fixture.should_compact(&context, 50);
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_multiple_thresholds_any_triggers() {
+        let fixture = Compact::new(ModelId::new("test-model"))
+            .token_threshold(200_usize)
+            .turn_threshold(5_usize)
+            .message_threshold(10_usize);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("Message 1"),
+            assistant_message_fixture("Message 2"),
+        ]);
+        let actual = fixture.should_compact(&context, 250); // Only token threshold exceeded
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_multiple_thresholds_none_trigger() {
+        let fixture = Compact::new(ModelId::new("test-model"))
+            .token_threshold(200_usize)
+            .turn_threshold(5_usize)
+            .message_threshold(10_usize);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("Message 1"),
+            assistant_message_fixture("Message 2"),
+        ]);
+        let actual = fixture.should_compact(&context, 100); // All thresholds under limit
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_empty_context() {
+        let fixture = compact_with_message_threshold_fixture(1);
+        let context = context_with_messages_fixture(vec![]);
+        let actual = fixture.should_compact(&context, 0);
+        let expected = false;
+        assert_eq!(actual, expected);
     }
 }
