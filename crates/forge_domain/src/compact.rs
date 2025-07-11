@@ -59,6 +59,11 @@ pub struct Compact {
     #[merge(strategy = crate::merge::std::overwrite)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub summary_tag: Option<SummaryTag>,
+
+    /// Whether to trigger compaction when the last message is from a user
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub on_turn_end: Option<bool>,
 }
 
 fn deserialize_percentage<'de, D>(deserializer: D) -> Result<f64, D::Error>
@@ -106,6 +111,7 @@ impl Compact {
             model,
             eviction_window: 0.2, // Default to 20% compaction
             retention_window: 0,
+            on_turn_end: None,
         }
     }
 
@@ -115,6 +121,7 @@ impl Compact {
         self.should_compact_due_to_tokens(token_count)
             || self.should_compact_due_to_turns(context)
             || self.should_compact_due_to_messages(context)
+            || self.should_compact_on_turn_end(context)
     }
 
     /// Checks if compaction should be triggered due to token count exceeding
@@ -155,6 +162,20 @@ impl Compact {
             false
         }
     }
+
+    /// Checks if compaction should be triggered when the last message is from a
+    /// user
+    fn should_compact_on_turn_end(&self, context: &Context) -> bool {
+        if let Some(true) = self.on_turn_end {
+            context
+                .messages
+                .last()
+                .map(|message| message.has_role(Role::User))
+                .unwrap_or(false)
+        } else {
+            false
+        }
+    }
 }
 
 #[cfg(test)]
@@ -178,6 +199,10 @@ mod tests {
 
     fn compact_with_message_threshold_fixture(threshold: usize) -> Compact {
         compact_fixture().message_threshold(threshold)
+    }
+
+    fn compact_with_last_user_message_fixture(enabled: bool) -> Compact {
+        compact_fixture().turn_compact(enabled)
     }
 
     fn context_with_messages_fixture(messages: Vec<ContextMessage>) -> Context {
@@ -450,6 +475,113 @@ mod tests {
         let context = context_with_messages_fixture(vec![]);
         let actual = fixture.should_compact(&context, 0);
         let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_last_user_message_enabled_user_last() {
+        let fixture = compact_with_last_user_message_fixture(true);
+        let context = context_with_messages_fixture(vec![
+            assistant_message_fixture("Assistant message"),
+            user_message_fixture("User message"),
+        ]);
+        let actual = fixture.should_compact_on_turn_end(&context);
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_last_user_message_enabled_assistant_last() {
+        let fixture = compact_with_last_user_message_fixture(true);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("User message"),
+            assistant_message_fixture("Assistant message"),
+        ]);
+        let actual = fixture.should_compact_on_turn_end(&context);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_last_user_message_enabled_system_last() {
+        let fixture = compact_with_last_user_message_fixture(true);
+        let context = context_with_messages_fixture(vec![
+            user_message_fixture("User message"),
+            system_message_fixture("System message"),
+        ]);
+        let actual = fixture.should_compact_on_turn_end(&context);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_last_user_message_disabled() {
+        let fixture = compact_with_last_user_message_fixture(false);
+        let context = context_with_messages_fixture(vec![
+            assistant_message_fixture("Assistant message"),
+            user_message_fixture("User message"),
+        ]);
+        let actual = fixture.should_compact_on_turn_end(&context);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_last_user_message_not_configured() {
+        let fixture = compact_fixture(); // No configuration set
+        let context = context_with_messages_fixture(vec![
+            assistant_message_fixture("Assistant message"),
+            user_message_fixture("User message"),
+        ]);
+        let actual = fixture.should_compact_on_turn_end(&context);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_due_to_last_user_message_empty_context() {
+        let fixture = compact_with_last_user_message_fixture(true);
+        let context = context_with_messages_fixture(vec![]);
+        let actual = fixture.should_compact_on_turn_end(&context);
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_last_user_message_integration() {
+        let fixture = compact_with_last_user_message_fixture(true);
+        let context = context_with_messages_fixture(vec![
+            assistant_message_fixture("Assistant message"),
+            user_message_fixture("User message"),
+        ]);
+        let actual = fixture.should_compact(&context, 10); // Low token count, no other thresholds
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_last_user_message_integration_disabled() {
+        let fixture = compact_with_last_user_message_fixture(false);
+        let context = context_with_messages_fixture(vec![
+            assistant_message_fixture("Assistant message"),
+            user_message_fixture("User message"),
+        ]);
+        let actual = fixture.should_compact(&context, 10); // Low token count, no other thresholds
+        let expected = false;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_should_compact_multiple_conditions_with_last_user_message() {
+        let fixture = Compact::new(ModelId::new("test-model"))
+            .token_threshold(200_usize)
+            .turn_compact(true);
+        let context = context_with_messages_fixture(vec![
+            assistant_message_fixture("Assistant message"),
+            user_message_fixture("User message"),
+        ]);
+        let actual = fixture.should_compact(&context, 50); // Token threshold not met, but last message is user
+        let expected = true;
         assert_eq!(actual, expected);
     }
 }
