@@ -185,63 +185,49 @@ mod tests {
     use super::*;
     use crate::{ContextMessage, TextMessage};
 
-    fn compact_fixture() -> Compact {
-        Compact::new(ModelId::new("test-model"))
-    }
-
-    fn compact_with_token_threshold_fixture(threshold: usize) -> Compact {
-        compact_fixture().token_threshold(threshold)
-    }
-
-    fn compact_with_turn_threshold_fixture(threshold: usize) -> Compact {
-        compact_fixture().turn_threshold(threshold)
-    }
-
-    fn compact_with_message_threshold_fixture(threshold: usize) -> Compact {
-        compact_fixture().message_threshold(threshold)
-    }
-
-    fn compact_with_last_user_message_fixture(enabled: bool) -> Compact {
-        compact_fixture().on_turn_end(enabled)
-    }
-
-    fn context_with_messages_fixture(messages: Vec<ContextMessage>) -> Context {
+    /// Creates a Context from a condensed string pattern where:
+    /// - 'u' = User message
+    /// - 'a' = Assistant message
+    /// - 's' = System message
+    /// Example: ctx("uau") creates User -> Assistant -> User messages
+    fn ctx(pattern: &str) -> Context {
+        let messages: Vec<ContextMessage> = pattern
+            .chars()
+            .enumerate()
+            .map(|(i, c)| {
+                let content = format!("Message {}", i + 1);
+                match c {
+                    'u' => ContextMessage::Text(TextMessage {
+                        role: Role::User,
+                        content,
+                        tool_calls: None,
+                        model: None,
+                        reasoning_details: None,
+                    }),
+                    'a' => ContextMessage::Text(TextMessage {
+                        role: Role::Assistant,
+                        content,
+                        tool_calls: None,
+                        model: None,
+                        reasoning_details: None,
+                    }),
+                    's' => ContextMessage::Text(TextMessage {
+                        role: Role::System,
+                        content,
+                        tool_calls: None,
+                        model: None,
+                        reasoning_details: None,
+                    }),
+                    _ => panic!("Invalid character '{}' in pattern. Use 'u', 'a', or 's'", c),
+                }
+            })
+            .collect();
         Context::default().messages(messages)
-    }
-
-    fn user_message_fixture(content: &str) -> ContextMessage {
-        ContextMessage::Text(TextMessage {
-            role: Role::User,
-            content: content.to_string(),
-            tool_calls: None,
-            model: None,
-            reasoning_details: None,
-        })
-    }
-
-    fn assistant_message_fixture(content: &str) -> ContextMessage {
-        ContextMessage::Text(TextMessage {
-            role: Role::Assistant,
-            content: content.to_string(),
-            tool_calls: None,
-            model: None,
-            reasoning_details: None,
-        })
-    }
-
-    fn system_message_fixture(content: &str) -> ContextMessage {
-        ContextMessage::Text(TextMessage {
-            role: Role::System,
-            content: content.to_string(),
-            tool_calls: None,
-            model: None,
-            reasoning_details: None,
-        })
     }
 
     #[test]
     fn test_should_compact_due_to_tokens_exceeds_threshold() {
-        let fixture = compact_with_token_threshold_fixture(100);
+        let fixture = Compact::new(ModelId::new("test-model")).token_threshold(100_usize);
         let actual = fixture.should_compact_due_to_tokens(150);
         let expected = true;
         assert_eq!(actual, expected);
@@ -249,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_tokens_under_threshold() {
-        let fixture = compact_with_token_threshold_fixture(100);
+        let fixture = Compact::new(ModelId::new("test-model")).token_threshold(100_usize);
         let actual = fixture.should_compact_due_to_tokens(50);
         let expected = false;
         assert_eq!(actual, expected);
@@ -257,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_tokens_equals_threshold() {
-        let fixture = compact_with_token_threshold_fixture(100);
+        let fixture = Compact::new(ModelId::new("test-model")).token_threshold(100_usize);
         let actual = fixture.should_compact_due_to_tokens(100);
         let expected = true;
         assert_eq!(actual, expected);
@@ -265,7 +251,7 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_tokens_no_threshold() {
-        let fixture = compact_fixture();
+        let fixture = Compact::new(ModelId::new("test-model"));
         let actual = fixture.should_compact_due_to_tokens(1000);
         let expected = false;
         assert_eq!(actual, expected);
@@ -273,14 +259,9 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_turns_exceeds_threshold() {
-        let fixture = compact_with_turn_threshold_fixture(2);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("First turn"),
-            assistant_message_fixture("Response"),
-            user_message_fixture("Second turn"),
-            assistant_message_fixture("Response"),
-            user_message_fixture("Third turn"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).turn_threshold(2_usize);
+        let context = ctx("uauau");
+
         let actual = fixture.should_compact_due_to_turns(&context);
         let expected = true;
         assert_eq!(actual, expected);
@@ -288,11 +269,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_turns_under_threshold() {
-        let fixture = compact_with_turn_threshold_fixture(3);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("First turn"),
-            assistant_message_fixture("Response"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).turn_threshold(3_usize);
+        let context = ctx("ua");
         let actual = fixture.should_compact_due_to_turns(&context);
         let expected = false;
         assert_eq!(actual, expected);
@@ -300,12 +278,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_turns_equals_threshold() {
-        let fixture = compact_with_turn_threshold_fixture(2);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("First turn"),
-            assistant_message_fixture("Response"),
-            user_message_fixture("Second turn"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).turn_threshold(2_usize);
+        let context = ctx("uau");
         let actual = fixture.should_compact_due_to_turns(&context);
         let expected = true;
         assert_eq!(actual, expected);
@@ -313,12 +287,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_turns_no_threshold() {
-        let fixture = compact_fixture();
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("First turn"),
-            user_message_fixture("Second turn"),
-            user_message_fixture("Third turn"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model"));
+        let context = ctx("uuu");
         let actual = fixture.should_compact_due_to_turns(&context);
         let expected = false;
         assert_eq!(actual, expected);
@@ -326,13 +296,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_turns_ignores_non_user_messages() {
-        let fixture = compact_with_turn_threshold_fixture(2);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("First turn"),
-            assistant_message_fixture("Response"),
-            system_message_fixture("System message"),
-            assistant_message_fixture("Another response"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).turn_threshold(2_usize);
+        let context = ctx("uasa");
         let actual = fixture.should_compact_due_to_turns(&context);
         let expected = false;
         assert_eq!(actual, expected);
@@ -340,13 +305,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_messages_exceeds_threshold() {
-        let fixture = compact_with_message_threshold_fixture(3);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("Message 1"),
-            assistant_message_fixture("Message 2"),
-            user_message_fixture("Message 3"),
-            assistant_message_fixture("Message 4"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).message_threshold(3_usize);
+        let context = ctx("uaua");
         let actual = fixture.should_compact_due_to_messages(&context);
         let expected = true;
         assert_eq!(actual, expected);
@@ -354,11 +314,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_messages_under_threshold() {
-        let fixture = compact_with_message_threshold_fixture(5);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("Message 1"),
-            assistant_message_fixture("Message 2"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).message_threshold(5_usize);
+        let context = ctx("ua");
         let actual = fixture.should_compact_due_to_messages(&context);
         let expected = false;
         assert_eq!(actual, expected);
@@ -366,12 +323,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_messages_equals_threshold() {
-        let fixture = compact_with_message_threshold_fixture(3);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("Message 1"),
-            assistant_message_fixture("Message 2"),
-            user_message_fixture("Message 3"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).message_threshold(3_usize);
+        let context = ctx("uau");
         let actual = fixture.should_compact_due_to_messages(&context);
         let expected = true;
         assert_eq!(actual, expected);
@@ -379,14 +332,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_messages_no_threshold() {
-        let fixture = compact_fixture();
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("Message 1"),
-            assistant_message_fixture("Message 2"),
-            user_message_fixture("Message 3"),
-            assistant_message_fixture("Message 4"),
-            user_message_fixture("Message 5"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model"));
+        let context = ctx("uauau");
         let actual = fixture.should_compact_due_to_messages(&context);
         let expected = false;
         assert_eq!(actual, expected);
@@ -394,11 +341,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_no_thresholds_set() {
-        let fixture = compact_fixture();
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("Message 1"),
-            assistant_message_fixture("Message 2"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model"));
+        let context = ctx("ua");
         let actual = fixture.should_compact(&context, 1000);
         let expected = false;
         assert_eq!(actual, expected);
@@ -406,8 +350,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_token_threshold_triggers() {
-        let fixture = compact_with_token_threshold_fixture(100);
-        let context = context_with_messages_fixture(vec![user_message_fixture("Message 1")]);
+        let fixture = Compact::new(ModelId::new("test-model")).token_threshold(100_usize);
+        let context = ctx("u");
         let actual = fixture.should_compact(&context, 150);
         let expected = true;
         assert_eq!(actual, expected);
@@ -415,12 +359,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_turn_threshold_triggers() {
-        let fixture = compact_with_turn_threshold_fixture(1);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("First turn"),
-            assistant_message_fixture("Response"),
-            user_message_fixture("Second turn"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).turn_threshold(1_usize);
+        let context = ctx("uau");
         let actual = fixture.should_compact(&context, 50);
         let expected = true;
         assert_eq!(actual, expected);
@@ -428,12 +368,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_message_threshold_triggers() {
-        let fixture = compact_with_message_threshold_fixture(2);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("Message 1"),
-            assistant_message_fixture("Message 2"),
-            user_message_fixture("Message 3"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).message_threshold(2_usize);
+        let context = ctx("uau");
         let actual = fixture.should_compact(&context, 50);
         let expected = true;
         assert_eq!(actual, expected);
@@ -445,10 +381,7 @@ mod tests {
             .token_threshold(200_usize)
             .turn_threshold(5_usize)
             .message_threshold(10_usize);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("Message 1"),
-            assistant_message_fixture("Message 2"),
-        ]);
+        let context = ctx("ua");
         let actual = fixture.should_compact(&context, 250); // Only token threshold exceeded
         let expected = true;
         assert_eq!(actual, expected);
@@ -460,10 +393,7 @@ mod tests {
             .token_threshold(200_usize)
             .turn_threshold(5_usize)
             .message_threshold(10_usize);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("Message 1"),
-            assistant_message_fixture("Message 2"),
-        ]);
+        let context = ctx("ua");
         let actual = fixture.should_compact(&context, 100); // All thresholds under limit
         let expected = false;
         assert_eq!(actual, expected);
@@ -471,8 +401,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_empty_context() {
-        let fixture = compact_with_message_threshold_fixture(1);
-        let context = context_with_messages_fixture(vec![]);
+        let fixture = Compact::new(ModelId::new("test-model")).message_threshold(1_usize);
+        let context = ctx("");
         let actual = fixture.should_compact(&context, 0);
         let expected = false;
         assert_eq!(actual, expected);
@@ -480,11 +410,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_last_user_message_enabled_user_last() {
-        let fixture = compact_with_last_user_message_fixture(true);
-        let context = context_with_messages_fixture(vec![
-            assistant_message_fixture("Assistant message"),
-            user_message_fixture("User message"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).on_turn_end(true);
+        let context = ctx("au");
         let actual = fixture.should_compact_on_turn_end(&context);
         let expected = true;
         assert_eq!(actual, expected);
@@ -492,11 +419,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_last_user_message_enabled_assistant_last() {
-        let fixture = compact_with_last_user_message_fixture(true);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("User message"),
-            assistant_message_fixture("Assistant message"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).on_turn_end(true);
+        let context = ctx("ua");
         let actual = fixture.should_compact_on_turn_end(&context);
         let expected = false;
         assert_eq!(actual, expected);
@@ -504,11 +428,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_last_user_message_enabled_system_last() {
-        let fixture = compact_with_last_user_message_fixture(true);
-        let context = context_with_messages_fixture(vec![
-            user_message_fixture("User message"),
-            system_message_fixture("System message"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).on_turn_end(true);
+        let context = ctx("us");
         let actual = fixture.should_compact_on_turn_end(&context);
         let expected = false;
         assert_eq!(actual, expected);
@@ -516,11 +437,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_last_user_message_disabled() {
-        let fixture = compact_with_last_user_message_fixture(false);
-        let context = context_with_messages_fixture(vec![
-            assistant_message_fixture("Assistant message"),
-            user_message_fixture("User message"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).on_turn_end(false);
+        let context = ctx("au");
         let actual = fixture.should_compact_on_turn_end(&context);
         let expected = false;
         assert_eq!(actual, expected);
@@ -528,11 +446,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_last_user_message_not_configured() {
-        let fixture = compact_fixture(); // No configuration set
-        let context = context_with_messages_fixture(vec![
-            assistant_message_fixture("Assistant message"),
-            user_message_fixture("User message"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")); // No configuration set
+        let context = ctx("au");
         let actual = fixture.should_compact_on_turn_end(&context);
         let expected = false;
         assert_eq!(actual, expected);
@@ -540,8 +455,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_due_to_last_user_message_empty_context() {
-        let fixture = compact_with_last_user_message_fixture(true);
-        let context = context_with_messages_fixture(vec![]);
+        let fixture = Compact::new(ModelId::new("test-model")).on_turn_end(true);
+        let context = ctx("");
         let actual = fixture.should_compact_on_turn_end(&context);
         let expected = false;
         assert_eq!(actual, expected);
@@ -549,11 +464,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_last_user_message_integration() {
-        let fixture = compact_with_last_user_message_fixture(true);
-        let context = context_with_messages_fixture(vec![
-            assistant_message_fixture("Assistant message"),
-            user_message_fixture("User message"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).on_turn_end(true);
+        let context = ctx("au");
         let actual = fixture.should_compact(&context, 10); // Low token count, no other thresholds
         let expected = true;
         assert_eq!(actual, expected);
@@ -561,11 +473,8 @@ mod tests {
 
     #[test]
     fn test_should_compact_last_user_message_integration_disabled() {
-        let fixture = compact_with_last_user_message_fixture(false);
-        let context = context_with_messages_fixture(vec![
-            assistant_message_fixture("Assistant message"),
-            user_message_fixture("User message"),
-        ]);
+        let fixture = Compact::new(ModelId::new("test-model")).on_turn_end(false);
+        let context = ctx("au");
         let actual = fixture.should_compact(&context, 10); // Low token count, no other thresholds
         let expected = false;
         assert_eq!(actual, expected);
@@ -576,10 +485,7 @@ mod tests {
         let fixture = Compact::new(ModelId::new("test-model"))
             .token_threshold(200_usize)
             .on_turn_end(true);
-        let context = context_with_messages_fixture(vec![
-            assistant_message_fixture("Assistant message"),
-            user_message_fixture("User message"),
-        ]);
+        let context = ctx("au");
         let actual = fixture.should_compact(&context, 50); // Token threshold not met, but last message is user
         let expected = true;
         assert_eq!(actual, expected);
