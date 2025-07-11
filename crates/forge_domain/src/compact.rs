@@ -202,7 +202,7 @@ mod tests {
     }
 
     fn compact_with_last_user_message_fixture(enabled: bool) -> Compact {
-        compact_fixture().turn_compact(enabled)
+        compact_fixture().on_turn_end(enabled)
     }
 
     fn context_with_messages_fixture(messages: Vec<ContextMessage>) -> Context {
@@ -575,7 +575,7 @@ mod tests {
     fn test_should_compact_multiple_conditions_with_last_user_message() {
         let fixture = Compact::new(ModelId::new("test-model"))
             .token_threshold(200_usize)
-            .turn_compact(true);
+            .on_turn_end(true);
         let context = context_with_messages_fixture(vec![
             assistant_message_fixture("Assistant message"),
             user_message_fixture("User message"),
