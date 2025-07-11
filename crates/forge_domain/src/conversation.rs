@@ -566,7 +566,7 @@ mod tests {
 
         // Arrange
         let id = super::ConversationId::generate();
-        
+
         // Agent has compact config with specific values
         let mut agent = Agent::new("test-agent");
         let agent_compact = Compact::new(ModelId::new("agent-priority-model"))
@@ -591,7 +591,7 @@ mod tests {
         // Assert
         let result_agent = &conversation.agents[0];
         let result_compact = result_agent.compact.as_ref().unwrap();
-        
+
         // All agent values should take priority over workflow values
         assert_eq!(result_compact.model, ModelId::new("agent-priority-model"));
         assert_eq!(result_compact.token_threshold, Some(1000_usize));
