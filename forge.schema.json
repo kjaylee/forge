@@ -360,6 +360,13 @@
           "description": "Model ID to use for compaction, useful when compacting with a cheaper/faster model",
           "type": "string"
         },
+        "on_turn_end": {
+          "description": "Whether to trigger compaction when the last message is from a user",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "prompt": {
           "description": "Optional custom prompt template to use during compaction",
           "type": [

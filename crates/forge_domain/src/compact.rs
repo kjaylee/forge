@@ -7,7 +7,7 @@ use tracing::debug;
 use crate::{Context, ModelId, Role};
 
 /// Configuration for automatic context compaction
-#[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, JsonSchema, PartialEq)]
 #[setters(strip_option, into)]
 pub struct Compact {
     /// Number of most recent messages to preserve during compaction.
@@ -81,7 +81,7 @@ where
     Ok(value)
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(transparent)]
 pub struct SummaryTag(String);
 
