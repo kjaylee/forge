@@ -193,6 +193,29 @@ fn handle_spotlight_toggle(
     }
 }
 
+fn handle_message_scroll(
+    state: &mut State,
+    key_event: ratatui::crossterm::event::KeyEvent,
+) -> bool {
+    use ratatui::crossterm::event::KeyCode;
+
+    if state.spotlight.is_visible || state.editor.mode != EditorMode::Normal {
+        return false;
+    }
+
+    match key_event.code {
+        KeyCode::Up => {
+            state.message_scroll_state.scroll_up();
+            true
+        }
+        KeyCode::Down => {
+            state.message_scroll_state.scroll_down();
+            true
+        }
+        _ => false,
+    }
+}
+
 fn handle_editor_default(
     editor: &mut edtui::EditorState,
     key_event: ratatui::crossterm::event::KeyEvent,
@@ -248,6 +271,12 @@ pub fn handle_key_event(
         // When spotlight is not visible, route events to main editor
         // Capture original editor mode before any modifications
         let original_editor_mode = state.editor.mode;
+
+        // Handle message scrolling first (only in normal mode)
+        let scroll_cmd = handle_message_scroll(state, key_event);
+        if scroll_cmd {
+            return Command::Empty;
+        }
 
         // Check if navigation was handled first
         let line_nav_handled = handle_line_navigation(&mut state.editor, key_event);
