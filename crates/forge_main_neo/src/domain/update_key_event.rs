@@ -148,7 +148,7 @@ fn handle_prompt_submit(
             state.show_spinner = true;
             let chat_command = Command::ChatMessage {
                 message,
-                conversation_id: state.conversation.conversation_id.clone(),
+                conversation_id: state.conversation.conversation_id,
                 is_first: state.conversation.is_first,
             };
             Command::Interval { duration: Duration::from_millis(100) }.and(chat_command)

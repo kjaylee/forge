@@ -51,7 +51,7 @@ impl<T: API + 'static> Executor<T> {
 
             // Send action to update conversation state
             tx.send(Ok(Action::ConversationInitialized(
-                new_conversation.id.clone(),
+                new_conversation.id,
             )))
             .await?;
 

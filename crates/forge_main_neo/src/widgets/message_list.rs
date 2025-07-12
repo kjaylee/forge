@@ -1,11 +1,11 @@
 use color_eyre::owo_colors::OwoColorize;
 use forge_api::ChatResponse;
 use ratatui::layout::Size;
+use ratatui::prelude::Widget;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Paragraph, StatefulWidget, Wrap};
 use tui_scrollview::ScrollView;
-use ratatui::prelude::Widget;
 
 use crate::domain::{Message, State};
 use crate::widgets::spinner::Spinner;
@@ -84,7 +84,7 @@ impl StatefulWidget for MessageList {
 
         // Calculate content height based on the number of lines
         let content_height = lines.len() as u16;
-        
+
         // Calculate width - reserve space for scrollbar if content exceeds area height
         let width = if content_height > area.height {
             area.width.saturating_sub(1)

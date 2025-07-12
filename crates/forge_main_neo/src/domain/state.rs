@@ -4,7 +4,6 @@ use chrono::{DateTime, Utc};
 use edtui::EditorState;
 use forge_api::{ChatResponse, ConversationId};
 use throbber_widgets_tui::ThrobberState;
-use tokio_util::sync::CancellationToken;
 use tui_scrollview::ScrollViewState;
 
 use crate::domain::spotlight::SpotlightState;
