@@ -50,10 +50,8 @@ impl<T: API + 'static> Executor<T> {
             let new_conversation = self.api.init_conversation(workflow).await?;
 
             // Send action to update conversation state
-            tx.send(Ok(Action::ConversationInitialized(
-                new_conversation.id,
-            )))
-            .await?;
+            tx.send(Ok(Action::ConversationInitialized(new_conversation.id)))
+                .await?;
 
             new_conversation
         };
