@@ -7,6 +7,7 @@ mod input;
 mod model;
 mod prompt;
 mod state;
+mod tasks_display;
 mod tools_display;
 pub mod tracker;
 mod ui;

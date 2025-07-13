@@ -398,10 +398,10 @@ expression: tools
 }
 {
   "name": "forge_tool_task_update",
-  "description": "Update the status of a specific task in the task list. Use this when a\n task\\'s status changes (e.g., from Pending to InProgress, InProgress to Done,\n etc.). The task will remain in the list but with an updated status.",
+  "description": "Update the status of a specific task in the task list. Use this when a\n task\\'s status changes (e.g., from Pending to InProgress, InProgress to Done,\n or simply Delete). The task will remain in the list but with an updated\n status.",
   "input_schema": {
     "title": "TaskListUpdate",
-    "description": "Update the status of a specific task in the task list. Use this when a task's status changes (e.g., from Pending to InProgress, InProgress to Done, etc.). The task will remain in the list but with an updated status.",
+    "description": "Update the status of a specific task in the task list. Use this when a task's status changes (e.g., from Pending to InProgress, InProgress to Done, or simply Delete). The task will remain in the list but with an updated status.",
     "type": "object",
     "required": [
       "status",
