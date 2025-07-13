@@ -1,4 +1,4 @@
-use forge_domain::{DefaultTransformation, Provider, Transformer};
+use forge_app::domain::{DefaultTransformation, Provider, Transformer};
 
 use super::drop_tool_call::DropToolCalls;
 use super::make_openai_compat::MakeOpenAiCompat;
@@ -58,6 +58,7 @@ mod tests {
         assert!(!supports_open_router_params(&Provider::requesty(
             "requesty"
         )));
+        assert!(!supports_open_router_params(&Provider::xai("xai")));
         assert!(!supports_open_router_params(&Provider::anthropic("claude")));
     }
 }

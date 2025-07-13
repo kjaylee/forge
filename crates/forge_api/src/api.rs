@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use forge_app::{AppConfig, InitAuth};
+use forge_app::{AppConfig, InitAuth, User};
 use forge_stream::MpscStream;
 
 use crate::*;
@@ -99,4 +99,5 @@ pub trait API: Sync + Send {
     async fn app_config(&self) -> anyhow::Result<AppConfig>;
     /// Lists all tasks from a specific conversation
     async fn tasks(&self, conversation_id: &ConversationId) -> Result<Vec<Task>>;
+    async fn user_info(&self) -> anyhow::Result<Option<User>>;
 }
