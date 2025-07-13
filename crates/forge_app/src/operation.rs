@@ -480,6 +480,7 @@ mod tests {
     use forge_domain::{FSRead, TaskList, ToolValue};
 
     use super::*;
+    use crate::fmt::content::FormatContent;
     use crate::{Match, MatchResult};
 
     fn fixture_environment() -> Environment {

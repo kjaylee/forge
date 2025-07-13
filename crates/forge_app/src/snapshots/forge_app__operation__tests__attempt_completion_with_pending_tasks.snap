@@ -1,7 +1,6 @@
 ---
 source: crates/forge_app/src/operation.rs
 expression: to_value(actual)
-snapshot_kind: text
 ---
 <user_message>Not all tasks are completed. Please continue with the next task. When you complete this task, mark it as done and then continue with the next task:
 <task

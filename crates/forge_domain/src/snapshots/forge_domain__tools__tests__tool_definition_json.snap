@@ -420,7 +420,8 @@ expression: tools
         "enum": [
           "Pending",
           "InProgress",
-          "Done"
+          "Done",
+          "Delete"
         ]
       },
       "task_id": {

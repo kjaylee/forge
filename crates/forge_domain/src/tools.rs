@@ -422,7 +422,8 @@ pub struct TaskListAppendMultiple {
 
 /// Update the status of a specific task in the task list. Use this when a
 /// task's status changes (e.g., from Pending to InProgress, InProgress to Done,
-/// etc.). The task will remain in the list but with an updated status.
+/// or simply Delete). The task will remain in the list but with an updated
+/// status.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
 pub struct TaskListUpdate {
     /// The ID of the task to update

@@ -4,12 +4,14 @@ use derive_setters::Setters;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+// FIXME: Keep status and operation separate
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, eserde::Deserialize, Default, JsonSchema)]
 pub enum Status {
     #[default]
     Pending,
     InProgress,
     Done,
+    Delete,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Setters)]
@@ -121,6 +123,9 @@ impl TaskList {
     }
 
     pub fn update_status(&mut self, task_id: i32, status: Status) -> Option<Task> {
+        if status == Status::Delete {
+            return self.delete(task_id);
+        }
         let task_index = self.tasks.iter().position(|t| t.id == task_id)?;
         self.tasks[task_index].status = status;
         Some(self.tasks[task_index].clone())
@@ -129,6 +134,10 @@ impl TaskList {
     pub fn clear(&mut self) {
         self.tasks.clear();
         self.next_id = 1;
+    }
+    pub fn delete(&mut self, task_id: i32) -> Option<Task> {
+        let task_index = self.tasks.iter().position(|t| t.id == task_id)?;
+        self.tasks.remove(task_index)
     }
     /// Check if all tasks are completed (either Done or no tasks exist)
     pub fn all_tasks_done(&self) -> bool {
@@ -147,6 +156,7 @@ impl Status {
             Status::Pending => "PENDING",
             Status::InProgress => "IN_PROGRESS",
             Status::Done => "DONE",
+            Status::Delete => "DELETE",
         }
     }
 }
@@ -395,5 +405,63 @@ mod tests {
         task_list.mark_done(task2.id);
 
         assert!(task_list.next_pending_task().is_none());
+    }
+    #[test]
+    fn test_task_list_delete() {
+        let mut task_list = TaskList::new();
+        let task1 = task_list.append("Task 1");
+        let task2 = task_list.append("Task 2");
+        let task3 = task_list.append("Task 3");
+
+        // Delete the middle task
+        let result = task_list.delete(task2.id);
+
+        assert!(result.is_some());
+        let deleted_task = result.unwrap();
+        assert_eq!(deleted_task.id, task2.id);
+        assert_eq!(deleted_task.task, "Task 2");
+        assert_eq!(task_list.tasks().len(), 2);
+
+        // Verify remaining tasks
+        let remaining_ids: Vec<i32> = task_list.tasks().iter().map(|t| t.id).collect();
+        assert_eq!(remaining_ids, vec![task1.id, task3.id]);
+    }
+
+    #[test]
+    fn test_task_list_delete_nonexistent() {
+        let mut task_list = TaskList::new();
+        task_list.append("Task 1");
+
+        let result = task_list.delete(999);
+
+        assert!(result.is_none());
+        assert_eq!(task_list.tasks().len(), 1);
+    }
+
+    #[test]
+    fn test_update_status_with_delete() {
+        let mut task_list = TaskList::new();
+        let task1 = task_list.append("Task 1");
+        let task2 = task_list.append("Task 2");
+        let task3 = task_list.append("Task 3");
+
+        // Update status to Delete should remove the task
+        let deleted_task = task_list.update_status(task2.id, Status::Delete);
+
+        assert!(deleted_task.is_some());
+        let deleted_task = deleted_task.unwrap();
+        assert_eq!(deleted_task.id, task2.id);
+        assert_eq!(deleted_task.task, "Task 2");
+        assert_eq!(task_list.tasks().len(), 2);
+
+        // Verify remaining tasks
+        let remaining_ids: Vec<i32> = task_list.tasks().iter().map(|t| t.id).collect();
+        assert_eq!(remaining_ids, vec![task1.id, task3.id]);
+    }
+
+    #[test]
+    fn test_status_name_delete() {
+        let status = Status::Delete;
+        assert_eq!(status.status_name(), "DELETE");
     }
 }
