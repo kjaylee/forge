@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::{TaskList, ToolCallContext, ToolCallFull, ToolOutput, Tools};
+use forge_domain::{ToolCallContext, ToolCallFull, ToolOutput, Tools};
 
 use crate::error::Error;
 use crate::fmt::content::FormatContent;
@@ -34,7 +34,12 @@ impl<
         Self { services }
     }
 
-    async fn call_internal(&self, input: Tools, tasks: &mut TaskList) -> anyhow::Result<Operation> {
+    async fn call_internal(
+        &self,
+        input: Tools,
+        ctx: &mut ToolCallContext,
+    ) -> anyhow::Result<Operation> {
+        let tasks = &mut ctx.tasks;
         Ok(match input {
             Tools::ForgeToolFsRead(input) => {
                 let output = self
@@ -121,7 +126,7 @@ impl<
                 output.into()
             }
             Tools::ForgeToolAttemptCompletion(_input) => {
-                crate::operation::Operation::AttemptCompletion
+                crate::operation::Operation::AttemptCompletion { tasks: tasks.clone() }
             }
             Tools::ForgeToolTaskAppend(input) => {
                 let before = tasks.clone();
@@ -172,9 +177,7 @@ impl<
 
         // Send tool call information
 
-        let execution_result = self
-            .call_internal(tool_input.clone(), &mut context.tasks)
-            .await;
+        let execution_result = self.call_internal(tool_input.clone(), context).await;
         if let Err(ref error) = execution_result {
             tracing::error!(error = ?error, "Tool execution failed");
         }

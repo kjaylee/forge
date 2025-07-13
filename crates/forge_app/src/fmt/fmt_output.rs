@@ -30,7 +30,7 @@ impl FormatContent for Operation {
             Operation::NetFetch { input: _, output: _ } => None,
             Operation::Shell { output: _ } => None,
             Operation::FollowUp { output: _ } => None,
-            Operation::AttemptCompletion => None,
+            Operation::AttemptCompletion { .. } => None,
             Operation::TaskAppend { _input: _, before, after }
             | Operation::TaskAppendMultiple { _input: _, before, after }
             | Operation::TaskUpdate { _input: _, before, after }
@@ -51,7 +51,7 @@ mod tests {
     use std::path::PathBuf;
 
     use console::strip_ansi_codes;
-    use forge_domain::{Environment, PatchOperation};
+    use forge_domain::{Environment, PatchOperation, TaskList};
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
 
@@ -544,7 +544,7 @@ mod tests {
 
     #[test]
     fn test_attempt_completion() {
-        let fixture = Operation::AttemptCompletion;
+        let fixture = Operation::AttemptCompletion { tasks: TaskList::new() };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);

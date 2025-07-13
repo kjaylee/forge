@@ -130,6 +130,15 @@ impl TaskList {
         self.tasks.clear();
         self.next_id = 1;
     }
+    /// Check if all tasks are completed (either Done or no tasks exist)
+    pub fn all_tasks_done(&self) -> bool {
+        self.tasks.is_empty() || self.tasks.iter().all(|task| task.is_done())
+    }
+
+    /// Find the next pending task (first task that is not Done)
+    pub fn next_pending_task(&self) -> Option<&Task> {
+        self.tasks.iter().find(|task| !task.is_done())
+    }
 }
 
 impl Status {
@@ -325,5 +334,66 @@ mod tests {
         let result = task_list.update_status(999, Status::Done);
 
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_task_list_all_tasks_done_empty() {
+        let task_list = TaskList::new();
+        assert!(task_list.all_tasks_done());
+    }
+
+    #[test]
+    fn test_task_list_all_tasks_done_with_completed_tasks() {
+        let mut task_list = TaskList::new();
+        let task1 = task_list.append("Task 1");
+        let task2 = task_list.append("Task 2");
+
+        task_list.mark_done(task1.id);
+        task_list.mark_done(task2.id);
+
+        assert!(task_list.all_tasks_done());
+    }
+
+    #[test]
+    fn test_task_list_all_tasks_done_with_pending_tasks() {
+        let mut task_list = TaskList::new();
+        let task1 = task_list.append("Task 1");
+        task_list.append("Task 2");
+
+        task_list.mark_done(task1.id);
+
+        assert!(!task_list.all_tasks_done());
+    }
+
+    #[test]
+    fn test_task_list_next_pending_task_empty() {
+        let task_list = TaskList::new();
+        assert!(task_list.next_pending_task().is_none());
+    }
+
+    #[test]
+    fn test_task_list_next_pending_task_with_pending() {
+        let mut task_list = TaskList::new();
+        let task1 = task_list.append("Task 1");
+        let task2 = task_list.append("Task 2");
+
+        task_list.mark_done(task1.id);
+
+        let next_task = task_list.next_pending_task();
+        assert!(next_task.is_some());
+        assert_eq!(next_task.unwrap().id, task2.id);
+        assert_eq!(next_task.unwrap().task, "Task 2");
+    }
+
+    #[test]
+    fn test_task_list_next_pending_task_all_done() {
+        let mut task_list = TaskList::new();
+        let task1 = task_list.append("Task 1");
+        let task2 = task_list.append("Task 2");
+
+        task_list.mark_done(task1.id);
+        task_list.mark_done(task2.id);
+
+        assert!(task_list.next_pending_task().is_none());
     }
 }
