@@ -38,10 +38,6 @@ impl FormatContent for Operation {
             | Operation::TaskClear { _input: _, before, after } => Some(ContentFormat::Markdown(
                 crate::fmt::fmt_task::to_markdown(before, after),
             )),
-            Operation::TaskDone { _input, before, after } => {
-                let md = crate::fmt::fmt_task::to_markdown(before, after);
-                Some(ContentFormat::Markdown(md))
-            }
         }
     }
 }

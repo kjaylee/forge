@@ -88,9 +88,6 @@ impl FormatContent for Tools {
             Tools::ForgeToolTaskUpdate(_) => TitleFormat::debug("Task Update".to_string()).into(),
             Tools::ForgeToolTaskList(_) => TitleFormat::debug("Task Read".to_string()).into(),
             Tools::ForgeToolTaskClear(_) => TitleFormat::debug("Task Clear".to_string()).into(),
-            Tools::ForgeToolTaskDone(_input) => {
-                ContentFormat::Title(TitleFormat::info("Task Completion"))
-            }
         };
 
         Some(output)
