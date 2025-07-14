@@ -1427,6 +1427,7 @@ dependencies = [
  "pretty_assertions",
  "tempfile",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

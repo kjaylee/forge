@@ -6,6 +6,7 @@ use anyhow::{Context, Result};
 use derive_setters::Setters;
 use ignore::{WalkBuilder, WalkState};
 use tokio::task::spawn_blocking;
+use tracing::info;
 
 #[derive(Clone, Debug)]
 pub struct File {
@@ -114,10 +115,14 @@ impl Walker {
         let mut file_count = 0;
 
         // TODO: Convert to async and return a stream
+        let num_threads = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1); // fallback to 1 if detection fails
+        info!("Using {} threads for walking", num_threads);
         let walk = WalkBuilder::new(&self.cwd)
             .standard_filters(true) // use standard ignore filters.
             .max_depth(Some(self.max_depth))
-            .threads(num_cpus::get())
+            .threads(num_threads)
             .build_parallel();
 
         let paths = Arc::new(Mutex::new(Vec::new()));
