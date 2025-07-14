@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use derive_setters::Setters;
-use ignore::WalkBuilder;
+use ignore::{WalkBuilder, WalkState};
 use tokio::task::spawn_blocking;
 
 #[derive(Clone, Debug)]
@@ -116,10 +117,21 @@ impl Walker {
         let walk = WalkBuilder::new(&self.cwd)
             .standard_filters(true) // use standard ignore filters.
             .max_depth(Some(self.max_depth))
-            // TODO: use build_parallel() for better performance
-            .build();
+            .threads(num_cpus::get())
+            .build_parallel();
 
-        'walk_loop: for entry in walk.flatten() {
+        let paths = Arc::new(Mutex::new(Vec::new()));
+        walk.run(|| {
+            let dents = paths.clone();
+            Box::new(move |entry| {
+                if let Ok(entry) = entry {
+                    dents.lock().unwrap().push(entry);
+                }
+                WalkState::Continue
+            })
+        });
+
+        'walk_loop: for entry in paths.lock().unwrap().iter() {
             let path = entry.path();
 
             // Calculate depth relative to base directory
