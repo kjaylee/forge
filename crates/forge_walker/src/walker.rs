@@ -32,6 +32,9 @@ pub struct Walker {
     /// Maximum number of entries per directory
     max_breadth: usize,
 
+    /// Maximum number of entries in a directory before skipping recursion
+    max_dir_entries: usize,
+
     /// Maximum size of individual files to process
     max_file_size: u64,
 
@@ -50,6 +53,7 @@ const DEFAULT_MAX_FILES: usize = 100;
 const DEFAULT_MAX_TOTAL_SIZE: u64 = 10 * 1024 * 1024; // 10MB
 const DEFAULT_MAX_DEPTH: usize = 5;
 const DEFAULT_MAX_BREADTH: usize = 10;
+const DEFAULT_MAX_DIR_ENTRIES: usize = 5000;
 
 impl Walker {
     /// Creates a new Walker instance with all settings set to conservative
@@ -59,6 +63,7 @@ impl Walker {
             cwd: PathBuf::new(),
             max_depth: DEFAULT_MAX_DEPTH,
             max_breadth: DEFAULT_MAX_BREADTH,
+            max_dir_entries: DEFAULT_MAX_DIR_ENTRIES,
             max_file_size: DEFAULT_MAX_FILE_SIZE,
             max_files: DEFAULT_MAX_FILES,
             max_total_size: DEFAULT_MAX_TOTAL_SIZE,
@@ -74,6 +79,7 @@ impl Walker {
             cwd: PathBuf::new(),
             max_depth: usize::MAX,
             max_breadth: usize::MAX,
+            max_dir_entries: usize::MAX,
             max_file_size: u64::MAX,
             max_files: usize::MAX,
             max_total_size: u64::MAX,
@@ -115,17 +121,33 @@ impl Walker {
         let mut file_count = 0;
 
         // TODO: Convert to async and return a stream
+        let max_dir_entries = self.max_dir_entries;
         let num_threads = std::thread::available_parallelism()
             .map(|n| n.get())
             .unwrap_or(1); // fallback to 1 if detection fails
         info!("Using {} threads for walking", num_threads);
+
+        let paths = Arc::new(Mutex::new(Vec::new()));
+        let paths_clone = paths.clone();
         let walk = WalkBuilder::new(&self.cwd)
             .standard_filters(true) // use standard ignore filters.
             .max_depth(Some(self.max_depth))
             .threads(num_threads)
+            .filter_entry(move |entry| {
+                // Skip directories that have too many entries
+                if entry.file_type().is_some_and(|ft| ft.is_dir()) {
+                    if let Ok(read_dir) = std::fs::read_dir(entry.path()) {
+                        let entry_count = read_dir.count();
+                        if entry_count > max_dir_entries {
+                            paths_clone.lock().unwrap().push(entry.clone());
+                            return false; // Don't traverse into this directory
+                        }
+                    }
+                }
+                true
+            })
             .build_parallel();
 
-        let paths = Arc::new(Mutex::new(Vec::new()));
         walk.run(|| {
             let dents = paths.clone();
             Box::new(move |entry| {
@@ -298,6 +320,24 @@ mod tests {
             }
             Ok((dir, files_dir))
         }
+
+        /// Creates a directory with a subdirectory containing many files
+        /// Returns a TempDir with a large subdirectory that should be skipped
+        pub fn create_large_directory(entry_count: usize) -> Result<TempDir> {
+            let dir = tempdir()?;
+            let large_dir = dir.path().join("large_dir");
+            fs::create_dir(&large_dir)?;
+
+            // Create many files in the large directory
+            for i in 0..entry_count {
+                File::create(large_dir.join(format!("file{i}.txt")))?.write_all(b"test")?;
+            }
+
+            // Create a normal file in the root
+            File::create(dir.path().join("root_file.txt"))?.write_all(b"test")?;
+
+            Ok(dir)
+        }
     }
 
     #[tokio::test]
@@ -392,6 +432,36 @@ mod tests {
         assert_eq!(
             actual_max_depth, expected,
             "Walker should respect the configured max_depth limit"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_walker_skips_large_directories() {
+        let large_dir_entries = DEFAULT_MAX_DIR_ENTRIES + 10;
+        let fixture = fixtures::create_large_directory(large_dir_entries).unwrap();
+
+        let actual = Walker::min_all()
+            .cwd(fixture.path().to_path_buf())
+            .max_dir_entries(DEFAULT_MAX_DIR_ENTRIES)
+            .get()
+            .await
+            .unwrap();
+
+        // Should only find the root file, not the files in the large directory
+        let files_in_large_dir = actual
+            .iter()
+            .filter(|f| f.path.starts_with("large_dir/"))
+            .count();
+
+        let root_files = actual.iter().filter(|f| f.path == "root_file.txt").count();
+
+        assert_eq!(
+            files_in_large_dir, 1,
+            "Walker should skip directories with too many entries"
+        );
+        assert_eq!(
+            root_files, 1,
+            "Walker should still process files outside the large directory"
         );
     }
 
