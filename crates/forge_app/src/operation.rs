@@ -337,8 +337,8 @@ impl Operation {
                     forge_domain::ToolOutput::text(elm)
                 }
             },
-            Operation::AttemptCompletion { tasks, task_supported: can_execute } => {
-                if tasks.all_tasks_done() && !can_execute {
+            Operation::AttemptCompletion { tasks, task_supported } => {
+                if tasks.all_tasks_done() || !task_supported {
                     // All tasks are completed
                     forge_domain::ToolOutput::text(
                         Element::new("success")
