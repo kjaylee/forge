@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=./forge.schema.json
 agents:
-- id: forge-beta
-  title: A beta version of the forge that will eventually be shipped to the users
+- id: forge-alpha
+  title: An alpha version of the forge that will eventually be shipped to the users
   description: 'Hands-on implementation agent that executes software development tasks through a structured 4-phase approach: task analysis, solution strategy, implementation, and quality assurance. Makes actual changes to codebases, runs shell commands, creates/modifies files, installs dependencies, and performs concrete development work. Use for building features, fixing bugs, refactoring code, or any task requiring actual modifications. Do not use for analysis-only tasks or when you want to explore options without making changes. Always validates changes through compilation and testing.'
   system_prompt: '{{> forge-system-prompt-engineer-act.hbs }}'
   user_prompt: |-
@@ -40,7 +40,7 @@ agents:
   - forge_tool_task_list
   - forge_tool_task_clear
 variables:
-  operating_agent: forge
+  operating_agent: forge-alpha
 commands:
 - name: fixme
   description: Looks for all the fixme comments in the code and attempts to fix them
