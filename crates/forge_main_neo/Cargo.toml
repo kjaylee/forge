@@ -11,6 +11,7 @@ color-eyre = "0.6.5"
 edtui = { version = "0.9.6", features = ["mouse-support"] }
 derive_more.workspace = true
 anyhow.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 # FIXME: add to workspace dependency
@@ -31,3 +32,4 @@ futures.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true
+tempfile = "3.0"

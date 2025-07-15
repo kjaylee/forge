@@ -179,7 +179,6 @@ fn handle_prompt_submit(
             Command::Empty
         } else {
             // Add command to history before processing
-            state.command_history.add_command(message.clone());
             state.add_user_message(message.clone());
             state.show_spinner = true;
             let chat_command = Command::ChatMessage {

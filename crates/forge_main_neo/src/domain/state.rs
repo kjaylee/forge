@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -39,7 +40,8 @@ impl Default for State {
             conversation: Default::default(),
             chat_stream: None,
             message_scroll_state: ScrollViewState::default(),
-            command_history: CommandHistory::default(),
+            command_history: CommandHistory::with_file(202, PathBuf::from(".forge_history"))
+                .unwrap(),
         }
     }
 }
@@ -67,6 +69,7 @@ impl State {
 
     /// Add a user message to the chat
     pub fn add_user_message(&mut self, message: String) {
+        let _ = self.command_history.add_command(message.clone());
         self.messages.push(Message::User(message));
         // Auto-scroll to bottom when new message is added
         self.message_scroll_state.scroll_to_bottom();

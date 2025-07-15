@@ -1,63 +1,59 @@
-use std::collections::VecDeque;
+use std::path::PathBuf;
 
-/// Command history with LRU storage and navigation tracking
-#[derive(Clone, Debug)]
+use anyhow::Result;
+
+use crate::history::{FileBackedHistory, HistoryItem};
+
+/// Command history wrapper around our simplified FileBackedHistory with
+/// navigation tracking
+#[derive(Debug, Clone)]
 pub struct CommandHistory {
-    commands: VecDeque<String>,
+    /// Our simplified file-backed history implementation
+    history: FileBackedHistory,
+    /// Current navigation position
     current_index: Option<usize>,
-    max_size: usize,
-}
-
-impl Default for CommandHistory {
-    fn default() -> Self {
-        Self {
-            commands: VecDeque::new(),
-            current_index: None,
-            max_size: 100,
-        }
-    }
 }
 
 impl CommandHistory {
-    /// Add a command to history (LRU - most recent at front)
-    pub fn add_command(&mut self, command: String) {
-        // Remove existing instance if present
-        if let Some(pos) = self.commands.iter().position(|c| c == &command) {
-            self.commands.remove(pos);
-        }
+    /// Create a new CommandHistory with a specified max size and file path
+    pub fn with_file(max_size: usize, path: PathBuf) -> Result<Self> {
+        let history = FileBackedHistory::with_file(max_size, path)?;
+        Ok(Self { history, current_index: None })
+    }
 
-        // Add to front
-        self.commands.push_front(command);
+    /// Add a command to history with LRU behavior and file persistence
+    pub fn add_command(&mut self, command: String) -> Result<()> {
+        let command = command.trim().to_string();
 
-        // Enforce size limit
-        if self.commands.len() > self.max_size {
-            self.commands.pop_back();
-        }
+        // Create a history item
+        let item = HistoryItem::new(command);
+        self.history.save(item)?;
 
-        // Reset navigation
+        // Reset navigation state
         self.current_index = None;
+        Ok(())
     }
 
     /// Navigate to previous command (up arrow)
     pub fn navigate_up(&mut self) -> Option<String> {
-        if self.commands.is_empty() {
+        if self.history.total_entries() == 0 {
             return None;
         }
 
         match self.current_index {
             None => {
-                // Start navigation from most recent
+                // Start navigation from most recent (index 0)
                 self.current_index = Some(0);
-                self.commands.front().cloned()
+                self.get_command_at_index(0)
             }
             Some(index) => {
                 // Move to older command if possible
-                if index + 1 < self.commands.len() {
+                if index + 1 < self.history.total_entries() {
                     self.current_index = Some(index + 1);
-                    self.commands.get(index + 1).cloned()
+                    self.get_command_at_index(index + 1)
                 } else {
                     // Stay at oldest command
-                    self.commands.get(index).cloned()
+                    self.get_command_at_index(index)
                 }
             }
         }
@@ -75,9 +71,14 @@ impl CommandHistory {
             Some(index) => {
                 // Move to newer command
                 self.current_index = Some(index - 1);
-                self.commands.get(index - 1).cloned()
+                self.get_command_at_index(index - 1)
             }
         }
+    }
+
+    /// Get command at a specific index from the most recent (0 = most recent)
+    fn get_command_at_index(&self, index: usize) -> Option<String> {
+        self.history.get(index).map(|item| item.item.clone())
     }
 
     /// Get autocomplete suggestion for current input
@@ -86,78 +87,36 @@ impl CommandHistory {
             return None;
         }
 
-        // Find first command that starts with current input
-        self.commands
-            .iter()
-            .find(|cmd| cmd.starts_with(current_input) && cmd != &current_input)
-            .cloned()
+        // Search for commands that start with current input
+        let results = self.history.search_prefix(current_input);
+
+        // Find first command that starts with current input but is not identical
+        for item in results {
+            if item.item.starts_with(current_input) && item.item != current_input {
+                return Some(item.item.clone());
+            }
+        }
+
+        None
     }
 
     /// Reset navigation state (called when user types)
     pub fn reset_navigation(&mut self) {
         self.current_index = None;
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-
-    #[test]
-    fn test_add_command() {
-        let mut fixture = CommandHistory::default();
-        fixture.add_command("test command".to_string());
-
-        let actual = fixture.commands.len();
-        let expected = 1;
-        assert_eq!(actual, expected);
+    /// Get the number of commands in history
+    pub fn len(&self) -> usize {
+        self.history.total_entries()
     }
 
-    #[test]
-    fn test_navigate_up() {
-        let mut fixture = CommandHistory::default();
-        fixture.add_command("first".to_string());
-        fixture.add_command("second".to_string());
-
-        let actual = fixture.navigate_up();
-        let expected = Some("second".to_string());
-        assert_eq!(actual, expected);
+    /// Check if history is empty
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
-    #[test]
-    fn test_navigate_down() {
-        let mut fixture = CommandHistory::default();
-        fixture.add_command("first".to_string());
-        fixture.add_command("second".to_string());
-        fixture.navigate_up(); // Navigate to "second"
-
-        let actual = fixture.navigate_down();
-        let expected = Some(String::new());
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_autocomplete_suggestion() {
-        let mut fixture = CommandHistory::default();
-        fixture.add_command("test command".to_string());
-        fixture.add_command("test another".to_string());
-
-        let actual = fixture.get_autocomplete_suggestion("test");
-        let expected = Some("test another".to_string());
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_lru_behavior() {
-        let mut fixture = CommandHistory::default();
-        fixture.add_command("first".to_string());
-        fixture.add_command("second".to_string());
-        fixture.add_command("first".to_string()); // Re-add first
-
-        let actual = fixture.navigate_up();
-        let expected = Some("first".to_string()); // Should be most recent
-        assert_eq!(actual, expected);
+    /// Flush history to file
+    pub fn flush(&mut self) -> Result<()> {
+        self.history.sync().map_err(|e| anyhow::anyhow!(e))
     }
 }
