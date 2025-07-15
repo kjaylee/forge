@@ -21,12 +21,14 @@ pub enum Command {
         message: String,
         conversation_id: Option<ConversationId>,
         is_first: bool,
+        agent: AgentId,
     },
     InterruptStream,
     Spotlight(SpotlightCommand),
     Interval {
         duration: Duration,
     },
+    ShowAgentSelection,
 }
 
 #[derive(Clone, From, PartialEq, Eq, Debug)]
@@ -110,6 +112,7 @@ mod tests {
             message: "hello".to_string(),
             conversation_id: None,
             is_first: true,
+            agent: AgentId::FORGE,
         }
         .and(Command::ReadWorkspace)
         .and(Command::Empty)
@@ -120,6 +123,7 @@ mod tests {
                 message: "hello".to_string(),
                 conversation_id: None,
                 is_first: true,
+                agent: AgentId::FORGE,
             },
             Command::ReadWorkspace,
             Command::Exit,
@@ -133,12 +137,14 @@ mod tests {
             message: "test".to_string(),
             conversation_id: None,
             is_first: true,
+            agent: AgentId::FORGE,
         });
         let actual = fixture;
         let expected = Command::ChatMessage {
             message: "test".to_string(),
             conversation_id: None,
             is_first: true,
+            agent: AgentId::FORGE,
         };
         assert_eq!(actual, expected);
     }
@@ -200,6 +206,7 @@ mod tests {
                 message: "test".to_string(),
                 conversation_id: None,
                 is_first: true,
+                agent: AgentId::FORGE,
             },
         ]);
         let actual = fixture.flatten();
@@ -210,6 +217,7 @@ mod tests {
                 message: "test".to_string(),
                 conversation_id: None,
                 is_first: true,
+                agent: AgentId::FORGE,
             },
         ]);
         assert_eq!(actual, expected);
@@ -225,6 +233,7 @@ mod tests {
                     message: "test".to_string(),
                     conversation_id: None,
                     is_first: true,
+                    agent: AgentId::FORGE,
                 },
             ]),
             Command::And(vec![Command::ReadWorkspace]),
@@ -237,6 +246,7 @@ mod tests {
                 message: "test".to_string(),
                 conversation_id: None,
                 is_first: true,
+                agent: AgentId::FORGE,
             },
             Command::ReadWorkspace,
         ]);
@@ -276,6 +286,7 @@ mod tests {
                         message: "nested".to_string(),
                         conversation_id: None,
                         is_first: true,
+                        agent: AgentId::FORGE,
                     },
                     Command::And(vec![Command::ReadWorkspace]),
                 ]),
@@ -289,6 +300,7 @@ mod tests {
                 message: "nested".to_string(),
                 conversation_id: None,
                 is_first: true,
+                agent: AgentId::FORGE,
             },
             Command::ReadWorkspace,
         ]);
@@ -304,6 +316,7 @@ mod tests {
                     message: "hello".to_string(),
                     conversation_id: None,
                     is_first: true,
+                    agent: AgentId::FORGE,
                 },
                 Command::Empty,
                 Command::And(vec![Command::ReadWorkspace, Command::Empty]),
@@ -314,6 +327,7 @@ mod tests {
                 message: "world".to_string(),
                 conversation_id: None,
                 is_first: true,
+                agent: AgentId::FORGE,
             },
         ]);
         let actual = fixture.flatten();
@@ -322,6 +336,7 @@ mod tests {
                 message: "hello".to_string(),
                 conversation_id: None,
                 is_first: true,
+                agent: AgentId::FORGE,
             },
             Command::ReadWorkspace,
             Command::Exit,
@@ -329,6 +344,7 @@ mod tests {
                 message: "world".to_string(),
                 conversation_id: None,
                 is_first: true,
+                agent: AgentId::FORGE,
             },
         ]);
         assert_eq!(actual, expected);
