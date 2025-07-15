@@ -78,11 +78,9 @@ fn text_to_lines(text: &str, available_width: usize) -> Vec<String> {
     let mut current_line = String::new();
     for ch in text.chars() {
         if ch == '\n' {
-            lines.push(current_line.clone());
-            current_line.clear();
+            lines.push(std::mem::take(&mut current_line));
         } else if current_line.len() >= available_width && !current_line.is_empty() {
-            lines.push(current_line.clone());
-            current_line.clear();
+            lines.push(std::mem::take(&mut current_line));
             current_line.push(ch);
         } else {
             current_line.push(ch);
