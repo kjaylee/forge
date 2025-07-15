@@ -80,6 +80,10 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             state.chat_stream = Some(cancel_id);
             Command::Empty
         }
+        Action::Cancelled(_cancel_id) => {
+            // Handle cancellation - for now just return Empty command
+            Command::Empty
+        }
     }
 }
 
