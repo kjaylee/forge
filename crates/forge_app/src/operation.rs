@@ -459,7 +459,6 @@ mod tests {
     use forge_domain::{FSRead, TaskList, ToolValue};
 
     use super::*;
-    use crate::fmt::content::FormatContent;
     use crate::{Match, MatchResult};
 
     fn fixture_environment() -> Environment {
@@ -1103,7 +1102,7 @@ mod tests {
                 task: "New task from append".to_string(),
                 category: None,
                 note: None,
-                files: Vec::new(),
+                files: None,
             }),
             before: before_task_list,
             after: after_task_list,
@@ -1560,7 +1559,7 @@ mod tests {
                     "Implement user authentication. Files: src/auth.rs, tests/auth_test.rs"
                         .to_string(),
                 ),
-                files: Vec::new(),
+                files: None,
             }),
             before: before_task_list,
             after: after_task_list,
