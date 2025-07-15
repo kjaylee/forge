@@ -89,6 +89,11 @@ impl FileBackedHistory {
         self.items.len()
     }
 
+    /// Get all items for searching (most recent first)
+    pub fn get_all_items(&self) -> Vec<&HistoryItem> {
+        self.items.iter().rev().collect()
+    }
+
     /// Load history from file
     fn sync_from_file(&mut self) -> anyhow::Result<()> {
         let mut content = String::new();

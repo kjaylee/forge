@@ -26,10 +26,7 @@ impl StatefulWidget for HistoryWidget {
         }
 
         let current_text = state.editor.get_text();
-        if let Some(suggestion) = state
-            .history
-            .get_autocomplete_suggestion(&current_text)
-        {
+        if let Some(suggestion) = state.history.get_autocomplete_suggestion(&current_text) {
             // Only show if suggestion is longer than current text
             if suggestion.len() > current_text.len() {
                 let remaining_text = &suggestion[current_text.len()..];

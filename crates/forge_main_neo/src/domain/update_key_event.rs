@@ -31,16 +31,73 @@ fn handle_command_history_navigation(
         }
         KeyCode::Tab | KeyCode::Right => {
             let current_text = state.editor.get_text();
-            if let Some(suggestion) = state
-                .history
-                .get_autocomplete_suggestion(&current_text)
-            {
+            if let Some(suggestion) = state.history.get_autocomplete_suggestion(&current_text) {
                 state.editor.set_text_insert_mode(suggestion);
             }
         }
         _ => {}
     }
     Command::Empty
+}
+
+fn handle_history_search(
+    state: &mut State,
+    key_event: ratatui::crossterm::event::KeyEvent,
+) -> Command {
+    if !state.history_search.is_active {
+        return Command::Empty;
+    }
+
+    match key_event.code {
+        KeyCode::Esc => {
+            // Exit history search
+            state.history_search.exit_search();
+            Command::Empty
+        }
+        KeyCode::Enter => {
+            // Select current match and exit search
+            if let Some(current_match) = state.history_search.current_match() {
+                state.editor.set_text_insert_mode(current_match);
+                state.history_search.exit_search();
+            }
+            Command::Empty
+        }
+        KeyCode::Char('r') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+            // Ctrl+R again - go to next match
+            state.history_search.next_match();
+            Command::Empty
+        }
+        KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+            // Ctrl+S - go to previous match
+            state.history_search.prev_match();
+            Command::Empty
+        }
+        KeyCode::Up => {
+            // Previous match
+            state.history_search.prev_match();
+            Command::Empty
+        }
+        KeyCode::Down => {
+            // Next match
+            state.history_search.next_match();
+            Command::Empty
+        }
+        KeyCode::Backspace => {
+            // Remove last character from query and update search
+            if !state.history_search.query.is_empty() {
+                state.history_search.query.pop();
+                state.history_search.update_search(&state.history);
+            }
+            Command::Empty
+        }
+        KeyCode::Char(c) => {
+            // Add character to query and update search
+            state.history_search.query.push(c);
+            state.history_search.update_search(&state.history);
+            Command::Empty
+        }
+        _ => Command::Empty,
+    }
 }
 
 fn handle_spotlight_input_change(state: &mut State) {
@@ -289,6 +346,23 @@ pub fn handle_key_event(
         return Command::InterruptStream;
     }
 
+    // Handle Ctrl+R for history search
+    if key_event.code == KeyCode::Char('r') && key_event.modifiers.contains(KeyModifiers::CONTROL) {
+        if !state.history_search.is_active {
+            // Start history search
+            state.history_search.is_active = true;
+            state.history_search.query = String::new();
+            state.history_search.current_match_index = 0;
+            state.history_search.matches = Vec::new();
+        }
+        return Command::Empty;
+    }
+
+    // Handle history search events if active
+    if state.history_search.is_active {
+        return handle_history_search(state, key_event);
+    }
+
     if state.spotlight.is_visible {
         // When spotlight is visible, route events to spotlight editor
         let cmd = handle_spotlight_toggle(state, key_event, state.editor.mode);
@@ -503,6 +577,93 @@ mod tests {
 
         assert_eq!(actual_command, expected_command);
         assert!(!state.spotlight.is_visible);
+    }
+    #[test]
+    fn test_history_search_functionality() {
+        let mut fixture = State::default();
+        
+        // Create a fresh history to avoid interference from other tests
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        fixture.history = History::with_file(10, temp_file.path().to_path_buf()).unwrap();
+        
+        // Add some commands to history
+        fixture.history.add_command("git status".to_string()).unwrap();
+        fixture.history.add_command("ls -la".to_string()).unwrap();
+        fixture.history.add_command("git commit -m 'test'".to_string()).unwrap();
+        fixture.history.add_command("cargo build".to_string()).unwrap();
+        
+        // Start history search
+        fixture.history_search.is_active = true;
+        fixture.history_search.query = "git".to_string();
+        fixture.history_search.update_search(&fixture.history);
+        
+        let actual_matches = fixture.history_search.matches.len();
+        let actual_current_match = fixture.history_search.current_match();
+        
+        let expected_matches = 2; // "git status" and "git commit -m 'test'"
+        let expected_current_match = Some("git commit -m 'test'".to_string()); // Most recent match
+        
+        assert_eq!(actual_matches, expected_matches);
+        assert_eq!(actual_current_match, expected_current_match);
+    }
+
+    #[test]
+    fn test_history_search_navigation() {
+        let mut fixture = State::default();
+        
+        // Add some commands to history
+        fixture.history.add_command("git status".to_string()).unwrap();
+        fixture.history.add_command("git add .".to_string()).unwrap();
+        fixture.history.add_command("git commit".to_string()).unwrap();
+        
+        // Start history search
+        fixture.history_search.is_active = true;
+        fixture.history_search.query = "git".to_string();
+        fixture.history_search.update_search(&fixture.history);
+        
+        // Test navigation
+        let actual_first = fixture.history_search.current_match();
+        fixture.history_search.next_match();
+        let actual_second = fixture.history_search.current_match();
+        fixture.history_search.next_match();
+        let actual_third = fixture.history_search.current_match();
+        
+        let expected_first = Some("git commit".to_string()); // Most recent
+        let expected_second = Some("git add .".to_string());
+        let expected_third = Some("git status".to_string()); // Oldest, wraps around
+        
+        assert_eq!(actual_first, expected_first);
+        assert_eq!(actual_second, expected_second);
+        assert_eq!(actual_third, expected_third);
+    }
+    #[test]
+    fn test_ctrl_r_starts_history_search() {
+        let mut fixture = State::default();
+        let key_event = KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL);
+
+        let actual_command = handle_key_event(&mut fixture, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert!(fixture.history_search.is_active);
+        assert_eq!(fixture.history_search.query, "");
+        assert_eq!(fixture.history_search.current_match_index, 0);
+        assert_eq!(fixture.history_search.matches.len(), 0);
+    }
+
+    #[test]
+    fn test_escape_exits_history_search() {
+        let mut fixture = State::default();
+        fixture.history_search.is_active = true;
+        fixture.history_search.query = "test".to_string();
+        let key_event = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
+
+        let actual_command = handle_key_event(&mut fixture, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert!(!fixture.history_search.is_active);
+        assert_eq!(fixture.history_search.query, "");
     }
 
     #[test]

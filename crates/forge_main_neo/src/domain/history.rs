@@ -4,6 +4,86 @@ use anyhow::Result;
 
 use crate::history::{FileBackedHistory, HistoryItem};
 
+/// History search state for recursive search functionality
+#[derive(Debug, Default, Clone)]
+pub struct HistorySearchState {
+    /// Whether search mode is active
+    pub is_active: bool,
+    /// Current search query
+    pub query: String,
+    /// Current match index in search results
+    pub current_match_index: usize,
+    /// Cached search results
+    pub matches: Vec<String>,
+}
+
+impl HistorySearchState {
+    /// Enter search mode with an optional initial query
+    pub fn enter_search(&mut self, initial_query: Option<String>) {
+        self.is_active = true;
+        self.query = initial_query.unwrap_or_default();
+        self.current_match_index = 0;
+        self.matches.clear();
+    }
+
+    /// Exit search mode and reset state
+    pub fn exit_search(&mut self) {
+        self.is_active = false;
+        self.query.clear();
+        self.current_match_index = 0;
+        self.matches.clear();
+    }
+
+    /// Update search query and reset match index
+    pub fn update_query(&mut self, query: String) {
+        self.query = query;
+        self.current_match_index = 0;
+        self.matches.clear();
+    }
+
+    /// Navigate to next match
+    pub fn next_match(&mut self) {
+        if !self.matches.is_empty() && self.current_match_index < self.matches.len() - 1 {
+            self.current_match_index += 1;
+        }
+    }
+
+    /// Navigate to previous match
+    pub fn prev_match(&mut self) {
+        if self.current_match_index > 0 {
+            self.current_match_index -= 1;
+        }
+    }
+
+    /// Get current match if available
+    pub fn current_match(&self) -> Option<String> {
+        self.matches.get(self.current_match_index).cloned()
+    }
+
+    /// Update search results based on current query
+    pub fn update_search(&mut self, history: &History) {
+        self.matches = history.search(&self.query);
+        self.current_match_index = 0;
+    }
+
+    /// Get search status string for display
+    pub fn status_text(&self) -> String {
+        if self.matches.is_empty() {
+            if self.query.is_empty() {
+                "reverse-i-search: ".to_string()
+            } else {
+                format!("failing reverse-i-search: {}", self.query)
+            }
+        } else {
+            format!(
+                "reverse-i-search: {} [{}/{}]",
+                self.query,
+                self.current_match_index + 1,
+                self.matches.len()
+            )
+        }
+    }
+}
 /// Command history wrapper around our simplified FileBackedHistory with
 /// navigation tracking
 #[derive(Debug)]
@@ -114,5 +194,34 @@ impl History {
     /// Flush history to file
     pub fn flush(&mut self) -> Result<()> {
         self.history.sync().map_err(|e| anyhow::anyhow!(e))
+    }
+
+    /// Search history with a query and update search state
+    pub fn search(&self, query: &str) -> Vec<String> {
+        if query.trim().is_empty() {
+            return Vec::new();
+        }
+
+        // Search for commands that contain the query (not just prefix)
+        self.history
+            .get_all_items()
+            .iter()
+            .filter(|item| item.item.contains(query))
+            .map(|item| item.item.clone())
+            .collect()
+    }
+
+    /// Alias for search method to match key handler expectations
+    pub fn search_history(&self, query: &str) -> Vec<String> {
+        self.search(query)
+    }
+
+    /// Get all commands for search (most recent first)
+    pub fn get_all_commands(&self) -> Vec<String> {
+        self.history
+            .get_all_items()
+            .iter()
+            .map(|item| item.item.clone())
+            .collect()
     }
 }
