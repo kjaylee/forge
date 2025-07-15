@@ -130,7 +130,7 @@ impl<
             }
             Tools::ForgeToolTaskAppend(input) => {
                 let before = tasks.clone();
-                tasks.append(&input.task);
+                tasks.append(input.0.clone());
                 Operation::TaskAppend { _input: input, before, after: tasks.clone() }
             }
             Tools::ForgeToolTaskAppendMultiple(input) => {

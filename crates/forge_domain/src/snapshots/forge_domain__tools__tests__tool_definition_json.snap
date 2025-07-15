@@ -1,6 +1,7 @@
 ---
 source: crates/forge_domain/src/tools.rs
 expression: tools
+snapshot_kind: text
 ---
 {
   "name": "forge_tool_fs_read",
@@ -356,8 +357,22 @@ expression: tools
       "task"
     ],
     "properties": {
-      "explanation": {
-        "description": "One sentence explanation as to why this specific tool is being used, and how it contributes to the goal.",
+      "category": {
+        "description": "Optional category to group related tasks",
+        "default": null,
+        "type": "string",
+        "nullable": true
+      },
+      "files": {
+        "description": "List of files to refer",
+        "default": [],
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "note": {
+        "description": "Detailed description of changes needed, with examples and optional file references",
         "default": null,
         "type": "string",
         "nullable": true
@@ -376,9 +391,6 @@ expression: tools
     "title": "TaskListAppendMultiple",
     "description": "Add multiple new tasks to the end of the task list. Tasks are stored in conversation state and persist across agent interactions. Use this tool to add several work items at once during development sessions. Task IDs are auto-generated integers starting from 1.",
     "type": "object",
-    "required": [
-      "tasks"
-    ],
     "properties": {
       "explanation": {
         "description": "One sentence explanation as to why this specific tool is being used, and how it contributes to the goal.",
@@ -387,10 +399,41 @@ expression: tools
         "nullable": true
       },
       "tasks": {
-        "description": "The list of task descriptions to add",
+        "description": "The list of tasks with detailed information to add",
+        "default": [],
         "type": "array",
         "items": {
-          "type": "string"
+          "description": "Add a new task to the end of the task list. Tasks are stored in conversation state and persist across agent interactions. Use this tool to add individual work items that need to be tracked during development sessions. Task IDs are auto-generated integers starting from 1.",
+          "type": "object",
+          "required": [
+            "task"
+          ],
+          "properties": {
+            "category": {
+              "description": "Optional category to group related tasks",
+              "default": null,
+              "type": "string",
+              "nullable": true
+            },
+            "files": {
+              "description": "List of files to refer",
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "note": {
+              "description": "Detailed description of changes needed, with examples and optional file references",
+              "default": null,
+              "type": "string",
+              "nullable": true
+            },
+            "task": {
+              "description": "The task description to add to the list",
+              "type": "string"
+            }
+          }
         }
       }
     }

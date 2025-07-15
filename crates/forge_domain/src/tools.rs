@@ -395,14 +395,43 @@ pub struct AttemptCompletion {
 /// state and persist across agent interactions. Use this tool to add individual
 /// work items that need to be tracked during development sessions. Task IDs are
 /// auto-generated integers starting from 1.
+#[derive(Default, Debug, Clone, JsonSchema, Serialize, Deserialize, ToolDescription, PartialEq)]
+pub struct TaskListAppend(pub TaskInput);
+
+/// Add a new task to the end of the task list. Tasks are stored in conversation
+/// state and persist across agent interactions. Use this tool to add individual
+/// work items that need to be tracked during development sessions. Task IDs are
+/// auto-generated integers starting from 1.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
-pub struct TaskListAppend {
+pub struct TaskInput {
     /// The task description to add to the list
     pub task: String,
-    /// One sentence explanation as to why this specific tool is being used, and
-    /// how it contributes to the goal.
+    /// Optional category to group related tasks
     #[serde(default)]
-    pub explanation: Option<String>,
+    pub category: Option<String>,
+    /// Detailed description of changes needed, with examples
+    #[serde(default)]
+    pub note: Option<String>,
+    /// List of files to refer
+    #[serde(default)]
+    pub files: Option<Vec<String>>,
+}
+
+impl From<&str> for TaskInput {
+    fn from(task: &str) -> Self {
+        TaskInput {
+            task: task.to_string(),
+            category: None,
+            note: None,
+            files: None,
+        }
+    }
+}
+
+impl From<String> for TaskInput {
+    fn from(task: String) -> Self {
+        TaskInput { task, category: None, note: None, files: None }
+    }
 }
 
 /// Add multiple new tasks to the end of the task list. Tasks are stored in
@@ -411,8 +440,9 @@ pub struct TaskListAppend {
 /// auto-generated integers starting from 1.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
 pub struct TaskListAppendMultiple {
-    /// The list of task descriptions to add
-    pub tasks: Vec<String>,
+    /// The list of tasks with detailed information to add
+    #[serde(default)]
+    pub tasks: Vec<TaskInput>,
     /// One sentence explanation as to why this specific tool is being used, and
     /// how it contributes to the goal.
     #[serde(default)]
@@ -587,6 +617,7 @@ impl ToolDescription for Tools {
         }
     }
 }
+
 lazy_static::lazy_static! {
     // Cache of all tool names
     static ref FORGE_TOOLS: HashSet<ToolName> = Tools::iter()

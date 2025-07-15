@@ -1099,10 +1099,12 @@ mod tests {
         after_task_list.append("New task from append");
 
         let fixture = Operation::TaskAppend {
-            _input: forge_domain::TaskListAppend {
+            _input: forge_domain::TaskListAppend(forge_domain::TaskInput {
                 task: "New task from append".to_string(),
-                explanation: Some("Append new task".to_string()),
-            },
+                category: None,
+                note: None,
+                files: Vec::new(),
+            }),
             before: before_task_list,
             after: after_task_list,
         };
@@ -1528,6 +1530,41 @@ mod tests {
     #[test]
     fn test_follow_up_no_question() {
         let fixture = Operation::FollowUp { output: None };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_task_list_append_with_category_and_description() {
+        let mut before_task_list = TaskList::new();
+        before_task_list.append("Existing task");
+
+        let mut after_task_list = before_task_list.clone();
+        after_task_list.append_with_details(
+            "New task with details",
+            Some("Development".to_string()),
+            Some(
+                "Implement user authentication. Files: src/auth.rs, tests/auth_test.rs".to_string(),
+            ),
+        );
+
+        let fixture = Operation::TaskAppend {
+            _input: forge_domain::TaskListAppend(forge_domain::TaskInput {
+                task: "New task with details".to_string(),
+                category: Some("Development".to_string()),
+                note: Some(
+                    "Implement user authentication. Files: src/auth.rs, tests/auth_test.rs"
+                        .to_string(),
+                ),
+                files: Vec::new(),
+            }),
+            before: before_task_list,
+            after: after_task_list,
+        };
 
         let env = fixture_environment();
 
