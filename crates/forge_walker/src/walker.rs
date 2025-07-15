@@ -141,7 +141,7 @@ impl Walker {
                 }
                 match entry {
                     Ok(entry) => {
-                        map.entry(task_id).or_insert_with(Vec::new).push(entry);
+                        map.entry(task_id).or_default().push(entry);
                         WalkState::Continue
                     }
                     Err(_) => WalkState::Continue,
