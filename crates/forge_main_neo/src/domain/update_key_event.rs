@@ -9,6 +9,40 @@ use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 use crate::domain::spotlight::SpotlightState;
 use crate::domain::{Command, EditorStateExt, State};
 
+fn handle_command_history_navigation(
+    state: &mut State,
+    key_event: ratatui::crossterm::event::KeyEvent,
+) -> Command {
+    // Only handle history navigation in Insert mode when spotlight is not visible
+    if state.spotlight.is_visible || state.editor.mode != EditorMode::Insert {
+        return Command::Empty;
+    }
+
+    match key_event.code {
+        KeyCode::Up => {
+            if let Some(command) = state.command_history.navigate_up() {
+                state.editor.set_text_insert_mode(command);
+            }
+        }
+        KeyCode::Down => {
+            if let Some(command) = state.command_history.navigate_down() {
+                state.editor.set_text_insert_mode(command);
+            }
+        }
+        KeyCode::Tab | KeyCode::Right => {
+            let current_text = state.editor.get_text();
+            if let Some(suggestion) = state
+                .command_history
+                .get_autocomplete_suggestion(&current_text)
+            {
+                state.editor.set_text_insert_mode(suggestion);
+            }
+        }
+        _ => {}
+    }
+    Command::Empty
+}
+
 fn handle_spotlight_input_change(state: &mut State) {
     // Reset selection index when input changes to ensure it's within bounds
     // of the filtered results
@@ -144,6 +178,8 @@ fn handle_prompt_submit(
         if message.trim().is_empty() {
             Command::Empty
         } else {
+            // Add command to history before processing
+            state.command_history.add_command(message.clone());
             state.add_user_message(message.clone());
             state.show_spinner = true;
             let chat_command = Command::ChatMessage {
@@ -224,6 +260,22 @@ fn handle_editor_default(
     Command::Empty
 }
 
+fn handle_editor_default_with_history_reset(
+    state: &mut State,
+    key_event: ratatui::crossterm::event::KeyEvent,
+) -> Command {
+    // Reset history navigation when user types (not arrow keys or special keys)
+    if matches!(
+        key_event.code,
+        KeyCode::Char(_) | KeyCode::Backspace | KeyCode::Delete
+    ) {
+        state.command_history.reset_navigation();
+    }
+
+    EditorEventHandler::default().on_key_event(key_event, &mut state.editor);
+    Command::Empty
+}
+
 pub fn handle_key_event(
     state: &mut State,
     key_event: ratatui::crossterm::event::KeyEvent,
@@ -284,7 +336,7 @@ pub fn handle_key_event(
 
         // Only call editor default and spotlight show if no navigation was handled
         if !line_nav_handled && !word_nav_handled {
-            handle_editor_default(&mut state.editor, key_event)
+            handle_editor_default_with_history_reset(state, key_event)
                 .and(handle_spotlight_show(state, key_event))
                 .and(handle_spotlight_toggle(
                     state,
@@ -292,6 +344,7 @@ pub fn handle_key_event(
                     original_editor_mode,
                 ))
                 .and(handle_prompt_submit(state, key_event))
+                .and(handle_command_history_navigation(state, key_event))
         } else {
             Command::Empty
         }

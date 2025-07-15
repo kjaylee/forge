@@ -1,9 +1,9 @@
 use edtui::{EditorTheme, EditorView};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style, Stylize};
-use ratatui::widgets::{Block, Padding, StatefulWidget, Widget};
+use ratatui::widgets::{Block, Padding, Paragraph, StatefulWidget, Widget};
 
-use crate::domain::State;
+use crate::domain::{EditorStateExt, State};
 use crate::widgets::message_list::MessageList;
 use crate::widgets::spotlight::SpotlightWidget;
 use crate::widgets::status_bar::StatusBar;
@@ -63,6 +63,43 @@ impl StatefulWidget for ChatWidget {
             )
             .wrap(true)
             .render(user_block.inner(user_area), buf);
+
+        // Render autocomplete suggestion overlay if available
+        if state.editor.mode == edtui::EditorMode::Insert && !state.spotlight.is_visible {
+            let current_text = state.editor.get_text();
+            if let Some(suggestion) = state
+                .command_history
+                .get_autocomplete_suggestion(&current_text)
+            {
+                // Calculate position for autocomplete overlay
+                let editor_area = user_block.inner(user_area);
+                let cursor_pos = state.editor.cursor;
+
+                // Only show if suggestion is longer than current text
+                if suggestion.len() > current_text.len() {
+                    let remaining_text = &suggestion[current_text.len()..];
+
+                    // Create a paragraph with the suggestion text
+                    let suggestion_paragraph = Paragraph::new(remaining_text)
+                        .style(Style::default().fg(Color::DarkGray))
+                        .wrap(ratatui::widgets::Wrap { trim: false });
+
+                    // Calculate the area for the suggestion starting from cursor position
+                    let suggestion_rect = ratatui::layout::Rect {
+                        x: editor_area.x + cursor_pos.col as u16,
+                        y: editor_area.y + cursor_pos.row as u16,
+                        width: editor_area.width.saturating_sub(cursor_pos.col as u16),
+                        height: editor_area.height.saturating_sub(cursor_pos.row as u16),
+                    };
+
+                    // Ensure we don't render outside the editor area
+                    let suggestion_area = editor_area.intersection(suggestion_rect);
+                    if suggestion_area.width > 0 && suggestion_area.height > 0 {
+                        suggestion_paragraph.render(suggestion_area, buf);
+                    }
+                }
+            }
+        }
 
         // Render blocks
         message_block.render(messages_area, buf);
