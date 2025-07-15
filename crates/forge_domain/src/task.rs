@@ -149,8 +149,6 @@ impl TaskList {
         self.tasks.iter().cloned().collect::<Vec<_>>()
     }
 
-
-
     pub fn mark_done(&mut self, task_id: i32) -> Option<Task> {
         let task_index = self.tasks.iter().position(|t| t.id == task_id)?;
         self.tasks[task_index].mark_done();
