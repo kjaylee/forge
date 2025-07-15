@@ -139,7 +139,9 @@ fn handle_prompt_submit(
 ) -> Command {
     use ratatui::crossterm::event::KeyCode;
 
-    if key_event.code == KeyCode::Enter && state.editor.mode == EditorMode::Normal {
+    if key_event.code == KeyCode::Enter
+        && (state.editor.mode == EditorMode::Normal || state.editor.mode == EditorMode::Insert)
+    {
         let message = state.take_lines().join("\n");
         if message.trim().is_empty() {
             Command::Empty
