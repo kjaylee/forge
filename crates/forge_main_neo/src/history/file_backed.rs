@@ -26,7 +26,11 @@ impl FileBackedHistory {
             .create(true)
             .append(true)
             .open(&file_path)?;
-        let mut history = Self { items: VecDeque::with_capacity(capacity), capacity, file: Arc::new(file) };
+        let mut history = Self {
+            items: VecDeque::with_capacity(capacity),
+            capacity,
+            file: Arc::new(file),
+        };
         // Load existing history from file if it exists
         history.sync_from_file()?;
         Ok(history)
@@ -105,7 +109,7 @@ impl FileBackedHistory {
             .collect::<Vec<_>>()
             .join("\n");
 
-        self.file.write(format!("{}\n", content).as_bytes())?;
+        self.file.write(format!("{content}\n").as_bytes())?;
         Ok(())
     }
 }
