@@ -1234,6 +1234,7 @@ dependencies = [
  "open",
  "pretty_assertions",
  "reedline",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yml",

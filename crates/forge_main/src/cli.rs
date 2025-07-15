@@ -63,6 +63,7 @@ pub struct Cli {
 #[derive(Subcommand, Debug, Clone)]
 pub enum TopLevelCommand {
     Mcp(McpCommandGroup),
+    Check(CheckCommand),
 }
 
 /// Group of MCP-related commands
@@ -166,4 +167,28 @@ impl From<Scope> for forge_domain::Scope {
 pub enum Transport {
     Stdio,
     Sse,
+}
+/// Check command for validating workflow files
+#[derive(Parser, Debug, Clone)]
+pub struct CheckCommand {
+    /// Path to the workflow YAML file to validate
+    #[arg(short = 'w', long = "workflow")]
+    pub workflow: PathBuf,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_check_command_creation() {
+        let fixture = CheckCommand { workflow: PathBuf::from("test.yaml") };
+        let actual = fixture.workflow.to_string_lossy();
+        let expected = "test.yaml";
+        assert_eq!(actual, expected);
+    }
 }
