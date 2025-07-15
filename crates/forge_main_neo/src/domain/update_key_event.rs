@@ -347,7 +347,10 @@ pub fn handle_key_event(
     }
 
     // Handle Ctrl+R for history search
-    if key_event.code == KeyCode::Char('r') && key_event.modifiers.contains(KeyModifiers::CONTROL) && state.editor.mode == EditorMode::Insert {
+    if key_event.code == KeyCode::Char('r')
+        && key_event.modifiers.contains(KeyModifiers::CONTROL)
+        && state.editor.mode == EditorMode::Insert
+    {
         if !state.history_search.is_active {
             // Start history search
             state.history_search.is_active = true;
@@ -430,8 +433,8 @@ mod tests {
     use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     use super::*;
-    use crate::domain::State;
     use crate::domain::slash_command::SlashCommand;
+    use crate::domain::{History, State};
 
     fn create_test_state_with_text() -> State {
         let mut state = State::default();
@@ -580,28 +583,37 @@ mod tests {
     #[test]
     fn test_history_search_functionality() {
         let mut fixture = State::default();
-        
+
         // Create a fresh history to avoid interference from other tests
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         fixture.history = History::with_file(10, temp_file.path().to_path_buf()).unwrap();
-        
+
         // Add some commands to history
-        fixture.history.add_command("git status".to_string()).unwrap();
+        fixture
+            .history
+            .add_command("git status".to_string())
+            .unwrap();
         fixture.history.add_command("ls -la".to_string()).unwrap();
-        fixture.history.add_command("git commit -m 'test'".to_string()).unwrap();
-        fixture.history.add_command("cargo build".to_string()).unwrap();
-        
+        fixture
+            .history
+            .add_command("git commit -m 'test'".to_string())
+            .unwrap();
+        fixture
+            .history
+            .add_command("cargo build".to_string())
+            .unwrap();
+
         // Start history search
         fixture.history_search.is_active = true;
         fixture.history_search.query = "git".to_string();
         fixture.history_search.update_search(&fixture.history);
-        
-        let actual_matches = fixture.history_search.matches.len();
+
+        let actual_matches = fixture.history_search.navigation.matches.len();
         let actual_current_match = fixture.history_search.current_match();
-        
+
         let expected_matches = 2; // "git status" and "git commit -m 'test'"
         let expected_current_match = Some("git commit -m 'test'".to_string()); // Most recent match
-        
+
         assert_eq!(actual_matches, expected_matches);
         assert_eq!(actual_current_match, expected_current_match);
     }
@@ -609,28 +621,37 @@ mod tests {
     #[test]
     fn test_history_search_navigation() {
         let mut fixture = State::default();
-        
+
         // Add some commands to history
-        fixture.history.add_command("git status".to_string()).unwrap();
-        fixture.history.add_command("git add .".to_string()).unwrap();
-        fixture.history.add_command("git commit".to_string()).unwrap();
-        
+        fixture
+            .history
+            .add_command("git status".to_string())
+            .unwrap();
+        fixture
+            .history
+            .add_command("git add .".to_string())
+            .unwrap();
+        fixture
+            .history
+            .add_command("git commit".to_string())
+            .unwrap();
+
         // Start history search
         fixture.history_search.is_active = true;
         fixture.history_search.query = "git".to_string();
         fixture.history_search.update_search(&fixture.history);
-        
+
         // Test navigation
         let actual_first = fixture.history_search.current_match();
         fixture.history_search.next_match();
         let actual_second = fixture.history_search.current_match();
         fixture.history_search.next_match();
         let actual_third = fixture.history_search.current_match();
-        
+
         let expected_first = Some("git commit".to_string()); // Most recent
         let expected_second = Some("git add .".to_string());
         let expected_third = Some("git status".to_string()); // Oldest, wraps around
-        
+
         assert_eq!(actual_first, expected_first);
         assert_eq!(actual_second, expected_second);
         assert_eq!(actual_third, expected_third);
@@ -638,6 +659,7 @@ mod tests {
     #[test]
     fn test_ctrl_r_starts_history_search() {
         let mut fixture = State::default();
+        fixture.editor.mode = EditorMode::Insert; // Set to Insert mode for Ctrl+R to work
         let key_event = KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL);
 
         let actual_command = handle_key_event(&mut fixture, key_event);
@@ -646,8 +668,8 @@ mod tests {
         assert_eq!(actual_command, expected_command);
         assert!(fixture.history_search.is_active);
         assert_eq!(fixture.history_search.query, "");
-        assert_eq!(fixture.history_search.current_match_index, 0);
-        assert_eq!(fixture.history_search.matches.len(), 0);
+        assert_eq!(fixture.history_search.navigation.current_index, 0);
+        assert_eq!(fixture.history_search.navigation.matches.len(), 0);
     }
 
     #[test]

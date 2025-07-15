@@ -11,11 +11,12 @@ pub struct HistorySearchState {
     pub is_active: bool,
     /// Current search query
     pub query: String,
-    /// navigation state for query
+    /// Navigation state for query
     pub navigation: NavigationState<HistoryItem>,
-
 }
 
+/// Generic navigation state for handling collections with current index
+/// tracking
 #[derive(Debug, Clone)]
 pub struct NavigationState<T> {
     pub matches: Vec<T>,
@@ -38,7 +39,7 @@ impl<T> NavigationState<T> {
     }
 
     pub fn next(&mut self) -> Option<&T> {
-        if self.current_index < self.matches.len() - 1 {
+        if self.current_index < self.matches.len().saturating_sub(1) {
             self.current_index += 1;
             self.current()
         } else {
@@ -120,18 +121,18 @@ impl HistorySearchState {
         }
     }
 }
-/// Command history wrapper around our simplified FileBackedHistory with
-/// navigation tracking
+
+/// Command history wrapper around file-backed history with navigation tracking
 #[derive(Debug)]
 pub struct History {
-    /// Our simplified file-backed history implementation
+    /// File-backed history implementation
     history: FileBackedHistory,
     /// Navigation state for history items
     navigation: NavigationState<HistoryItem>,
 }
 
 impl History {
-    /// Create a new CommandHistory with a specified max size and file path
+    /// Create a new History with a specified max size and file path
     pub fn with_file(max_size: usize, path: PathBuf) -> Result<Self> {
         let history = FileBackedHistory::with_file(max_size, path)?;
         Ok(Self { history, navigation: NavigationState::default() })
@@ -157,15 +158,14 @@ impl History {
     /// Get autocomplete suggestion for current input
     pub fn prefix_search(&mut self, current_input: &str) -> Option<String> {
         if current_input.trim().is_empty() {
-            return None; // No input to search against
+            return None;
         }
 
-        // Search for commands that start with current input
         let results = self
             .history
             .search_prefix(current_input)
             .into_iter()
-            .map(|item| item.clone())
+            .cloned()
             .collect::<Vec<_>>();
 
         self.navigation = NavigationState::new(results.clone());
@@ -192,24 +192,18 @@ impl History {
         self.history.sync().map_err(|e| anyhow::anyhow!(e))
     }
 
-    /// Search history with a query and update search state
+    /// Search history with a query
     pub fn search(&self, query: &str) -> Vec<HistoryItem> {
         if query.trim().is_empty() {
             return Vec::new();
         }
 
-        // Search for commands that contain the query (not just prefix)
         self.history
             .get_all_items()
             .into_iter()
             .filter(|item| item.item.contains(query))
-            .map(|item| item.clone())
-            .collect::<Vec<HistoryItem>>()
-    }
-
-    /// Alias for search method to match key handler expectations
-    pub fn search_history(&self, query: &str) -> Vec<HistoryItem> {
-        self.search(query)
+            .cloned()
+            .collect()
     }
 
     /// Get all commands for search (most recent first)

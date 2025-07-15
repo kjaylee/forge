@@ -4,8 +4,7 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Padding, StatefulWidget, Widget};
 
-use crate::domain::EditorStateExt;
-use crate::domain::State;
+use crate::domain::{EditorStateExt, State};
 use crate::widgets::history::HistoryWidget;
 use crate::widgets::message_list::MessageList;
 use crate::widgets::spotlight::SpotlightWidget;
