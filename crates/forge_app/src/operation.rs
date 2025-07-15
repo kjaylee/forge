@@ -1543,13 +1543,14 @@ mod tests {
         before_task_list.append("Existing task");
 
         let mut after_task_list = before_task_list.clone();
-        after_task_list.append_with_details(
-            "New task with details",
-            Some("Development".to_string()),
-            Some(
+        after_task_list.append(forge_domain::TaskInput {
+            task: "New task with details".to_string(),
+            category: Some("Development".to_string()),
+            note: Some(
                 "Implement user authentication. Files: src/auth.rs, tests/auth_test.rs".to_string(),
             ),
-        );
+            files: None,
+        });
 
         let fixture = Operation::TaskAppend {
             _input: forge_domain::TaskListAppend(forge_domain::TaskInput {

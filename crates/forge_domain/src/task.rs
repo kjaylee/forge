@@ -19,13 +19,17 @@ pub enum Status {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Setters)]
 #[setters(into, strip_option)]
 pub struct Task {
+    /// A monotonously increasing ID
     pub id: i32,
 
+    /// The task instructions to be followed
     pub task: String,
 
+    /// Status of the task
     pub status: Status,
     /// Optional category to group related tasks
     pub category: Option<String>,
+
     /// Detailed description of changes needed, with examples and optional file
     /// references
     pub note: Option<String>,
@@ -145,15 +149,7 @@ impl TaskList {
         self.tasks.iter().cloned().collect::<Vec<_>>()
     }
 
-    pub fn append_with_details(
-        &mut self,
-        task: impl Into<String>,
-        category: Option<String>,
-        description: Option<String>,
-    ) -> Task {
-        let task_input = TaskInput { task: task.into(), category, note: description, files: None };
-        self.append(task_input)
-    }
+
 
     pub fn mark_done(&mut self, task_id: i32) -> Option<Task> {
         let task_index = self.tasks.iter().position(|t| t.id == task_id)?;
@@ -535,11 +531,12 @@ fn test_task_creation_with_setters() {
 fn test_task_list_append_with_details() {
     let mut task_list = TaskList::new();
 
-    let task = task_list.append_with_details(
-            "Implement feature X",
-            Some("Feature".to_string()),
-            Some("Add new API endpoint for user preferences. Example: POST /api/v1/users/{id}/preferences. Files: src/handlers/user.rs, src/models/preference.rs".to_string())
-        );
+    let task = task_list.append(TaskInput {
+        task: "Implement feature X".to_string(),
+        category: Some("Feature".to_string()),
+        note: Some("Add new API endpoint for user preferences. Example: POST /api/v1/users/{id}/preferences. Files: src/handlers/user.rs, src/models/preference.rs".to_string()),
+        files: None,
+    });
 
     assert_eq!(task.id, 1);
     assert_eq!(task.task, "Implement feature X");
