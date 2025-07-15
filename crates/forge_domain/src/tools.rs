@@ -672,6 +672,13 @@ impl Tools {
         .iter()
         .any(|v| v.to_string().to_case(Case::Snake).eq(tool_name.as_str()))
     }
+
+    pub fn is_task_update(tool_name: &ToolName) -> bool {
+        // Tools that convey that the execution should yield
+        [ToolsDiscriminants::ForgeToolTaskUpdate]
+            .iter()
+            .any(|v| v.to_string().to_case(Case::Snake).eq(tool_name.as_str()))
+    }
 }
 
 impl ToolsDiscriminants {

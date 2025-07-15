@@ -1,12 +1,34 @@
 # yaml-language-server: $schema=./forge.schema.json
 agents:
-- id: forge
+- id: forge-beta
+  title: A beta version of the forge that will eventually be shipped to the users
+  description: |-
+    Hands-on implementation agent that executes software development tasks through a structured 4-phase approach: task analysis, solution strategy, implementation, and quality assurance. Makes actual changes to codebases, runs shell commands, creates/modifies files, installs dependencies, and performs concrete development work. Use for building features, fixing bugs, refactoring code, or any task requiring actual modifications. Do not use for analysis-only tasks or when you want to explore options without making changes. Always validates changes through compilation and testing.
+  model: *advanced_model
+  system_prompt: |-
+    {{> forge-system-prompt-engineer-act.hbs }}
+  user_prompt: |-
+    {{#if (eq event.name 'forge/user_task_update')}}
+    <feedback>{{event.value}}</feedback>
+    {{else}}
+    <task>{{event.value}}</task>
+    {{/if}}
+  reasoning:
+    enabled: true
   tools:
-  - forge_tool_task_append
-  - forge_tool_task_append_multiple
-  - forge_tool_task_update
-  - forge_tool_task_list
-  - forge_tool_task_clear
+    - forge_tool_fs_create
+    - forge_tool_fs_patch
+    - forge_tool_fs_read
+    - forge_tool_fs_remove
+    - forge_tool_fs_search
+    - forge_tool_fs_undo
+    - forge_tool_net_fetch
+    - forge_tool_process_shell
+    - forge_tool_task_append
+    - forge_tool_task_append_multiple
+    - forge_tool_task_clear
+    - forge_tool_task_list
+    - forge_tool_task_update
 - id: scribe
   title: Creates detailed task lists
   description: Strategic planning agent that analyzes codebases and creates comprehensive implementation plans without making any actual changes. Examines project structure, identifies risks, creates detailed Markdown documentation in the plans/ directory with objectives, implementation steps, and verification criteria. Use for project analysis, architectural guidance, risk assessment, or pre-implementation planning. Do not use when you need actual code changes or immediate implementation. Provides advisory recommendations and strategic roadmaps only.

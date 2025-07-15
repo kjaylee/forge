@@ -126,7 +126,10 @@ impl<
                 output.into()
             }
             Tools::ForgeToolAttemptCompletion(_input) => {
-                crate::operation::Operation::AttemptCompletion { tasks: tasks.clone() }
+                crate::operation::Operation::AttemptCompletion {
+                    tasks: tasks.clone(),
+                    task_supported: ctx.task_supported,
+                }
             }
             Tools::ForgeToolTaskAppend(input) => {
                 let before = tasks.clone();

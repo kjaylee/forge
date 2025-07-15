@@ -64,6 +64,7 @@ pub enum Operation {
     },
     AttemptCompletion {
         tasks: TaskList,
+        task_supported: bool,
     },
     TaskAppend {
         _input: TaskListAppend,
@@ -336,8 +337,8 @@ impl Operation {
                     forge_domain::ToolOutput::text(elm)
                 }
             },
-            Operation::AttemptCompletion { tasks } => {
-                if tasks.all_tasks_done() {
+            Operation::AttemptCompletion { tasks, task_supported: can_execute } => {
+                if tasks.all_tasks_done() && !can_execute {
                     // All tasks are completed
                     forge_domain::ToolOutput::text(
                         Element::new("success")
@@ -351,11 +352,12 @@ impl Operation {
                             .attr("status", next_task.status_name())
                             .text(&next_task.task);
 
-                        let user_message = Element::new("user_message")
-                            .text(
-                                "Not all tasks are completed. Please continue with the next task. When you complete this task, mark it as done and then continue with the next task:",
-                            )
-                            .append(task_message);
+                        let user_message = Element::new("success")
+                            .text( "[Task was completed successfully. Now continue with the next task]")
+                            .append(task_message)
+                            .append(Element::new("info").text(
+                                "On task completion mark it as done"
+                            ));
 
                         forge_domain::ToolOutput::text(user_message)
                     } else {
@@ -530,7 +532,7 @@ mod tests {
     }
 
     #[test]
-    fn test_attempt_completion_with_pending_tasks() {
+    fn test_attempt_completion_with_pending_tasks_can_execute_false() {
         let mut task_list = TaskList::new();
         task_list.append("First task");
         let task2 = task_list.append("Second task");
@@ -539,7 +541,7 @@ mod tests {
         // Mark the second task as done, leaving first and third as pending
         task_list.mark_done(task2.id);
 
-        let fixture = Operation::AttemptCompletion { tasks: task_list };
+        let fixture = Operation::AttemptCompletion { tasks: task_list, task_supported: false };
         let env = fixture_environment();
 
         let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
@@ -549,7 +551,26 @@ mod tests {
     }
 
     #[test]
-    fn test_attempt_completion_all_tasks_done() {
+    fn test_attempt_completion_with_pending_tasks_can_execute_true() {
+        let mut task_list = TaskList::new();
+        task_list.append("First task");
+        let task2 = task_list.append("Second task");
+        task_list.append("Third task");
+
+        // Mark the second task as done, leaving first and third as pending
+        task_list.mark_done(task2.id);
+
+        let fixture = Operation::AttemptCompletion { tasks: task_list, task_supported: true };
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        // Should return the next pending task (first task) as a user message
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_attempt_completion_all_tasks_done_can_execute_false() {
         let mut task_list = TaskList::new();
         let task1 = task_list.append("First task");
         let task2 = task_list.append("Second task");
@@ -558,12 +579,33 @@ mod tests {
         task_list.mark_done(task1.id);
         task_list.mark_done(task2.id);
 
-        let fixture = Operation::AttemptCompletion { tasks: task_list };
+        let fixture = Operation::AttemptCompletion { tasks: task_list, task_supported: false };
         let env = fixture_environment();
 
         let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
 
-        // Should return success message since all tasks are done
+        // Should return success message since all tasks are done and can_execute is
+        // false
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_attempt_completion_all_tasks_done_can_execute_true() {
+        let mut task_list = TaskList::new();
+        let task1 = task_list.append("First task");
+        let task2 = task_list.append("Second task");
+
+        // Mark all tasks as done
+        task_list.mark_done(task1.id);
+        task_list.mark_done(task2.id);
+
+        let fixture = Operation::AttemptCompletion { tasks: task_list, task_supported: true };
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(TempContentFiles::default(), &env);
+
+        // Should return success message since all tasks are done (even though
+        // can_execute is true)
         insta::assert_snapshot!(to_value(actual));
     }
 
@@ -1504,7 +1546,8 @@ mod tests {
 
     #[test]
     fn test_attempt_completion() {
-        let fixture = Operation::AttemptCompletion { tasks: TaskList::new() };
+        let fixture =
+            Operation::AttemptCompletion { tasks: TaskList::new(), task_supported: false };
 
         let env = fixture_environment();
 

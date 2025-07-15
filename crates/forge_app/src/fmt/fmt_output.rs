@@ -540,7 +540,8 @@ mod tests {
 
     #[test]
     fn test_attempt_completion() {
-        let fixture = Operation::AttemptCompletion { tasks: TaskList::new() };
+        let fixture =
+            Operation::AttemptCompletion { tasks: TaskList::new(), task_supported: false };
         let env = fixture_environment();
 
         let actual = fixture.to_content(&env);
