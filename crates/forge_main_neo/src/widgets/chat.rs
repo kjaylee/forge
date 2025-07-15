@@ -1,6 +1,7 @@
 use edtui::{EditorTheme, EditorView};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Style, Stylize};
+use ratatui::text::Line;
 use ratatui::widgets::{Block, Padding, StatefulWidget, Widget};
 
 use crate::domain::EditorStateExt;
@@ -51,9 +52,13 @@ impl StatefulWidget for ChatWidget {
             .padding(Padding::new(0, 0, 0, 1))
             .border_style(Style::default().dark_gray())
             .title_bottom(if state.history_search.is_active {
-                state.history_search.status_text()
+                Line::from(state.history_search.status_text())
             } else {
-                StatusBar::new("FORGE", state.editor.mode.name(), state.workspace.clone())
+                StatusBar::new(
+                    "FORGE",
+                    state.editor.mode.name(),
+                    state.workspace.clone(),
+                ).into()
             });
 
         // When history search is active, show the current match in the editor
