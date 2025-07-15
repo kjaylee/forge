@@ -52,10 +52,13 @@ impl FileBackedHistory {
             .map(|item| item.item == new_item.item)
             .unwrap_or(false);
         if !is_duplicate {
-            self.items.push_back(new_item);
             // append to the file.
             let mut write_guard = self.file.write()?;
             write_guard.write(format!("{}\n", escape(new_item.item.as_str())).as_bytes())?;
+            
+            // add to in-memory history
+            self.items.push_back(new_item);
+
 
             // Maintain capacity
             while self.items.len() > self.capacity {
