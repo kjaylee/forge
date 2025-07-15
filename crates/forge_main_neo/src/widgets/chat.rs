@@ -46,23 +46,17 @@ impl StatefulWidget for ChatWidget {
             SpotlightWidget.render(messages_area, buf, state)
         }
 
-        // User input area block with status bar (now at bottom)
-        let user_block = if state.history_search.is_active {
-            // Show history search status instead of normal status
-            Block::bordered()
-                .padding(Padding::new(0, 0, 0, 1))
-                .border_style(Style::default().dark_gray())
-                .title_bottom(state.history_search.status_text())
+        let title = if state.history_search.is_active {
+            state.history_search.status_text()
         } else {
-            Block::bordered()
-                .padding(Padding::new(0, 0, 0, 1))
-                .border_style(Style::default().dark_gray())
-                .title_bottom(StatusBar::new(
-                    "FORGE",
-                    state.editor.mode.name(),
-                    state.workspace.clone(),
-                ))
+            StatusBar::new("FORGE", state.editor.mode.name(), state.workspace.clone())
         };
+
+        // User input area block with status bar (now at bottom)
+        let user_block = Block::bordered()
+            .padding(Padding::new(0, 0, 0, 1))
+            .border_style(Style::default().dark_gray())
+            .title_bottom(title);
 
         // When history search is active, show the current match in the editor
         if state.history_search.is_active {
