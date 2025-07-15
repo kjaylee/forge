@@ -23,12 +23,7 @@ impl CommandHistory {
 
     /// Add a command to history with LRU behavior and file persistence
     pub fn add_command(&mut self, command: String) -> Result<()> {
-        let command = command.trim().to_string();
-
-        // Create a history item
-        let item = HistoryItem::new(command);
-        self.history.save(item)?;
-
+        self.history.save(HistoryItem::new(command))?;
         // Reset navigation state
         self.current_index = None;
         Ok(())
@@ -90,14 +85,12 @@ impl CommandHistory {
         // Search for commands that start with current input
         let results = self.history.search_prefix(current_input);
 
-        // Find first command that starts with current input but is not identical
-        for item in results {
-            if item.item.starts_with(current_input) && item.item != current_input {
-                return Some(item.item.clone());
-            }
+        if results.is_empty() {
+            None
+        } else {
+            // Return the most recent matching command
+            Some(results[0].item.clone())
         }
-
-        None
     }
 
     /// Reset navigation state (called when user types)
