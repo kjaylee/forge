@@ -8,7 +8,7 @@ use throbber_widgets_tui::ThrobberState;
 use tui_scrollview::ScrollViewState;
 
 use crate::domain::spotlight::SpotlightState;
-use crate::domain::{CancelId, History, EditorStateExt, Message, Workspace};
+use crate::domain::{CancelId, EditorStateExt, History, Message, Workspace};
 
 pub struct State {
     pub workspace: Workspace,
@@ -21,7 +21,7 @@ pub struct State {
     pub conversation: ConversationState,
     pub chat_stream: Option<CancelId>,
     pub message_scroll_state: ScrollViewState,
-    pub command_history: History,
+    pub history: History,
 }
 
 impl Default for State {
@@ -40,8 +40,7 @@ impl Default for State {
             chat_stream: None,
             message_scroll_state: ScrollViewState::default(),
             // TODO: use history path from environment
-            command_history: History::with_file(1000, PathBuf::from(".forge_history"))
-                .unwrap(),
+            history: History::with_file(1000, PathBuf::from(".forge_history")).unwrap(),
         }
     }
 }
@@ -69,7 +68,7 @@ impl State {
 
     /// Add a user message to the chat
     pub fn add_user_message(&mut self, message: String) {
-        let _ = self.command_history.add_command(message.clone());
+        let _ = self.history.add_command(message.clone());
         self.messages.push(Message::User(message));
         // Auto-scroll to bottom when new message is added
         self.message_scroll_state.scroll_to_bottom();

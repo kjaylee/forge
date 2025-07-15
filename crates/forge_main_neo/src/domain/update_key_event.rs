@@ -20,19 +20,19 @@ fn handle_command_history_navigation(
 
     match key_event.code {
         KeyCode::Up => {
-            if let Some(command) = state.command_history.navigate_up() {
+            if let Some(command) = state.history.navigate_up() {
                 state.editor.set_text_insert_mode(command);
             }
         }
         KeyCode::Down => {
-            if let Some(command) = state.command_history.navigate_down() {
+            if let Some(command) = state.history.navigate_down() {
                 state.editor.set_text_insert_mode(command);
             }
         }
         KeyCode::Tab | KeyCode::Right => {
             let current_text = state.editor.get_text();
             if let Some(suggestion) = state
-                .command_history
+                .history
                 .get_autocomplete_suggestion(&current_text)
             {
                 state.editor.set_text_insert_mode(suggestion);
@@ -268,7 +268,7 @@ fn handle_editor_default_with_history_reset(
         key_event.code,
         KeyCode::Char(_) | KeyCode::Backspace | KeyCode::Delete
     ) {
-        state.command_history.reset_navigation();
+        state.history.reset_navigation();
     }
 
     EditorEventHandler::default().on_key_event(key_event, &mut state.editor);
