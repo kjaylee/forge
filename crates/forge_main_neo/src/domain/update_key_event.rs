@@ -14,7 +14,7 @@ fn handle_command_history_navigation(
     key_event: ratatui::crossterm::event::KeyEvent,
 ) -> Command {
     // Only handle history navigation in Insert mode when spotlight is not visible
-    if state.spotlight.is_visible || state.editor.mode != EditorMode::Insert {
+    if state.spotlight.is_visible || state.editor.mode != EditorMode::Insert || state.history_search.is_active {
         return Command::Empty;
     }
 
