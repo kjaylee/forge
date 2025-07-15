@@ -11,10 +11,54 @@ pub struct HistorySearchState {
     pub is_active: bool,
     /// Current search query
     pub query: String,
-    /// Current match index in search results
-    pub current_match_index: usize,
-    /// Cached search results
-    pub matches: Vec<String>,
+    /// navigation state for query
+    pub navigation: NavigationState<HistoryItem>,
+
+}
+
+#[derive(Debug, Clone)]
+pub struct NavigationState<T> {
+    pub matches: Vec<T>,
+    pub current_index: usize,
+}
+
+impl<T> Default for NavigationState<T> {
+    fn default() -> Self {
+        Self { matches: Vec::new(), current_index: 0 }
+    }
+}
+
+impl<T> NavigationState<T> {
+    pub fn new(matches: Vec<T>) -> Self {
+        Self { matches, current_index: 0 }
+    }
+
+    pub fn current(&self) -> Option<&T> {
+        self.matches.get(self.current_index)
+    }
+
+    pub fn next(&mut self) -> Option<&T> {
+        if self.current_index < self.matches.len() - 1 {
+            self.current_index += 1;
+            self.current()
+        } else {
+            None
+        }
+    }
+
+    pub fn previous(&mut self) -> Option<&T> {
+        if self.current_index > 0 {
+            self.current_index -= 1;
+            self.current()
+        } else {
+            None
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.current_index = 0;
+        self.matches.clear();
+    }
 }
 
 impl HistorySearchState {
@@ -22,53 +66,45 @@ impl HistorySearchState {
     pub fn enter_search(&mut self, initial_query: Option<String>) {
         self.is_active = true;
         self.query = initial_query.unwrap_or_default();
-        self.current_match_index = 0;
-        self.matches.clear();
+        self.navigation.reset();
     }
 
     /// Exit search mode and reset state
     pub fn exit_search(&mut self) {
         self.is_active = false;
         self.query.clear();
-        self.current_match_index = 0;
-        self.matches.clear();
+        self.navigation.reset();
     }
 
     /// Update search query and reset match index
     pub fn update_query(&mut self, query: String) {
         self.query = query;
-        self.current_match_index = 0;
-        self.matches.clear();
+        self.navigation.reset();
     }
 
     /// Navigate to next match
     pub fn next_match(&mut self) {
-        if !self.matches.is_empty() && self.current_match_index < self.matches.len() - 1 {
-            self.current_match_index += 1;
-        }
+        self.navigation.next();
     }
 
     /// Navigate to previous match
     pub fn prev_match(&mut self) {
-        if self.current_match_index > 0 {
-            self.current_match_index -= 1;
-        }
+        self.navigation.previous();
     }
 
     /// Get current match if available
     pub fn current_match(&self) -> Option<String> {
-        self.matches.get(self.current_match_index).cloned()
+        self.navigation.current().map(|item| item.item.clone())
     }
 
     /// Update search results based on current query
     pub fn update_search(&mut self, history: &History) {
-        self.matches = history.search(&self.query);
-        self.current_match_index = 0;
+        self.navigation = NavigationState::new(history.search(&self.query));
     }
 
     /// Get search status string for display
     pub fn status_text(&self) -> String {
-        if self.matches.is_empty() {
+        if self.navigation.matches.is_empty() {
             if self.query.is_empty() {
                 "reverse-i-search: ".to_string()
             } else {
@@ -78,8 +114,8 @@ impl HistorySearchState {
             format!(
                 "reverse-i-search: {} [{}/{}]",
                 self.query,
-                self.current_match_index + 1,
-                self.matches.len()
+                self.navigation.current_index + 1,
+                self.navigation.matches.len()
             )
         }
     }
@@ -90,95 +126,55 @@ impl HistorySearchState {
 pub struct History {
     /// Our simplified file-backed history implementation
     history: FileBackedHistory,
-    /// Current navigation position
-    current_index: Option<usize>,
+    /// Navigation state for history items
+    navigation: NavigationState<HistoryItem>,
 }
 
 impl History {
     /// Create a new CommandHistory with a specified max size and file path
     pub fn with_file(max_size: usize, path: PathBuf) -> Result<Self> {
         let history = FileBackedHistory::with_file(max_size, path)?;
-        Ok(Self { history, current_index: None })
+        Ok(Self { history, navigation: NavigationState::default() })
     }
 
     /// Add a command to history with LRU behavior and file persistence
     pub fn add_command(&mut self, command: String) -> Result<()> {
         self.history.save(HistoryItem::new(command))?;
-        // Reset navigation state
-        self.current_index = None;
+        self.navigation.reset();
         Ok(())
     }
 
     /// Navigate to previous command (up arrow)
     pub fn navigate_up(&mut self) -> Option<String> {
-        if self.history.total_entries() == 0 {
-            return None;
-        }
-
-        match self.current_index {
-            None => {
-                // Start navigation from most recent (index 0)
-                self.current_index = Some(self.history.total_entries() - 1);
-                self.get_command_at_index(self.history.total_entries() - 1)
-            }
-            Some(0) => {
-                self.current_index = None;
-                None // No previous command, reset navigation
-            }
-            Some(index) => {
-                // Move to older command if possible
-                self.current_index = Some(index - 1);
-                self.get_command_at_index(index - 1)
-            }
-        }
+        self.navigation.next().map(|item| item.item.clone())
     }
 
     /// Navigate to next command (down arrow)
     pub fn navigate_down(&mut self) -> Option<String> {
-        match self.current_index {
-            None => {
-                self.current_index = Some(0);
-                self.get_command_at_index(0)
-            }
-            Some(index) => {
-                if index + 1 < self.history.total_entries() {
-                    // Move to newer command if possible
-                    self.current_index = Some(index + 1);
-                    self.get_command_at_index(index + 1)
-                } else {
-                    // No newer command, reset navigation
-                    self.current_index = None;
-                    None
-                }
-            }
-        }
-    }
-
-    /// Get command at a specific index from the most recent (0 = most recent)
-    fn get_command_at_index(&self, index: usize) -> Option<String> {
-        self.history.get(index).map(|item| item.item.clone())
+        self.navigation.previous().map(|item| item.item.clone())
     }
 
     /// Get autocomplete suggestion for current input
-    pub fn get_autocomplete_suggestion(&self, current_input: &str) -> Option<String> {
+    pub fn prefix_search(&mut self, current_input: &str) -> Option<String> {
         if current_input.trim().is_empty() {
-            return None;
+            return None; // No input to search against
         }
 
         // Search for commands that start with current input
-        let results = self.history.search_prefix(current_input);
+        let results = self
+            .history
+            .search_prefix(current_input)
+            .into_iter()
+            .map(|item| item.clone())
+            .collect::<Vec<_>>();
 
-        if results.is_empty() {
-            None
-        } else {
-            // Return the most recent matching command
-            Some(results[0].item.clone())
-        }
+        self.navigation = NavigationState::new(results.clone());
+        results.first().map(|item| item.item.clone())
     }
 
     /// Reset navigation state (called when user types)
     pub fn reset_navigation(&mut self) {
-        self.current_index = None;
+        self.navigation.reset();
     }
 
     /// Get the number of commands in history
@@ -197,7 +193,7 @@ impl History {
     }
 
     /// Search history with a query and update search state
-    pub fn search(&self, query: &str) -> Vec<String> {
+    pub fn search(&self, query: &str) -> Vec<HistoryItem> {
         if query.trim().is_empty() {
             return Vec::new();
         }
@@ -205,14 +201,14 @@ impl History {
         // Search for commands that contain the query (not just prefix)
         self.history
             .get_all_items()
-            .iter()
+            .into_iter()
             .filter(|item| item.item.contains(query))
-            .map(|item| item.item.clone())
-            .collect()
+            .map(|item| item.clone())
+            .collect::<Vec<HistoryItem>>()
     }
 
     /// Alias for search method to match key handler expectations
-    pub fn search_history(&self, query: &str) -> Vec<String> {
+    pub fn search_history(&self, query: &str) -> Vec<HistoryItem> {
         self.search(query)
     }
 

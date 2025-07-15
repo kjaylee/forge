@@ -7,7 +7,7 @@ use edtui::{EditorEventHandler, EditorMode};
 use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::domain::spotlight::SpotlightState;
-use crate::domain::{Command, EditorStateExt, State};
+use crate::domain::{Command, EditorStateExt, NavigationState, State};
 
 fn handle_command_history_navigation(
     state: &mut State,
@@ -29,9 +29,9 @@ fn handle_command_history_navigation(
                 state.editor.set_text_insert_mode(command);
             }
         }
-        KeyCode::Tab | KeyCode::Right => {
+        KeyCode::Right => {
             let current_text = state.editor.get_text();
-            if let Some(suggestion) = state.history.get_autocomplete_suggestion(&current_text) {
+            if let Some(suggestion) = state.history.prefix_search(&current_text) {
                 state.editor.set_text_insert_mode(suggestion);
             }
         }
@@ -352,8 +352,7 @@ pub fn handle_key_event(
             // Start history search
             state.history_search.is_active = true;
             state.history_search.query = String::new();
-            state.history_search.current_match_index = 0;
-            state.history_search.matches = Vec::new();
+            state.history_search.navigation = NavigationState::default();
         }
         return Command::Empty;
     }

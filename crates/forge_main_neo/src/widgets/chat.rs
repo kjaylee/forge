@@ -54,11 +54,7 @@ impl StatefulWidget for ChatWidget {
             .title_bottom(if state.history_search.is_active {
                 Line::from(state.history_search.status_text())
             } else {
-                StatusBar::new(
-                    "FORGE",
-                    state.editor.mode.name(),
-                    state.workspace.clone(),
-                ).into()
+                StatusBar::new("FORGE", state.editor.mode.name(), state.workspace.clone()).into()
             });
 
         // When history search is active, show the current match in the editor
@@ -101,10 +97,9 @@ impl StatefulWidget for ChatWidget {
                 )
                 .wrap(true)
                 .render(user_block.inner(user_area), buf);
+            // Render autocomplete suggestion overlay using HistoryWidget
+            HistoryWidget.render(user_block.inner(user_area), buf, state);
         }
-
-        // Render autocomplete suggestion overlay using HistoryWidget
-        HistoryWidget.render(user_block.inner(user_area), buf, state);
 
         // Render blocks
         message_block.render(messages_area, buf);
