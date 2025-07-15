@@ -20,7 +20,10 @@ pub struct InputCompleter {
 
 impl InputCompleter {
     pub fn new(cwd: PathBuf, command_manager: Arc<ForgeCommandManager>) -> Self {
-        let walker = Walker::max_all().cwd(cwd).skip_binary(true).max_files(SHOW_MAX_COMPLETIONS);
+        let walker = Walker::max_all()
+            .cwd(cwd)
+            .skip_binary(true)
+            .max_files(SHOW_MAX_COMPLETIONS);
         Self { walker, command: CommandCompleter::new(command_manager) }
     }
 }
@@ -41,7 +44,7 @@ impl Completer for InputCompleter {
             let files = self
                 .walker
                 .find_files(Some(move |path: &Path| {
-                    path.file_name().map_or(true, |file_name| {
+                    path.file_name().is_none_or(|file_name| {
                         file_name.to_string_lossy().to_lowercase().contains(&term)
                     })
                 }))
