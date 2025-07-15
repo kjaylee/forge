@@ -424,6 +424,7 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
                     display_agents.clone(),
                 );
                 if let Ok(selected_agent) = select_prompt.prompt() {
+                    self.writeln("")?;
                     self.on_agent_change(selected_agent.id).await?;
                 }
             }
