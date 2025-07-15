@@ -398,11 +398,7 @@ pub struct AttemptCompletion {
 #[derive(Default, Debug, Clone, JsonSchema, Serialize, Deserialize, ToolDescription, PartialEq)]
 pub struct TaskListAppend(pub TaskInput);
 
-/// Add a new task to the end of the task list. Tasks are stored in conversation
-/// state and persist across agent interactions. Use this tool to add individual
-/// work items that need to be tracked during development sessions. Task IDs are
-/// auto-generated integers starting from 1.
-#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct TaskInput {
     /// The task description to add to the list
     pub task: String,

@@ -1,7 +1,6 @@
 ---
 source: crates/forge_domain/src/tools.rs
 expression: tools
-snapshot_kind: text
 ---
 {
   "name": "forge_tool_fs_read",
@@ -404,7 +403,6 @@ snapshot_kind: text
         "default": [],
         "type": "array",
         "items": {
-          "description": "Add a new task to the end of the task list. Tasks are stored in conversation state and persist across agent interactions. Use this tool to add individual work items that need to be tracked during development sessions. Task IDs are auto-generated integers starting from 1.",
           "type": "object",
           "required": [
             "task"
