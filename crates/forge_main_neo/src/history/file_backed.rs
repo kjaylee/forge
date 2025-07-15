@@ -53,6 +53,9 @@ impl FileBackedHistory {
             .unwrap_or(false);
         if !is_duplicate {
             self.items.push_back(new_item);
+            // append to the file.
+            let mut write_guard = self.file.write()?;
+            write_guard.write(format!("{}\n", escape(new_item.item.as_str())).as_bytes())?;
 
             // Maintain capacity
             while self.items.len() > self.capacity {
@@ -115,6 +118,7 @@ impl FileBackedHistory {
             .collect::<Vec<_>>()
             .join("\n");
 
+        // finally clear the file and write the new content.
         let mut write_guard = self.file.write()?;
         write_guard.set_len(0)?;
         write_guard.write(format!("{content}\n").as_bytes())?;
