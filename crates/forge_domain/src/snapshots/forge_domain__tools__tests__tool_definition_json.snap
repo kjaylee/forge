@@ -365,14 +365,15 @@ snapshot_kind: text
       },
       "files": {
         "description": "List of files to refer",
-        "default": [],
+        "default": null,
         "type": "array",
         "items": {
           "type": "string"
-        }
+        },
+        "nullable": true
       },
       "note": {
-        "description": "Detailed description of changes needed, with examples and optional file references",
+        "description": "Detailed description of changes needed, with examples",
         "default": null,
         "type": "string",
         "nullable": true
@@ -417,14 +418,15 @@ snapshot_kind: text
             },
             "files": {
               "description": "List of files to refer",
-              "default": [],
+              "default": null,
               "type": "array",
               "items": {
                 "type": "string"
-              }
+              },
+              "nullable": true
             },
             "note": {
-              "description": "Detailed description of changes needed, with examples and optional file references",
+              "description": "Detailed description of changes needed, with examples",
               "default": null,
               "type": "string",
               "nullable": true
