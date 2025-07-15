@@ -10,7 +10,6 @@ use tui_scrollview::ScrollViewState;
 use crate::domain::spotlight::SpotlightState;
 use crate::domain::{CancelId, CommandHistory, EditorStateExt, Message, Workspace};
 
-#[derive(Clone)]
 pub struct State {
     pub workspace: Workspace,
     pub editor: EditorState,
@@ -40,7 +39,7 @@ impl Default for State {
             conversation: Default::default(),
             chat_stream: None,
             message_scroll_state: ScrollViewState::default(),
-            // TODO: use history path from environment 
+            // TODO: use history path from environment
             command_history: CommandHistory::with_file(1000, PathBuf::from(".forge_history"))
                 .unwrap(),
         }

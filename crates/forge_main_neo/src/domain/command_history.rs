@@ -6,7 +6,7 @@ use crate::history::{FileBackedHistory, HistoryItem};
 
 /// Command history wrapper around our simplified FileBackedHistory with
 /// navigation tracking
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CommandHistory {
     /// Our simplified file-backed history implementation
     history: FileBackedHistory,
@@ -38,18 +38,17 @@ impl CommandHistory {
         match self.current_index {
             None => {
                 // Start navigation from most recent (index 0)
-                self.current_index = Some(0);
-                self.get_command_at_index(0)
+                self.current_index = Some(self.history.total_entries() - 1);
+                self.get_command_at_index(self.history.total_entries() - 1)
+            }
+            Some(0) => {
+                self.current_index = None;
+                None // No previous command, reset navigation
             }
             Some(index) => {
                 // Move to older command if possible
-                if index + 1 < self.history.total_entries() {
-                    self.current_index = Some(index + 1);
-                    self.get_command_at_index(index + 1)
-                } else {
-                    // Stay at oldest command
-                    self.get_command_at_index(index)
-                }
+                self.current_index = Some(index - 1);
+                self.get_command_at_index(index - 1)
             }
         }
     }
@@ -57,16 +56,20 @@ impl CommandHistory {
     /// Navigate to next command (down arrow)
     pub fn navigate_down(&mut self) -> Option<String> {
         match self.current_index {
-            None => None,
-            Some(0) => {
-                // Reset to no selection (empty input)
-                self.current_index = None;
-                Some(String::new())
+            None => {
+                self.current_index = Some(0);
+                self.get_command_at_index(0)
             }
             Some(index) => {
-                // Move to newer command
-                self.current_index = Some(index - 1);
-                self.get_command_at_index(index - 1)
+                if index + 1 < self.history.total_entries() {
+                    // Move to newer command if possible
+                    self.current_index = Some(index + 1);
+                    self.get_command_at_index(index + 1)
+                } else {
+                    // No newer command, reset navigation
+                    self.current_index = None;
+                    None
+                }
             }
         }
     }

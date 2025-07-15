@@ -1413,6 +1413,7 @@ dependencies = [
  "derive_more",
  "derive_setters",
  "edtui",
+ "fd-lock",
  "forge_api",
  "forge_display",
  "forge_tracker",
