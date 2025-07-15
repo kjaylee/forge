@@ -2,10 +2,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_app::domain::Workflow;
+use forge_app::domain::{Provider, Workflow};
 use forge_app::WorkflowService;
 
-use crate::{FileReaderInfra, FileWriterInfra};
+use crate::{EnvironmentInfra, FileReaderInfra, FileWriterInfra, HttpInfra};
 
 /// A workflow loader to load the workflow from the given path.
 /// It also resolves the internal paths specified in the workflow.
@@ -91,7 +91,9 @@ impl<F: FileWriterInfra + FileReaderInfra> ForgeWorkflowService<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: FileWriterInfra + FileReaderInfra> WorkflowService for ForgeWorkflowService<F> {
+impl<F: FileWriterInfra + FileReaderInfra + HttpInfra + EnvironmentInfra> WorkflowService
+    for ForgeWorkflowService<F>
+{
     async fn resolve(&self, path: Option<PathBuf>) -> PathBuf {
         self.resolve_path(path).await
     }
@@ -126,6 +128,27 @@ impl<F: FileWriterInfra + FileReaderInfra> WorkflowService for ForgeWorkflowServ
 
         // Write the updated workflow back
         self.write_workflow(path, &workflow).await?;
+
+        Ok(workflow)
+    }
+
+    async fn get_api_workflow(&self, version: Option<&str>) -> anyhow::Result<Workflow> {
+        let base_url = self
+            .infra
+            .get_env_var("FORGE_API_URL")
+            .unwrap_or(Provider::FORGE_URL.to_string());
+
+        let url = if let Some(v) = version {
+            format!("{base_url}api/v1/config?version={v}")
+        } else {
+            format!("{base_url}api/v1/config")
+        };
+
+        let response = self.infra.get(&url, None).await?;
+        let response = response.error_for_status()?;
+        let body = response.text().await?;
+        let workflow: Workflow = serde_yml::from_str(&body)
+            .with_context(|| "Failed to parse default workflow from response".to_string())?;
 
         Ok(workflow)
     }

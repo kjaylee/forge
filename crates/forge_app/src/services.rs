@@ -180,6 +180,8 @@ pub trait WorkflowService {
     async fn update_workflow<F>(&self, path: Option<&Path>, f: F) -> anyhow::Result<Workflow>
     where
         F: FnOnce(&mut Workflow) + Send;
+
+    async fn get_api_workflow(&self, version: Option<&str>) -> anyhow::Result<Workflow>;
 }
 
 #[async_trait::async_trait]
@@ -448,6 +450,10 @@ impl<I: Services> WorkflowService for I {
         F: FnOnce(&mut Workflow) + Send,
     {
         self.workflow_service().update_workflow(path, f).await
+    }
+
+    async fn get_api_workflow(&self, version: Option<&str>) -> anyhow::Result<Workflow> {
+        self.workflow_service().get_api_workflow(version).await
     }
 }
 

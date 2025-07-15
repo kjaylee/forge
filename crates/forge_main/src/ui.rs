@@ -33,6 +33,10 @@ use crate::{banner, tracker, TRACKER};
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
 pub const EVENT_USER_TASK_UPDATE: &str = "user_task_update";
+const VERSION: &str = match option_env!("APP_VERSION") {
+    Some(val) => val,
+    None => env!("CARGO_PKG_VERSION"),
+};
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
 pub struct PartialEvent {
@@ -633,6 +637,11 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
     /// Initialize the state of the UI
     async fn init_state(&mut self, first: bool) -> Result<Workflow> {
         let provider = self.init_provider().await?;
+        let mut base_workflow = Workflow::default();
+        let default_api_workflow = self.api.get_api_workflow(Some(VERSION)).await;
+        if let Ok(api_workflow) = default_api_workflow {
+            base_workflow.merge(api_workflow);
+        }
         let mut workflow = self.api.read_workflow(self.cli.workflow.as_deref()).await?;
         if workflow.model.is_none() {
             workflow.model = Some(
@@ -641,7 +650,6 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
                     .ok_or(anyhow::anyhow!("Model selection is required to continue"))?,
             );
         }
-        let mut base_workflow = Workflow::default();
         base_workflow.merge(workflow.clone());
         if first {
             // only call on_update if this is the first initialization
