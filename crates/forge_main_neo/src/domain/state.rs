@@ -40,7 +40,8 @@ impl Default for State {
             conversation: Default::default(),
             chat_stream: None,
             message_scroll_state: ScrollViewState::default(),
-            command_history: CommandHistory::with_file(202, PathBuf::from(".forge_history"))
+            // TODO: use history path from environment 
+            command_history: CommandHistory::with_file(1000, PathBuf::from(".forge_history"))
                 .unwrap(),
         }
     }
