@@ -1,7 +1,7 @@
 mod action;
 mod cancel;
 mod command;
-mod command_history;
+mod history;
 mod editor_helpers;
 mod message;
 mod slash_command;
@@ -14,7 +14,7 @@ mod workspace;
 pub use action::*;
 pub use cancel::*;
 pub use command::*;
-pub use command_history::*;
+pub use history::*;
 pub use editor_helpers::*;
 pub use message::*;
 pub use state::*;

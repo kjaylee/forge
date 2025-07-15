@@ -1,9 +1,7 @@
 use std::collections::VecDeque;
 use std::fs::File;
-use std::io::{Read, Seek, Write};
-use std::os::fd;
+use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use crate::history::HistoryItem;
 
@@ -54,11 +52,10 @@ impl FileBackedHistory {
         if !is_duplicate {
             // append to the file.
             let mut write_guard = self.file.write()?;
-            write_guard.write(format!("{}\n", escape(new_item.item.as_str())).as_bytes())?;
-            
+            write_guard.write_all(format!("{}\n", escape(new_item.item.as_str())).as_bytes())?;
+
             // add to in-memory history
             self.items.push_back(new_item);
-
 
             // Maintain capacity
             while self.items.len() > self.capacity {
@@ -124,7 +121,7 @@ impl FileBackedHistory {
         // finally clear the file and write the new content.
         let mut write_guard = self.file.write()?;
         write_guard.set_len(0)?;
-        write_guard.write(format!("{content}\n").as_bytes())?;
+        write_guard.write_all(format!("{content}\n").as_bytes())?;
         Ok(())
     }
 }

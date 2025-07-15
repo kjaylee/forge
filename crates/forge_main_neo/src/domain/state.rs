@@ -8,7 +8,7 @@ use throbber_widgets_tui::ThrobberState;
 use tui_scrollview::ScrollViewState;
 
 use crate::domain::spotlight::SpotlightState;
-use crate::domain::{CancelId, CommandHistory, EditorStateExt, Message, Workspace};
+use crate::domain::{CancelId, History, EditorStateExt, Message, Workspace};
 
 pub struct State {
     pub workspace: Workspace,
@@ -21,7 +21,7 @@ pub struct State {
     pub conversation: ConversationState,
     pub chat_stream: Option<CancelId>,
     pub message_scroll_state: ScrollViewState,
-    pub command_history: CommandHistory,
+    pub command_history: History,
 }
 
 impl Default for State {
@@ -40,7 +40,7 @@ impl Default for State {
             chat_stream: None,
             message_scroll_state: ScrollViewState::default(),
             // TODO: use history path from environment
-            command_history: CommandHistory::with_file(1000, PathBuf::from(".forge_history"))
+            command_history: History::with_file(1000, PathBuf::from(".forge_history"))
                 .unwrap(),
         }
     }

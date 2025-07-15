@@ -79,23 +79,40 @@ impl StatefulWidget for ChatWidget {
                 if suggestion.len() > current_text.len() {
                     let remaining_text = &suggestion[current_text.len()..];
 
-                    // Create a paragraph with the suggestion text
-                    let suggestion_paragraph = Paragraph::new(remaining_text)
-                        .style(Style::default().fg(Color::DarkGray))
-                        .wrap(ratatui::widgets::Wrap { trim: false });
+                    // Split the remaining text into lines to handle wrapping properly
+                    let available_width =
+                        editor_area.width.saturating_sub(cursor_pos.col as u16) as usize;
+                    let mut lines = text_to_lines(&remaining_text, available_width);
 
-                    // Calculate the area for the suggestion starting from cursor position
-                    let suggestion_rect = ratatui::layout::Rect {
-                        x: editor_area.x + cursor_pos.col as u16,
-                        y: editor_area.y + cursor_pos.row as u16,
-                        width: editor_area.width.saturating_sub(cursor_pos.col as u16),
-                        height: editor_area.height.saturating_sub(cursor_pos.row as u16),
-                    };
+                    // Render each line at the correct position
+                    for (line_idx, line) in lines.iter().enumerate() {
+                        let y_offset = cursor_pos.row as u16 + line_idx as u16;
+                        if y_offset >= editor_area.height {
+                            break; // Don't render beyond editor area
+                        }
 
-                    // Ensure we don't render outside the editor area
-                    let suggestion_area = editor_area.intersection(suggestion_rect);
-                    if suggestion_area.width > 0 && suggestion_area.height > 0 {
-                        suggestion_paragraph.render(suggestion_area, buf);
+                        let x_offset = if line_idx == 0 {
+                            // First line starts from cursor position
+                            cursor_pos.col as u16
+                        } else {
+                            // Subsequent lines start from column 0
+                            0
+                        };
+
+                        let line_rect = ratatui::layout::Rect {
+                            x: editor_area.x + x_offset,
+                            y: editor_area.y + y_offset,
+                            width: editor_area.width.saturating_sub(x_offset),
+                            height: 1,
+                        };
+
+                        // Ensure we don't render outside the editor area
+                        let line_area = editor_area.intersection(line_rect);
+                        if line_area.width > 0 && line_area.height > 0 {
+                            let line_paragraph = Paragraph::new(line.as_str())
+                                .style(Style::default().fg(Color::DarkGray));
+                            line_paragraph.render(line_area, buf);
+                        }
                     }
                 }
             }
@@ -105,4 +122,25 @@ impl StatefulWidget for ChatWidget {
         message_block.render(messages_area, buf);
         user_block.render(user_area, buf);
     }
+}
+
+fn text_to_lines(text: &str, available_width: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut current_line = String::new();
+    for ch in text.chars() {
+        if ch == '\n' {
+            lines.push(current_line.clone());
+            current_line.clear();
+        } else if current_line.len() >= available_width && !current_line.is_empty() {
+            lines.push(current_line.clone());
+            current_line.clear();
+            current_line.push(ch);
+        } else {
+            current_line.push(ch);
+        }
+    }
+    if !current_line.is_empty() {
+        lines.push(current_line);
+    }
+    lines
 }

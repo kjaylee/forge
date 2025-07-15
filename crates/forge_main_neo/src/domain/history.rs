@@ -7,14 +7,14 @@ use crate::history::{FileBackedHistory, HistoryItem};
 /// Command history wrapper around our simplified FileBackedHistory with
 /// navigation tracking
 #[derive(Debug)]
-pub struct CommandHistory {
+pub struct History {
     /// Our simplified file-backed history implementation
     history: FileBackedHistory,
     /// Current navigation position
     current_index: Option<usize>,
 }
 
-impl CommandHistory {
+impl History {
     /// Create a new CommandHistory with a specified max size and file path
     pub fn with_file(max_size: usize, path: PathBuf) -> Result<Self> {
         let history = FileBackedHistory::with_file(max_size, path)?;
