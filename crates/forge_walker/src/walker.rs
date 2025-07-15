@@ -142,7 +142,7 @@ impl Walker {
 
         // use thread-local to avoid thread contention with mutex
         let file_map: Arc<DashMap<std::thread::ThreadId, Vec<ignore::DirEntry>>> =
-            Arc::new(DashMap::new());
+            Arc::new(DashMap::with_capacity(num_threads));
         walk.run(|| {
             let map = file_map.clone();
             let max_files = self.max_files;
