@@ -71,6 +71,8 @@ impl StatefulWidget for HistoryWidget {
     }
 }
 
+/// Helper function to split text into lines based on available width
+/// Handles wrapping and newlines
 fn text_to_lines(text: &str, available_width: usize) -> Vec<String> {
     let mut lines = Vec::new();
     let mut current_line = String::new();

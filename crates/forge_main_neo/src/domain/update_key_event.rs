@@ -347,7 +347,7 @@ pub fn handle_key_event(
     }
 
     // Handle Ctrl+R for history search
-    if key_event.code == KeyCode::Char('r') && key_event.modifiers.contains(KeyModifiers::CONTROL) {
+    if key_event.code == KeyCode::Char('r') && key_event.modifiers.contains(KeyModifiers::CONTROL) && state.editor.mode == EditorMode::Insert {
         if !state.history_search.is_active {
             // Start history search
             state.history_search.is_active = true;
