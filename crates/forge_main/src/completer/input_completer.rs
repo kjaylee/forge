@@ -8,6 +8,10 @@ use crate::completer::search_term::SearchTerm;
 use crate::completer::CommandCompleter;
 use crate::model::ForgeCommandManager;
 
+/// Maximum number of completions to show
+/// This is a limit to prevent overwhelming the user with too many suggestions.
+const SHOW_MAX_COMPLETIONS: usize = 200;
+
 #[derive(Clone)]
 pub struct InputCompleter {
     walker: Walker,
@@ -16,7 +20,7 @@ pub struct InputCompleter {
 
 impl InputCompleter {
     pub fn new(cwd: PathBuf, command_manager: Arc<ForgeCommandManager>) -> Self {
-        let walker = Walker::max_all().cwd(cwd).skip_binary(true).max_files(100);
+        let walker = Walker::max_all().cwd(cwd).skip_binary(true).max_files(SHOW_MAX_COMPLETIONS);
         Self { walker, command: CommandCompleter::new(command_manager) }
     }
 }
