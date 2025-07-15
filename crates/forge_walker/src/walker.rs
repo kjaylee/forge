@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -110,7 +110,11 @@ impl Walker {
     /// Blocking function to scan filesystem. Use this when you already have
     /// a runtime or want to avoid spawning a new one.
     pub fn get_blocking(&self) -> Result<Vec<File>> {
-        let mut files = Vec::new();
+      self.find_files::<fn(&Path) -> bool>(None)
+    }
+
+    pub fn find_files<P>(&self, filter: Option<P>) -> Result<Vec<File>> where P: Fn(&Path) -> bool + Send + Sync + 'static {
+          let mut files = Vec::new();
         let mut total_size = 0u64;
         let mut dir_entries: HashMap<String, usize> = HashMap::new();
         let mut file_count = 0;
@@ -125,6 +129,13 @@ impl Walker {
             .standard_filters(true) // use standard ignore filters.
             .max_depth(Some(self.max_depth))
             .threads(num_threads)
+            .filter_entry(move |entry| {
+                if let Some(filter) = &filter {
+                    filter(entry.path())
+                } else {
+                    true
+                }
+            })
             .build_parallel();
 
         // use thread-local to avoid thread contention with mutex
