@@ -50,6 +50,7 @@ mod tests {
     use forge_domain::{Environment, PatchOperation};
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
+    use url::Url;
 
     use super::FormatContent;
     use crate::fmt::content::ContentFormat;
@@ -94,16 +95,13 @@ mod tests {
             home: Some(PathBuf::from("/home/user")),
             shell: "/bin/bash".to_string(),
             base_path: PathBuf::from("/home/user/project"),
-            provider: forge_domain::Provider::OpenAI {
-                url: "https://api.openai.com/v1/".parse().unwrap(),
-                key: Some("test-key".to_string()),
-            },
             retry_config: forge_domain::RetryConfig {
                 initial_backoff_ms: 1000,
                 min_delay_ms: 500,
                 backoff_factor: 2,
                 max_retry_attempts: 3,
                 retry_status_codes: vec![429, 500, 502, 503, 504],
+                max_delay: None,
             },
             max_search_lines: 25,
             fetch_truncation_limit: 55,
@@ -112,6 +110,7 @@ mod tests {
             stdout_max_suffix_length: 10,
             http: Default::default(),
             max_file_size: 0,
+            forge_api_url: Url::parse("http://forgecode.dev/api").unwrap(),
         }
     }
 

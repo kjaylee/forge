@@ -1,4 +1,7 @@
-use forge_domain::{ChatCompletionMessage, Content, ModelId, ToolCallId, ToolCallPart, ToolName};
+use forge_app::domain::{
+    ChatCompletionMessage, Content, ModelId, Reasoning, ReasoningPart, ToolCallId, ToolCallPart,
+    ToolName,
+};
 use serde::Deserialize;
 
 use super::request::Role;
@@ -15,7 +18,7 @@ pub struct Model {
     display_name: String,
 }
 
-impl From<Model> for forge_domain::Model {
+impl From<Model> for forge_app::domain::Model {
     fn from(value: Model) -> Self {
         Self {
             id: ModelId::new(value.id),
@@ -23,7 +26,8 @@ impl From<Model> for forge_domain::Model {
             description: None,
             context_length: None,
             tools_supported: Some(true),
-            supports_parallel_tool_calls: Some(false),
+            supports_parallel_tool_calls: None,
+            supports_reasoning: None,
         }
     }
 }
@@ -49,9 +53,9 @@ pub struct Usage {
     pub cache_creation_input_tokens: Option<usize>,
 }
 
-impl From<Usage> for forge_domain::Usage {
+impl From<Usage> for forge_app::domain::Usage {
     fn from(usage: Usage) -> Self {
-        forge_domain::Usage {
+        forge_app::domain::Usage {
             prompt_tokens: usage.input_tokens.unwrap_or(0),
             completion_tokens: usage.output_tokens.unwrap_or(0),
             total_tokens: usage.input_tokens.unwrap_or(0) + usage.output_tokens.unwrap_or(0),
@@ -70,13 +74,13 @@ pub enum StopReason {
     ToolUse,
 }
 
-impl From<StopReason> for forge_domain::FinishReason {
+impl From<StopReason> for forge_app::domain::FinishReason {
     fn from(value: StopReason) -> Self {
         match value {
-            StopReason::EndTurn => forge_domain::FinishReason::Stop,
-            StopReason::MaxTokens => forge_domain::FinishReason::Length,
-            StopReason::StopSequence => forge_domain::FinishReason::Stop,
-            StopReason::ToolUse => forge_domain::FinishReason::ToolCalls,
+            StopReason::EndTurn => forge_app::domain::FinishReason::Stop,
+            StopReason::MaxTokens => forge_app::domain::FinishReason::Length,
+            StopReason::StopSequence => forge_app::domain::FinishReason::Stop,
+            StopReason::ToolUse => forge_app::domain::FinishReason::ToolCalls,
         }
     }
 }
@@ -142,6 +146,19 @@ pub enum ContentBlock {
     InputJsonDelta {
         partial_json: String,
     },
+    Thinking {
+        thinking: Option<String>,
+        signature: Option<String>,
+    },
+    ThinkingDelta {
+        thinking: Option<String>,
+    },
+    SignatureDelta {
+        signature: Option<String>,
+    },
+    RedactedThinking {
+        data: Option<String>,
+    },
 }
 
 impl TryFrom<EventData> for ChatCompletionMessage {
@@ -184,6 +201,47 @@ impl TryFrom<ContentBlock> for ChatCompletionMessage {
         let result = match value {
             ContentBlock::Text { text } | ContentBlock::TextDelta { text } => {
                 ChatCompletionMessage::assistant(Content::part(text))
+            }
+            ContentBlock::Thinking { thinking, signature } => {
+                if let Some(thinking) = thinking {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                        .reasoning(Content::part(thinking.clone()))
+                        .add_reasoning_detail(Reasoning::Part(vec![ReasoningPart {
+                            signature,
+                            text: Some(thinking),
+                        }]))
+                } else {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                }
+            }
+            ContentBlock::RedactedThinking { data } => {
+                if let Some(data) = data {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                        .reasoning(Content::part(data.clone()))
+                        .add_reasoning_detail(Reasoning::Part(vec![ReasoningPart {
+                            signature: None,
+                            text: Some(data),
+                        }]))
+                } else {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                }
+            }
+            ContentBlock::ThinkingDelta { thinking } => {
+                if let Some(thinking) = thinking {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                        .reasoning(Content::part(thinking.clone()))
+                        .add_reasoning_detail(Reasoning::Part(vec![ReasoningPart {
+                            signature: None,
+                            text: Some(thinking),
+                        }]))
+                } else {
+                    ChatCompletionMessage::assistant(Content::part(""))
+                }
+            }
+            ContentBlock::SignatureDelta { signature } => {
+                ChatCompletionMessage::assistant(Content::part("")).add_reasoning_detail(
+                    Reasoning::Part(vec![ReasoningPart { signature, text: None }]),
+                )
             }
             ContentBlock::ToolUse { id, name, input } => {
                 // note: We've to check if the input is empty or null. else we end up adding

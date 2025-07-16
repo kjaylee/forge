@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::{Context as _, Result};
-use forge_domain::{
+use forge_app::domain::{
     ChatCompletionMessage, Context, HttpConfig, Model, ModelId, Provider, ResultStream, RetryConfig,
 };
 use reqwest::redirect::Policy;
@@ -30,11 +30,14 @@ enum InnerClient {
 impl Client {
     pub fn new(
         provider: Provider,
-        retry_config: RetryConfig,
+        retry_config: Arc<RetryConfig>,
         version: impl ToString,
-        timeout_config: HttpConfig,
+        timeout_config: &HttpConfig,
     ) -> Result<Self> {
         let client = reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(
+                timeout_config.connect_timeout,
+            ))
             .read_timeout(std::time::Duration::from_secs(timeout_config.read_timeout))
             .pool_idle_timeout(std::time::Duration::from_secs(
                 timeout_config.pool_idle_timeout,
@@ -68,7 +71,7 @@ impl Client {
 
         Ok(Self {
             inner: Arc::new(inner),
-            retry_config: Arc::new(retry_config),
+            retry_config,
             models_cache: Arc::new(RwLock::new(HashMap::new())),
         })
     }
@@ -136,7 +139,7 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
-    use forge_domain::Provider;
+    use forge_app::domain::Provider;
     use reqwest::Url;
 
     use super::*;
@@ -149,9 +152,9 @@ mod tests {
         };
         let client = Client::new(
             provider,
-            RetryConfig::default(),
+            Arc::new(RetryConfig::default()),
             "dev",
-            HttpConfig::default(),
+            &HttpConfig::default(),
         )
         .unwrap();
 
@@ -168,9 +171,9 @@ mod tests {
         };
         let client = Client::new(
             provider,
-            RetryConfig::default(),
+            Arc::new(RetryConfig::default()),
             "dev",
-            HttpConfig::default(),
+            &HttpConfig::default(),
         )
         .unwrap();
 

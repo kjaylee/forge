@@ -7,7 +7,7 @@ use super::{ToolCallFull, ToolResult};
 use crate::temperature::Temperature;
 use crate::top_k::TopK;
 use crate::top_p::TopP;
-use crate::{ConversationId, Image, ModelId, ToolChoice, ToolDefinition, ToolValue};
+use crate::{ConversationId, Image, ModelId, ReasoningFull, ToolChoice, ToolDefinition, ToolValue};
 
 /// Represents a message being sent to the LLM provider
 /// NOTE: ToolResults message are part of the larger Request object and not part
@@ -30,19 +30,8 @@ impl ContextMessage {
                 if matches!(text_message.role, Role::User | Role::Assistant) =>
             {
                 text_message.content.chars().count()
-                    + text_message
-                        .tool_calls
-                        .as_ref()
-                        .map(|tool_calls| {
-                            tool_calls
-                                .iter()
-                                .map(|tc| {
-                                    tc.arguments.to_string().chars().count()
-                                        + tc.name.as_str().chars().count()
-                                })
-                                .sum()
-                        })
-                        .unwrap_or(0)
+                    + tool_call_content_char_count(text_message)
+                    + reasoning_content_char_count(text_message)
             }
             ContextMessage::Tool(tool_result) => tool_result
                 .output
@@ -74,6 +63,14 @@ impl ContextMessage {
                         ));
                     }
                 }
+                if let Some(reasoning_details) = &message.reasoning_details {
+                    for reasoning_detail in reasoning_details {
+                        lines.push_str(&format!(
+                            "<reasoning_detail>{}</reasoning_detail>",
+                            serde_json::to_string(reasoning_detail).unwrap()
+                        ));
+                    }
+                }
 
                 lines.push_str("</message>");
             }
@@ -99,6 +96,7 @@ impl ContextMessage {
             role: Role::User,
             content: content.to_string(),
             tool_calls: None,
+            reasoning_details: None,
             model,
         }
         .into()
@@ -110,17 +108,23 @@ impl ContextMessage {
             content: content.to_string(),
             tool_calls: None,
             model: None,
+            reasoning_details: None,
         }
         .into()
     }
 
-    pub fn assistant(content: impl ToString, tool_calls: Option<Vec<ToolCallFull>>) -> Self {
+    pub fn assistant(
+        content: impl ToString,
+        reasoning_details: Option<Vec<ReasoningFull>>,
+        tool_calls: Option<Vec<ToolCallFull>>,
+    ) -> Self {
         let tool_calls =
             tool_calls.and_then(|calls| if calls.is_empty() { None } else { Some(calls) });
         TextMessage {
             role: Role::Assistant,
             content: content.to_string(),
             tool_calls,
+            reasoning_details,
             model: None,
         }
         .into()
@@ -153,6 +157,41 @@ impl ContextMessage {
             ContextMessage::Image(_) => false,
         }
     }
+
+    pub fn has_reasoning_details(&self) -> bool {
+        match self {
+            ContextMessage::Text(message) => message.reasoning_details.is_some(),
+            ContextMessage::Tool(_) => false,
+            ContextMessage::Image(_) => false,
+        }
+    }
+}
+
+fn tool_call_content_char_count(text_message: &TextMessage) -> usize {
+    text_message
+        .tool_calls
+        .as_ref()
+        .map(|tool_calls| {
+            tool_calls
+                .iter()
+                .map(|tc| {
+                    tc.arguments.to_string().chars().count() + tc.name.as_str().chars().count()
+                })
+                .sum()
+        })
+        .unwrap_or(0)
+}
+
+fn reasoning_content_char_count(text_message: &TextMessage) -> usize {
+    text_message
+        .reasoning_details
+        .as_ref()
+        .map_or(0, |details| {
+            details
+                .iter()
+                .map(|rd| rd.text.as_ref().map_or(0, |text| text.chars().count()))
+                .sum::<usize>()
+        })
 }
 
 //TODO: Rename to TextMessage
@@ -165,14 +204,20 @@ pub struct TextMessage {
     pub tool_calls: Option<Vec<ToolCallFull>>,
     // note: this used to track model used for this message.
     pub model: Option<ModelId>,
+    pub reasoning_details: Option<Vec<ReasoningFull>>,
 }
 
 impl TextMessage {
-    pub fn assistant(content: impl ToString, model: Option<ModelId>) -> Self {
+    pub fn assistant(
+        content: impl ToString,
+        reasoning_details: Option<Vec<ReasoningFull>>,
+        model: Option<ModelId>,
+    ) -> Self {
         Self {
             role: Role::Assistant,
             content: content.to_string(),
             tool_calls: None,
+            reasoning_details,
             model,
         }
     }
@@ -206,6 +251,8 @@ pub struct Context {
     pub top_p: Option<TopP>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub top_k: Option<TopK>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<crate::agent::ReasoningConfig>,
 }
 
 impl Context {
@@ -274,11 +321,13 @@ impl Context {
     pub fn append_message(
         self,
         content: impl ToString,
+        reasoning_details: Option<Vec<ReasoningFull>>,
         tool_records: Vec<(ToolCallFull, ToolResult)>,
     ) -> Self {
         // Adding tool calls
         self.add_message(ContextMessage::assistant(
             content,
+            reasoning_details,
             Some(
                 tool_records
                     .iter()
@@ -351,7 +400,7 @@ mod tests {
         let context = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User message", model.into()))
-            .add_message(ContextMessage::assistant("Assistant message", None));
+            .add_message(ContextMessage::assistant("Assistant message", None, None));
 
         // Get the token count
         let token_count = estimate_token_count(context.to_text().len());
@@ -375,7 +424,7 @@ mod tests {
         let fixture = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User message", None))
-            .add_message(ContextMessage::assistant("Assistant message", None));
+            .add_message(ContextMessage::assistant("Assistant message", None, None));
         let mut transformer = crate::transformer::ImageHandling::new();
         let actual = transformer.transform(fixture);
 
@@ -485,7 +534,7 @@ mod tests {
         let fixture = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User question", None))
-            .add_message(ContextMessage::assistant("Assistant response", None))
+            .add_message(ContextMessage::assistant("Assistant response", None, None))
             .add_tool_results(vec![ToolResult {
                 name: crate::ToolName::new("mixed_tool"),
                 call_id: Some(crate::ToolCallId::new("call1")),

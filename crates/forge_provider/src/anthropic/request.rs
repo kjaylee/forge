@@ -1,5 +1,5 @@
 use derive_setters::Setters;
-use forge_domain::{ContextMessage, Image};
+use forge_app::domain::{ContextMessage, Image};
 use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
@@ -28,17 +28,25 @@ pub struct Request {
     top_k: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thinking: Option<Thinking>,
 }
 
-impl TryFrom<forge_domain::Context> for Request {
+#[derive(Serialize, Default)]
+pub struct Thinking {
+    r#type: String,
+    budget_tokens: u64,
+}
+
+impl TryFrom<forge_app::domain::Context> for Request {
     type Error = anyhow::Error;
-    fn try_from(request: forge_domain::Context) -> std::result::Result<Self, Self::Error> {
+    fn try_from(request: forge_app::domain::Context) -> std::result::Result<Self, Self::Error> {
         // note: Anthropic only supports 1 system message in context, so from the
         // context we pick the first system message available.
         // ref: https://docs.anthropic.com/en/api/messages#body-system
         let system = request.messages.iter().find_map(|message| {
             if let ContextMessage::Text(chat_message) = message {
-                if chat_message.role == forge_domain::Role::System {
+                if chat_message.role == forge_app::domain::Role::System {
                     Some(chat_message.content.clone())
                 } else {
                     None
@@ -55,7 +63,7 @@ impl TryFrom<forge_domain::Context> for Request {
                 .filter(|message| {
                     // note: Anthropic does not support system messages in message field.
                     if let ContextMessage::Text(chat_message) = message {
-                        chat_message.role != forge_domain::Role::System
+                        chat_message.role != forge_app::domain::Role::System
                     } else {
                         true
                     }
@@ -72,6 +80,15 @@ impl TryFrom<forge_domain::Context> for Request {
             top_p: request.top_p.map(|t| t.value()),
             top_k: request.top_k.map(|t| t.value() as u64),
             tool_choice: request.tool_choice.map(ToolChoice::from),
+            thinking: request.reasoning.and_then(|reasoning| {
+                match (reasoning.enabled, reasoning.max_tokens) {
+                    (Some(true), Some(max_tokens)) => Some(Thinking {
+                        r#type: "enabled".to_string(),
+                        budget_tokens: max_tokens as u64,
+                    }),
+                    _ => None,
+                }
+            }),
             ..Default::default()
         })
     }
@@ -103,6 +120,18 @@ impl TryFrom<ContextMessage> for Message {
                         + 1,
                 );
 
+                if let Some(reasoning) = chat_message.reasoning_details {
+                    if let Some((sig, text)) = reasoning.into_iter().find_map(|reasoning| {
+                        match (reasoning.signature, reasoning.text) {
+                            (Some(sig), Some(text)) => Some((sig, text)),
+                            _ => None,
+                        }
+                    }) {
+                        content
+                            .push(Content::Thinking { signature: Some(sig), thinking: Some(text) });
+                    }
+                }
+
                 if !chat_message.content.is_empty() {
                     // note: Anthropic does not allow empty text content.
                     content.push(Content::Text { text: chat_message.content, cache_control: None });
@@ -112,10 +141,13 @@ impl TryFrom<ContextMessage> for Message {
                         content.push(tool_call.try_into()?);
                     }
                 }
+
                 match chat_message.role {
-                    forge_domain::Role::User => Message { role: Role::User, content },
-                    forge_domain::Role::Assistant => Message { role: Role::Assistant, content },
-                    forge_domain::Role::System => {
+                    forge_app::domain::Role::User => Message { role: Role::User, content },
+                    forge_app::domain::Role::Assistant => {
+                        Message { role: Role::Assistant, content }
+                    }
+                    forge_app::domain::Role::System => {
                         // note: Anthropic doesn't support system role messages and they're already
                         // filtered out. so this state is unreachable.
                         return Err(Error::UnsupportedRole("System".to_string()).into());
@@ -184,11 +216,17 @@ enum Content {
         #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<CacheControl>,
     },
+    Thinking {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        signature: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        thinking: Option<String>,
+    },
 }
 
-impl TryFrom<forge_domain::ToolCallFull> for Content {
+impl TryFrom<forge_app::domain::ToolCallFull> for Content {
     type Error = anyhow::Error;
-    fn try_from(value: forge_domain::ToolCallFull) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: forge_app::domain::ToolCallFull) -> std::result::Result<Self, Self::Error> {
         let call_id = value.call_id.as_ref().ok_or(Error::ToolCallMissingId)?;
 
         Ok(Content::ToolUse {
@@ -200,9 +238,9 @@ impl TryFrom<forge_domain::ToolCallFull> for Content {
     }
 }
 
-impl TryFrom<forge_domain::ToolResult> for Content {
+impl TryFrom<forge_app::domain::ToolResult> for Content {
     type Error = anyhow::Error;
-    fn try_from(value: forge_domain::ToolResult) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: forge_app::domain::ToolResult) -> std::result::Result<Self, Self::Error> {
         let call_id = value.call_id.as_ref().ok_or(Error::ToolCallMissingId)?;
         Ok(Content::ToolResult {
             tool_use_id: call_id.as_str().to_string(),
@@ -251,17 +289,21 @@ pub enum ToolChoice {
 }
 
 // To understand the mappings refer: https://docs.anthropic.com/en/docs/build-with-claude/tool-use#controlling-claudes-output
-impl From<forge_domain::ToolChoice> for ToolChoice {
-    fn from(value: forge_domain::ToolChoice) -> Self {
+impl From<forge_app::domain::ToolChoice> for ToolChoice {
+    fn from(value: forge_app::domain::ToolChoice) -> Self {
         match value {
-            forge_domain::ToolChoice::Auto => ToolChoice::Auto { disable_parallel_tool_use: None },
-            forge_domain::ToolChoice::Call(tool_name) => {
+            forge_app::domain::ToolChoice::Auto => {
+                ToolChoice::Auto { disable_parallel_tool_use: None }
+            }
+            forge_app::domain::ToolChoice::Call(tool_name) => {
                 ToolChoice::Tool { name: tool_name.to_string(), disable_parallel_tool_use: None }
             }
-            forge_domain::ToolChoice::Required => {
+            forge_app::domain::ToolChoice::Required => {
                 ToolChoice::Any { disable_parallel_tool_use: None }
             }
-            forge_domain::ToolChoice::None => ToolChoice::Auto { disable_parallel_tool_use: None },
+            forge_app::domain::ToolChoice::None => {
+                ToolChoice::Auto { disable_parallel_tool_use: None }
+            }
         }
     }
 }
@@ -276,9 +318,11 @@ pub struct ToolDefinition {
     input_schema: serde_json::Value,
 }
 
-impl TryFrom<forge_domain::ToolDefinition> for ToolDefinition {
+impl TryFrom<forge_app::domain::ToolDefinition> for ToolDefinition {
     type Error = anyhow::Error;
-    fn try_from(value: forge_domain::ToolDefinition) -> std::result::Result<Self, Self::Error> {
+    fn try_from(
+        value: forge_app::domain::ToolDefinition,
+    ) -> std::result::Result<Self, Self::Error> {
         Ok(ToolDefinition {
             name: value.name.to_string(),
             description: Some(value.description),

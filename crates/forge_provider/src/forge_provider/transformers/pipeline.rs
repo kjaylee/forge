@@ -1,4 +1,4 @@
-use forge_domain::{DefaultTransformation, Provider, Transformer};
+use forge_app::domain::{DefaultTransformation, Provider, Transformer};
 
 use super::drop_tool_call::DropToolCalls;
 use super::make_openai_compat::MakeOpenAiCompat;
@@ -40,7 +40,7 @@ impl Transformer for ProviderPipeline<'_> {
 
 /// function checks if provider supports open-router parameters.
 fn supports_open_router_params(provider: &Provider) -> bool {
-    provider.is_open_router() || provider.is_antinomy()
+    provider.is_open_router() || provider.is_forge()
 }
 
 #[cfg(test)]
@@ -49,12 +49,16 @@ mod tests {
 
     #[test]
     fn test_supports_open_router_params() {
-        assert!(supports_open_router_params(&Provider::antinomy("antinomy")));
+        assert!(supports_open_router_params(&Provider::forge("forge")));
         assert!(supports_open_router_params(&Provider::open_router(
             "open-router"
         )));
 
         assert!(!supports_open_router_params(&Provider::openai("openai")));
+        assert!(!supports_open_router_params(&Provider::requesty(
+            "requesty"
+        )));
+        assert!(!supports_open_router_params(&Provider::xai("xai")));
         assert!(!supports_open_router_params(&Provider::anthropic("claude")));
     }
 }

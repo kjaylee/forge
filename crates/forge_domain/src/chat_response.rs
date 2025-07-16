@@ -10,7 +10,9 @@ pub enum ChatResponse {
         text: String,
         is_complete: bool,
         is_md: bool,
-        is_summary: bool,
+    },
+    Summary {
+        content: String,
     },
     ToolCallStart(ToolCallFull),
     ToolCallEnd(ToolResult),
@@ -19,6 +21,18 @@ pub enum ChatResponse {
         cause: Cause,
         duration: Duration,
     },
+    Interrupt {
+        reason: InterruptionReason,
+    },
+    Reasoning {
+        content: String,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum InterruptionReason {
+    MaxToolFailurePerTurnLimitReached { limit: u64 },
+    MaxRequestPerTurnLimitReached { limit: u64 },
 }
 
 #[derive(Clone)]

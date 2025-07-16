@@ -1,15 +1,13 @@
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
 
 use forge_domain::{Environment, Provider, RetryConfig};
 use forge_services::EnvironmentInfra;
+use reqwest::Url;
 
+#[derive(Clone)]
 pub struct ForgeEnvironmentInfra {
     restricted: bool,
-    is_env_loaded: RwLock<bool>,
 }
-
-type ProviderSearch = (&'static str, Box<dyn FnOnce(&str) -> Provider>);
 
 impl ForgeEnvironmentInfra {
     /// Creates a new EnvironmentFactory with current working directory
@@ -18,7 +16,11 @@ impl ForgeEnvironmentInfra {
     /// * `unrestricted` - If true, use unrestricted shell mode (sh/bash) If
     ///   false, use restricted shell mode (rbash)
     pub fn new(restricted: bool) -> Self {
-        Self { restricted, is_env_loaded: Default::default() }
+        Self::dot_env(&Self::cwd());
+        Self { restricted }
+    }
+    fn cwd() -> PathBuf {
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
     }
 
     /// Get path to appropriate shell based on platform and mode
@@ -32,38 +34,6 @@ impl ForgeEnvironmentInfra {
             // Use user's preferred shell or fallback to sh
             std::env::var("SHELL").unwrap_or("/bin/sh".to_string())
         }
-    }
-
-    /// Resolves the provider key and provider from environment variables
-    ///
-    /// Returns a tuple of (provider_key, provider)
-    /// Panics if no API key is found in the environment
-    fn resolve_provider(&self) -> Provider {
-        let keys: [ProviderSearch; 4] = [
-            ("FORGE_KEY", Box::new(Provider::antinomy)),
-            ("OPENROUTER_API_KEY", Box::new(Provider::open_router)),
-            ("OPENAI_API_KEY", Box::new(Provider::openai)),
-            ("ANTHROPIC_API_KEY", Box::new(Provider::anthropic)),
-        ];
-
-        keys.into_iter()
-            .find_map(|(key, fun)| {
-                std::env::var(key).ok().map(|key| {
-                    let mut provider = fun(&key);
-
-                    if let Ok(url) = std::env::var("OPENAI_URL") {
-                        provider.open_ai_url(url);
-                    }
-
-                    // Check for Anthropic URL override
-                    if let Ok(url) = std::env::var("ANTHROPIC_URL") {
-                        provider.anthropic_url(url);
-                    }
-
-                    provider
-                })
-            })
-            .unwrap_or_else(|| panic!("API key required. Get yours at https://app.forgecode.dev/"))
     }
 
     /// Resolves retry configuration from environment variables or returns
@@ -105,6 +75,11 @@ impl ForgeEnvironmentInfra {
 
     fn resolve_timeout_config(&self) -> forge_domain::HttpConfig {
         let mut config = forge_domain::HttpConfig::default();
+        if let Ok(val) = std::env::var("FORGE_HTTP_CONNECT_TIMEOUT") {
+            if let Ok(parsed) = val.parse::<u64>() {
+                config.connect_timeout = parsed;
+            }
+        }
         if let Ok(val) = std::env::var("FORGE_HTTP_READ_TIMEOUT") {
             if let Ok(parsed) = val.parse::<u64>() {
                 config.read_timeout = parsed;
@@ -130,14 +105,14 @@ impl ForgeEnvironmentInfra {
     }
 
     fn get(&self) -> Environment {
-        let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
-        if !self.is_env_loaded.read().map(|v| *v).unwrap_or_default() {
-            *self.is_env_loaded.write().unwrap() = true;
-            Self::dot_env(&cwd);
-        }
-
-        let provider = self.resolve_provider();
+        let cwd = Self::cwd();
         let retry_config = self.resolve_retry_config();
+
+        let forge_api_url = self
+            .get_env_var("FORGE_API_URL")
+            .as_ref()
+            .and_then(|url| Url::parse(url.as_str()).ok())
+            .unwrap_or_else(|| Url::parse(Provider::FORGE_URL).unwrap());
 
         Environment {
             os: std::env::consts::OS.to_string(),
@@ -148,7 +123,6 @@ impl ForgeEnvironmentInfra {
                 .map(|a| a.join("forge"))
                 .unwrap_or(PathBuf::from(".").join("forge")),
             home: dirs::home_dir(),
-            provider,
             retry_config,
             max_search_lines: 200,
             fetch_truncation_limit: 40_000,
@@ -157,6 +131,7 @@ impl ForgeEnvironmentInfra {
             stdout_max_suffix_length: 200,
             http: self.resolve_timeout_config(),
             max_file_size: 256 << 10, // 256 KiB
+            forge_api_url,
         }
     }
 
@@ -186,6 +161,10 @@ impl ForgeEnvironmentInfra {
 impl EnvironmentInfra for ForgeEnvironmentInfra {
     fn get_environment(&self) -> Environment {
         self.get()
+    }
+
+    fn get_env_var(&self, key: &str) -> Option<String> {
+        std::env::var(key).ok()
     }
 }
 
@@ -406,6 +385,96 @@ mod tests {
             env::remove_var("FORGE_RETRY_BACKOFF_FACTOR");
             env::remove_var("FORGE_RETRY_MAX_ATTEMPTS");
             env::remove_var("FORGE_RETRY_STATUS_CODES");
+        }
+    }
+
+    #[test]
+    fn test_http_config_environment_variables() {
+        // Clean up any existing environment variables first
+        env::remove_var("FORGE_HTTP_CONNECT_TIMEOUT");
+        env::remove_var("FORGE_HTTP_READ_TIMEOUT");
+        env::remove_var("FORGE_HTTP_POOL_IDLE_TIMEOUT");
+        env::remove_var("FORGE_HTTP_POOL_MAX_IDLE_PER_HOST");
+        env::remove_var("FORGE_HTTP_MAX_REDIRECTS");
+
+        // Test default values
+        {
+            let env_service = ForgeEnvironmentInfra::new(false);
+            let config = env_service.resolve_timeout_config();
+            let default_config = forge_domain::HttpConfig::default();
+
+            assert_eq!(config.connect_timeout, default_config.connect_timeout);
+            assert_eq!(config.read_timeout, default_config.read_timeout);
+            assert_eq!(config.pool_idle_timeout, default_config.pool_idle_timeout);
+            assert_eq!(
+                config.pool_max_idle_per_host,
+                default_config.pool_max_idle_per_host
+            );
+            assert_eq!(config.max_redirects, default_config.max_redirects);
+        }
+
+        // Test environment variable overrides
+        {
+            env::set_var("FORGE_HTTP_CONNECT_TIMEOUT", "30");
+            env::set_var("FORGE_HTTP_READ_TIMEOUT", "120");
+            env::set_var("FORGE_HTTP_POOL_IDLE_TIMEOUT", "180");
+            env::set_var("FORGE_HTTP_POOL_MAX_IDLE_PER_HOST", "10");
+            env::set_var("FORGE_HTTP_MAX_REDIRECTS", "20");
+
+            let env_service = ForgeEnvironmentInfra::new(false);
+            let config = env_service.resolve_timeout_config();
+
+            assert_eq!(config.connect_timeout, 30);
+            assert_eq!(config.read_timeout, 120);
+            assert_eq!(config.pool_idle_timeout, 180);
+            assert_eq!(config.pool_max_idle_per_host, 10);
+            assert_eq!(config.max_redirects, 20);
+
+            // Clean up environment variables
+            env::remove_var("FORGE_HTTP_CONNECT_TIMEOUT");
+            env::remove_var("FORGE_HTTP_READ_TIMEOUT");
+            env::remove_var("FORGE_HTTP_POOL_IDLE_TIMEOUT");
+            env::remove_var("FORGE_HTTP_POOL_MAX_IDLE_PER_HOST");
+            env::remove_var("FORGE_HTTP_MAX_REDIRECTS");
+        }
+
+        // Test partial environment variable override (specifically connect_timeout)
+        {
+            env::set_var("FORGE_HTTP_CONNECT_TIMEOUT", "15");
+
+            let env_service = ForgeEnvironmentInfra::new(false);
+            let config = env_service.resolve_timeout_config();
+            let default_config = forge_domain::HttpConfig::default();
+
+            // Overridden value
+            assert_eq!(config.connect_timeout, 15);
+
+            // Default values should remain
+            assert_eq!(config.read_timeout, default_config.read_timeout);
+            assert_eq!(config.pool_idle_timeout, default_config.pool_idle_timeout);
+            assert_eq!(
+                config.pool_max_idle_per_host,
+                default_config.pool_max_idle_per_host
+            );
+            assert_eq!(config.max_redirects, default_config.max_redirects);
+
+            // Clean up environment variables
+            env::remove_var("FORGE_HTTP_CONNECT_TIMEOUT");
+        }
+
+        // Test invalid environment variable values
+        {
+            env::set_var("FORGE_HTTP_CONNECT_TIMEOUT", "invalid");
+
+            let env_service = ForgeEnvironmentInfra::new(false);
+            let config = env_service.resolve_timeout_config();
+            let default_config = forge_domain::HttpConfig::default();
+
+            // Should fall back to default when parsing fails
+            assert_eq!(config.connect_timeout, default_config.connect_timeout);
+
+            // Clean up environment variables
+            env::remove_var("FORGE_HTTP_CONNECT_TIMEOUT");
         }
     }
 }

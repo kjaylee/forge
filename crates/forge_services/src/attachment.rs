@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use forge_app::domain::{Attachment, AttachmentContent, Image};
 use forge_app::AttachmentService;
-use forge_domain::{Attachment, AttachmentContent, Image};
 
 use crate::{EnvironmentInfra, FileReaderInfra};
 
@@ -74,13 +74,13 @@ pub mod tests {
 
     use base64::Engine;
     use bytes::Bytes;
-    use forge_app::AttachmentService;
-    use forge_domain::{
-        AttachmentContent, CommandOutput, Environment, Provider, ToolDefinition, ToolName,
-        ToolOutput,
+    use forge_app::domain::{
+        AttachmentContent, CommandOutput, Environment, ToolDefinition, ToolName, ToolOutput,
     };
+    use forge_app::AttachmentService;
     use forge_snaps::Snapshot;
     use serde_json::Value;
+    use url::Url;
 
     use crate::attachment::ForgeChatRequest;
     use crate::utils::AttachmentExtension;
@@ -103,7 +103,6 @@ pub mod tests {
                 home: Some(PathBuf::from("/home/test")),
                 shell: "bash".to_string(),
                 base_path: PathBuf::from("/base"),
-                provider: Provider::open_router("test-key"),
                 retry_config: Default::default(),
                 max_search_lines: 25,
                 fetch_truncation_limit: 0,
@@ -112,7 +111,12 @@ pub mod tests {
                 max_read_size: 0,
                 http: Default::default(),
                 max_file_size: 10_000_000,
+                forge_api_url: Url::parse("http://forgecode.dev/api").unwrap(),
             }
+        }
+
+        fn get_env_var(&self, _key: &str) -> Option<String> {
+            None
         }
     }
 
@@ -301,7 +305,10 @@ pub mod tests {
     impl McpServerInfra for () {
         type Client = ();
 
-        async fn connect(&self, _: forge_domain::McpServerConfig) -> anyhow::Result<Self::Client> {
+        async fn connect(
+            &self,
+            _: forge_app::domain::McpServerConfig,
+        ) -> anyhow::Result<Self::Client> {
             Ok(())
         }
     }
@@ -511,6 +518,10 @@ pub mod tests {
     impl EnvironmentInfra for MockCompositeService {
         fn get_environment(&self) -> Environment {
             self.env_service.get_environment()
+        }
+
+        fn get_env_var(&self, _key: &str) -> Option<String> {
+            None
         }
     }
 
