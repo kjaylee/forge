@@ -34,12 +34,14 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             ratatui::crossterm::event::Event::Paste(_) => Command::Empty,
             ratatui::crossterm::event::Event::Resize(_, _) => Command::Empty,
         },
-        Action::ChatResponse(response) => {
+        Action::ChatResponse(response, spinner_id) => {
             if let ChatResponse::Text { ref text, is_complete, .. } = response
                 && is_complete
                 && !text.trim().is_empty()
+                && spinner_id == state.current_spinner_id
             {
-                state.show_spinner = false
+                state.show_spinner = false;
+                state.current_spinner_id = None;
             }
             state.add_assistant_message(response);
             if let Some(ref timer) = state.timer
@@ -61,9 +63,12 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             state.timer = Some(timer);
             Command::Empty
         }
-        Action::InterruptStream => {
-            // Stop showing spinner and clear any ongoing streaming
-            state.show_spinner = false;
+        Action::InterruptStream(spinner_id) => {
+            // Only stop spinner if it matches the current spinner ID
+            if spinner_id == state.current_spinner_id {
+                state.show_spinner = false;
+                state.current_spinner_id = None;
+            }
             // Cancel the ongoing stream if one exists
             if let Some(ref cancel) = state.chat_stream {
                 cancel.cancel();
@@ -75,9 +80,13 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             }
             Command::Empty
         }
-        Action::StartStream(cancel_id) => {
+        Action::StartStream(cancel_id, spinner_id) => {
             // Store the cancellation token for this stream
             state.chat_stream = Some(cancel_id);
+            // Update current spinner ID if provided
+            if spinner_id.is_some() {
+                state.current_spinner_id = spinner_id;
+            }
             Command::Empty
         }
         Action::Cancelled(_cancel_id) => {
@@ -214,7 +223,7 @@ mod tests {
         };
         fixture_state.timer = Some(timer);
 
-        let fixture_action = Action::InterruptStream;
+        let fixture_action = Action::InterruptStream(None);
 
         let actual_command = update(&mut fixture_state, fixture_action);
 
@@ -231,7 +240,7 @@ mod tests {
         fixture_state.show_spinner = true;
         fixture_state.timer = None;
 
-        let fixture_action = Action::InterruptStream;
+        let fixture_action = Action::InterruptStream(None);
 
         let actual_command = update(&mut fixture_state, fixture_action);
         let expected_command = Command::Empty;
@@ -246,7 +255,7 @@ mod tests {
         let mut fixture_state = State::default();
         let cancel_id = CancelId::new(CancellationToken::new());
 
-        let fixture_action = Action::StartStream(cancel_id);
+        let fixture_action = Action::StartStream(cancel_id, None);
 
         let actual_command = update(&mut fixture_state, fixture_action);
         let expected_command = Command::Empty;
@@ -262,7 +271,7 @@ mod tests {
         fixture_state.chat_stream = Some(cancel_id.clone());
         fixture_state.show_spinner = true;
 
-        let fixture_action = Action::InterruptStream;
+        let fixture_action = Action::InterruptStream(None);
 
         let actual_command = update(&mut fixture_state, fixture_action);
 
@@ -338,7 +347,10 @@ mod tests {
             is_complete: true,
             is_md: false,
         };
-        let actual_command = update(&mut fixture_state, Action::ChatResponse(chat_response));
+        let actual_command = update(
+            &mut fixture_state,
+            Action::ChatResponse(chat_response, None),
+        );
 
         // Check that cancellation happened automatically and command is Empty
         assert_eq!(actual_command, Command::Empty);
@@ -365,7 +377,10 @@ mod tests {
             is_complete: false,
             is_md: false,
         };
-        let actual_command = update(&mut fixture_state, Action::ChatResponse(chat_response));
+        let actual_command = update(
+            &mut fixture_state,
+            Action::ChatResponse(chat_response, None),
+        );
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
@@ -410,6 +425,96 @@ mod tests {
         assert_eq!(actual_command, expected_command);
         // Timer should be updated to the new timer from the action
         assert_eq!(fixture_state.timer, Some(timer));
+    }
+
+    #[test]
+    fn test_spinner_id_prevents_older_chat_response_from_hiding_newer_spinner() {
+        let mut fixture_state = State::default();
+
+        // Set up first spinner with ID 1
+        fixture_state.show_spinner = true;
+        fixture_state.current_spinner_id = Some(1);
+
+        // Start a second spinner with ID 2 (newer)
+        fixture_state.current_spinner_id = Some(2);
+
+        // Simulate an older chat response (ID 1) completing
+        let chat_response = forge_api::ChatResponse::Text {
+            text: "Hello World".to_string(),
+            is_complete: true,
+            is_md: false,
+        };
+        let actual_command = update(
+            &mut fixture_state,
+            Action::ChatResponse(chat_response, Some(1)),
+        );
+
+        // The older response should NOT hide the newer spinner
+        assert_eq!(actual_command, Command::Empty);
+        assert!(fixture_state.show_spinner); // Spinner should still be showing
+        assert_eq!(fixture_state.current_spinner_id, Some(2)); // Current spinner ID should remain unchanged
+    }
+
+    #[test]
+    fn test_spinner_id_allows_current_chat_response_to_hide_spinner() {
+        let mut fixture_state = State::default();
+
+        // Set up spinner with ID 1
+        fixture_state.show_spinner = true;
+        fixture_state.current_spinner_id = Some(1);
+
+        // Simulate the current chat response (ID 1) completing
+        let chat_response = forge_api::ChatResponse::Text {
+            text: "Hello World".to_string(),
+            is_complete: true,
+            is_md: false,
+        };
+        let actual_command = update(
+            &mut fixture_state,
+            Action::ChatResponse(chat_response, Some(1)),
+        );
+
+        // The current response should hide the spinner
+        assert_eq!(actual_command, Command::Empty);
+        assert!(!fixture_state.show_spinner); // Spinner should be hidden
+        assert_eq!(fixture_state.current_spinner_id, None); // Current spinner ID should be cleared
+    }
+
+    #[test]
+    fn test_spinner_id_prevents_older_interrupt_from_hiding_newer_spinner() {
+        let mut fixture_state = State::default();
+
+        // Set up first spinner with ID 1
+        fixture_state.show_spinner = true;
+        fixture_state.current_spinner_id = Some(1);
+
+        // Start a second spinner with ID 2 (newer)
+        fixture_state.current_spinner_id = Some(2);
+
+        // Simulate an older interrupt (ID 1)
+        let actual_command = update(&mut fixture_state, Action::InterruptStream(Some(1)));
+
+        // The older interrupt should NOT hide the newer spinner
+        assert_eq!(actual_command, Command::Empty);
+        assert!(fixture_state.show_spinner); // Spinner should still be showing
+        assert_eq!(fixture_state.current_spinner_id, Some(2)); // Current spinner ID should remain unchanged
+    }
+
+    #[test]
+    fn test_spinner_id_allows_current_interrupt_to_hide_spinner() {
+        let mut fixture_state = State::default();
+
+        // Set up spinner with ID 1
+        fixture_state.show_spinner = true;
+        fixture_state.current_spinner_id = Some(1);
+
+        // Simulate the current interrupt (ID 1)
+        let actual_command = update(&mut fixture_state, Action::InterruptStream(Some(1)));
+
+        // The current interrupt should hide the spinner
+        assert_eq!(actual_command, Command::Empty);
+        assert!(!fixture_state.show_spinner); // Spinner should be hidden
+        assert_eq!(fixture_state.current_spinner_id, None); // Current spinner ID should be cleared
     }
 
     #[test]

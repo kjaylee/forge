@@ -34,6 +34,7 @@ impl<T: API + 'static> Executor<T> {
         message: String,
         conversation_id: Option<ConversationId>,
         is_first: bool,
+        spinner_id: Option<u64>,
         tx: &Sender<anyhow::Result<Action>>,
     ) -> anyhow::Result<()> {
         let conversation = if let Some(conv_id) = conversation_id {
@@ -75,8 +76,9 @@ impl<T: API + 'static> Executor<T> {
         let cancellation_token = CancellationToken::new();
         let cancel_id = CancelId::new(cancellation_token.clone());
 
-        // Send StartStream action with the cancel_id
-        tx.send(Ok(Action::StartStream(cancel_id.clone()))).await?;
+        // Send StartStream action with the cancel_id and spinner_id
+        tx.send(Ok(Action::StartStream(cancel_id.clone(), spinner_id)))
+            .await?;
 
         match self.api.chat(chat_request).await {
             Ok(mut stream) => loop {
@@ -84,7 +86,7 @@ impl<T: API + 'static> Executor<T> {
                     response = stream.next() => {
                         match response {
                             Some(response) => {
-                                tx.send(response.map(Action::ChatResponse)).await?;
+                                tx.send(response.map(|r| Action::ChatResponse(r, spinner_id))).await?;
                             }
                             None => break,
                         }
@@ -234,8 +236,8 @@ impl<T: API + 'static> Executor<T> {
         tx: Sender<anyhow::Result<Action>>,
     ) -> anyhow::Result<()> {
         match cmd {
-            Command::ChatMessage { message, conversation_id, is_first } => {
-                self.execute_chat_message(message, conversation_id, is_first, &tx)
+            Command::ChatMessage { message, conversation_id, is_first, spinner_id } => {
+                self.execute_chat_message(message, conversation_id, is_first, spinner_id, &tx)
                     .await?;
             }
             Command::ReadWorkspace => {
@@ -256,7 +258,7 @@ impl<T: API + 'static> Executor<T> {
             Command::Spotlight(_) => todo!(),
             Command::InterruptStream => {
                 // Send InterruptStream action to trigger state update
-                tx.send(Ok(Action::InterruptStream)).await?;
+                tx.send(Ok(Action::InterruptStream(None))).await?;
             }
         }
         Ok(())

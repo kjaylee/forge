@@ -12,10 +12,11 @@ pub enum Action {
         current_dir: Option<String>,
         current_branch: Option<String>,
     },
-    ChatResponse(ChatResponse),
+    ChatResponse(ChatResponse, Option<u64>), // Added spinner_id
     ConversationInitialized(ConversationId),
     IntervalTick(Timer),
-    InterruptStream,
-    StartStream(CancelId),
+    InterruptStream(Option<u64>),       // Added spinner_id
+    StartStream(CancelId, Option<u64>), // Added spinner_id
+    #[allow(dead_code)]
     Cancelled(CancelId),
 }

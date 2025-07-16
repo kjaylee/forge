@@ -147,11 +147,24 @@ fn handle_prompt_submit(
             Command::Empty
         } else {
             state.add_user_message(message.clone());
+
+            // Generate a unique spinner ID for this request
+            let spinner_id = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+
+            // Cancel any existing timer before starting a new spinner
+            // This ensures only the latest spinner is shown
+            if let Some(ref timer) = state.timer {
+                timer.cancel.cancel();
+                state.timer = None;
+            }
+
             state.show_spinner = true;
+            state.current_spinner_id = Some(spinner_id);
             let chat_command = Command::ChatMessage {
                 message,
                 conversation_id: state.conversation.conversation_id,
                 is_first: state.conversation.is_first,
+                spinner_id: Some(spinner_id),
             };
             Command::Interval { duration: Duration::from_millis(100) }.and(chat_command)
         }
@@ -685,5 +698,52 @@ mod tests {
         assert_eq!(actual, expected);
         assert_eq!(fixture.messages.len(), 0);
         assert!(!fixture.show_spinner);
+    }
+
+    #[test]
+    fn test_handle_prompt_submit_cancels_existing_timer() {
+        let mut fixture = State::default();
+        fixture.editor.mode = EditorMode::Normal;
+        fixture
+            .editor
+            .set_text_insert_mode("Hello world".to_string());
+
+        // Set up an existing timer to simulate a running spinner
+        let existing_cancel_id =
+            crate::domain::CancelId::new(tokio_util::sync::CancellationToken::new());
+        let existing_timer = crate::domain::state::Timer {
+            start_time: chrono::Utc::now(),
+            current_time: chrono::Utc::now(),
+            duration: std::time::Duration::from_secs(1),
+            cancel: existing_cancel_id.clone(),
+        };
+        fixture.timer = Some(existing_timer);
+        fixture.show_spinner = true;
+
+        let key_event = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+
+        let actual = handle_prompt_submit(&mut fixture, key_event);
+
+        // Verify that the existing timer was cancelled
+        assert!(existing_cancel_id.is_cancelled());
+
+        // Verify that the timer was cleared from state
+        assert!(fixture.timer.is_none());
+
+        // Verify that spinner is still enabled for the new request
+        assert!(fixture.show_spinner);
+
+        // Verify that the command structure is correct
+        match actual {
+            Command::And(commands) => {
+                assert_eq!(commands.len(), 2);
+                assert!(matches!(commands[0], Command::Interval { .. }));
+                assert!(matches!(commands[1], Command::ChatMessage { .. }));
+            }
+            _ => panic!("Expected Command::And with Interval and ChatMessage"),
+        }
+
+        // Verify that the message was added
+        assert_eq!(fixture.messages.len(), 1);
     }
 }

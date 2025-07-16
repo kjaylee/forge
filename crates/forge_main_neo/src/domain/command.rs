@@ -21,8 +21,10 @@ pub enum Command {
         message: String,
         conversation_id: Option<ConversationId>,
         is_first: bool,
+        spinner_id: Option<u64>,
     },
     InterruptStream,
+    #[allow(dead_code)]
     Spotlight(SpotlightCommand),
     Interval {
         duration: Duration,
@@ -110,6 +112,7 @@ mod tests {
             message: "hello".to_string(),
             conversation_id: None,
             is_first: true,
+            spinner_id: None,
         }
         .and(Command::ReadWorkspace)
         .and(Command::Empty)
@@ -120,6 +123,7 @@ mod tests {
                 message: "hello".to_string(),
                 conversation_id: None,
                 is_first: true,
+                spinner_id: None,
             },
             Command::ReadWorkspace,
             Command::Exit,
@@ -133,12 +137,14 @@ mod tests {
             message: "test".to_string(),
             conversation_id: None,
             is_first: true,
+            spinner_id: None,
         });
         let actual = fixture;
         let expected = Command::ChatMessage {
             message: "test".to_string(),
             conversation_id: None,
             is_first: true,
+            spinner_id: None,
         };
         assert_eq!(actual, expected);
     }
@@ -200,6 +206,7 @@ mod tests {
                 message: "test".to_string(),
                 conversation_id: None,
                 is_first: true,
+                spinner_id: None,
             },
         ]);
         let actual = fixture.flatten();
@@ -210,6 +217,7 @@ mod tests {
                 message: "test".to_string(),
                 conversation_id: None,
                 is_first: true,
+                spinner_id: None,
             },
         ]);
         assert_eq!(actual, expected);
@@ -225,6 +233,7 @@ mod tests {
                     message: "test".to_string(),
                     conversation_id: None,
                     is_first: true,
+                    spinner_id: None,
                 },
             ]),
             Command::And(vec![Command::ReadWorkspace]),
@@ -237,6 +246,7 @@ mod tests {
                 message: "test".to_string(),
                 conversation_id: None,
                 is_first: true,
+                spinner_id: None,
             },
             Command::ReadWorkspace,
         ]);
@@ -276,6 +286,7 @@ mod tests {
                         message: "nested".to_string(),
                         conversation_id: None,
                         is_first: true,
+                        spinner_id: None,
                     },
                     Command::And(vec![Command::ReadWorkspace]),
                 ]),
@@ -289,6 +300,7 @@ mod tests {
                 message: "nested".to_string(),
                 conversation_id: None,
                 is_first: true,
+                spinner_id: None,
             },
             Command::ReadWorkspace,
         ]);
@@ -304,6 +316,7 @@ mod tests {
                     message: "hello".to_string(),
                     conversation_id: None,
                     is_first: true,
+                    spinner_id: None,
                 },
                 Command::Empty,
                 Command::And(vec![Command::ReadWorkspace, Command::Empty]),
@@ -314,6 +327,7 @@ mod tests {
                 message: "world".to_string(),
                 conversation_id: None,
                 is_first: true,
+                spinner_id: None,
             },
         ]);
         let actual = fixture.flatten();
@@ -322,6 +336,7 @@ mod tests {
                 message: "hello".to_string(),
                 conversation_id: None,
                 is_first: true,
+                spinner_id: None,
             },
             Command::ReadWorkspace,
             Command::Exit,
@@ -329,6 +344,7 @@ mod tests {
                 message: "world".to_string(),
                 conversation_id: None,
                 is_first: true,
+                spinner_id: None,
             },
         ]);
         assert_eq!(actual, expected);
