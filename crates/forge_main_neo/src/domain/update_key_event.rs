@@ -63,6 +63,7 @@ fn handle_spotlight_navigation(
                 // Convert SlashCommand to appropriate Command
                 let command = match selected_cmd {
                     crate::domain::slash_command::SlashCommand::Exit => Command::Exit,
+                    crate::domain::slash_command::SlashCommand::New => Command::New,
                     crate::domain::slash_command::SlashCommand::Agent => {
                         // For now, just hide spotlight - proper agent selection would need more UI
                         Command::Empty

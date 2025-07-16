@@ -8,6 +8,7 @@ use crate::domain::{CancelId, Timer};
 pub enum Action {
     CrossTerm(Event),
     Initialize,
+    NewConversation,
     Workspace {
         current_dir: Option<String>,
         current_branch: Option<String>,

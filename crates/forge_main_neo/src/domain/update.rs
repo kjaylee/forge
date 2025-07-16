@@ -3,12 +3,33 @@ use forge_api::ChatResponse;
 use ratatui::crossterm::event::KeyEventKind;
 
 use crate::domain::update_key_event::handle_key_event;
-use crate::domain::{Action, Command, State};
+use crate::domain::{Action, Command, ConversationState, EditorStateExt, State};
 
 pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
     let action = action.into();
     match action {
         Action::Initialize => Command::ReadWorkspace,
+        Action::NewConversation => {
+            // Reset conversation state for a new conversation
+            state.conversation = ConversationState::default();
+            // Clear messages to start fresh
+            state.messages.clear();
+            // Clear editor text
+            state.editor.clear();
+            // Reset spinner state
+            state.show_spinner = false;
+            // Cancel any ongoing streams
+            if let Some(ref cancel) = state.chat_stream {
+                cancel.cancel();
+                state.chat_stream = None;
+            }
+            // Cancel any timers
+            if let Some(ref timer) = state.timer {
+                timer.cancel.cancel();
+                state.timer = None;
+            }
+            Command::Empty
+        }
         Action::Workspace { current_dir, current_branch } => {
             // TODO: can simply get workspace object from the action
             state.workspace.current_dir = current_dir;
@@ -267,19 +288,6 @@ mod tests {
         assert!(cancel_id.is_cancelled());
         assert!(!fixture_state.show_spinner);
         assert!(fixture_state.chat_stream.is_none());
-    }
-
-    #[test]
-    fn test_cancelled_action_with_number_id() {
-        let mut fixture_state = State::default();
-        let cancel_id = crate::domain::CancelId::new(CancellationToken::new());
-
-        let fixture_action = Action::Cancelled(cancel_id);
-
-        let actual_command = update(&mut fixture_state, fixture_action);
-        let expected_command = Command::Empty;
-
-        assert_eq!(actual_command, expected_command);
     }
 
     #[test]

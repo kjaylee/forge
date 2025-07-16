@@ -16,6 +16,7 @@ pub enum Command {
     #[default]
     Empty,
     Exit,
+    New,
     And(Vec<Command>),
     ChatMessage {
         message: String,
