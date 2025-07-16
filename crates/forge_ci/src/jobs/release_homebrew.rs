@@ -1,5 +1,8 @@
 use gh_workflow_tailcall::*;
 
+use crate::jobs::build::create_build_release_job;
+use crate::matrix::create_matrix as create_build_matrix;
+
 /// Create a workflow for homebrew releases
 pub fn create_homebrew_workflow() -> Workflow {
     let mut homebrew_workflow = Workflow::default()
@@ -14,8 +17,12 @@ pub fn create_homebrew_workflow() -> Workflow {
                 .pull_requests(Level::Write),
         );
 
-    homebrew_workflow =
-        homebrew_workflow.add_job("homebrew_release", create_homebrew_release_job());
+    // Use the existing build job function with cross-compilation matrix
+    let build_job = create_build_release_job(create_build_matrix());
+    let homebrew_release_job = create_homebrew_release_job().add_needs(build_job.clone());
+    homebrew_workflow = homebrew_workflow
+        .add_job("build-release", build_job)
+        .add_job("homebrew_release", homebrew_release_job);
 
     homebrew_workflow
 }

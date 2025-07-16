@@ -1,6 +1,9 @@
 use gh_workflow_tailcall::*;
 use serde_json::Value;
 
+use crate::jobs::build::create_build_release_job;
+use crate::matrix::create_matrix as create_build_matrix;
+
 /// Create a workflow for NPM releases
 pub fn create_npm_workflow() -> Workflow {
     let mut npm_workflow = Workflow::default()
@@ -15,7 +18,13 @@ pub fn create_npm_workflow() -> Workflow {
                 .pull_requests(Level::Write),
         );
 
-    npm_workflow = npm_workflow.add_job("npm_release", create_npm_release_job());
+    // Use the existing build job function with cross-compilation matrix
+    let build_job = create_build_release_job(create_build_matrix());
+    let npm_release_job = create_npm_release_job().add_needs(build_job.clone());
+
+    npm_workflow = npm_workflow
+        .add_job("build-release", build_job)
+        .add_job("npm_release", npm_release_job);
 
     npm_workflow
 }

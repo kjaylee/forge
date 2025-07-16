@@ -16,9 +16,8 @@ fn apt_get_install(packages: &[&str]) -> String {
 }
 
 /// Create a base build job that can be customized
-fn create_build_release_job(matrix: Value, draft_release_job: &Job) -> Job {
+pub fn create_build_release_job(matrix: Value) -> Job {
     Job::new("build-release")
-        .add_needs(draft_release_job.clone())
         .strategy(Strategy { fail_fast: None, max_parallel: None, matrix: Some(matrix) })
         .runs_on("${{ matrix.os }}")
         .permissions(
@@ -71,16 +70,15 @@ fn create_build_release_job(matrix: Value, draft_release_job: &Job) -> Job {
 
 /// Create a build job for PRs with the 'build-all-targets' label
 pub fn create_build_release_pr_job(draft_release_job: &Job) -> Job {
-    let matrix = matrix::create_matrix();
-    create_build_release_job(matrix.clone(), draft_release_job).cond(Expression::new(
+    create_build_release_job(matrix::create_matrix()).add_needs(draft_release_job.to_owned()).cond(Expression::new(
         "github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-all-targets')",
     ))
 }
 
 /// Create a build job for main branch that adds binaries to release
 pub fn create_build_release_main_job(draft_release_job: &Job) -> Job {
-    let matrix = matrix::create_matrix();
-    create_build_release_job(matrix.clone(), draft_release_job)
+    create_build_release_job(matrix::create_matrix())
+        .add_needs(draft_release_job.to_owned())
         .cond(Expression::new(
             "(github.event_name == 'push' && github.ref == 'refs/heads/main')",
         ))
