@@ -33,10 +33,6 @@ use crate::{banner, tracker, TRACKER};
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
 pub const EVENT_USER_TASK_UPDATE: &str = "user_task_update";
-const VERSION: &str = match option_env!("APP_VERSION") {
-    Some(val) => val,
-    None => env!("CARGO_PKG_VERSION"),
-};
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
 pub struct PartialEvent {
@@ -637,12 +633,7 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
     /// Initialize the state of the UI
     async fn init_state(&mut self, first: bool) -> Result<Workflow> {
         let provider = self.init_provider().await?;
-        let mut base_workflow = Workflow::default();
-        let default_api_workflow = self.api.get_api_workflow(Some(VERSION)).await;
-        if let Ok(api_workflow) = default_api_workflow {
-            base_workflow.merge(api_workflow);
-        }
-        let mut workflow = self.api.read_workflow(self.cli.workflow.as_deref()).await?;
+        let mut workflow = self.api.read_merged(self.cli.workflow.as_deref()).await?;
         if workflow.model.is_none() {
             workflow.model = Some(
                 self.select_model()
@@ -650,17 +641,16 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
                     .ok_or(anyhow::anyhow!("Model selection is required to continue"))?,
             );
         }
-        base_workflow.merge(workflow.clone());
         if first {
             // only call on_update if this is the first initialization
-            on_update(self.api.clone(), base_workflow.updates.as_ref()).await;
+            on_update(self.api.clone(), workflow.updates.as_ref()).await;
         }
         self.api
             .write_workflow(self.cli.workflow.as_deref(), &workflow)
             .await?;
 
-        self.command.register_all(&base_workflow);
-        self.state = UIState::new(base_workflow).provider(provider);
+        self.command.register_all(&workflow);
+        self.state = UIState::new(workflow.clone()).provider(provider);
 
         Ok(workflow)
     }

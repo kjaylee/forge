@@ -161,6 +161,9 @@ pub trait WorkflowService {
     async fn read_merged(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         let workflow = self.read_workflow(path).await?;
         let mut base_workflow = Workflow::default();
+        if let Ok(api_workflow) = self.get_api_workflow().await {
+            base_workflow.merge(api_workflow);
+        }
         base_workflow.merge(workflow);
         Ok(base_workflow)
     }
@@ -181,7 +184,7 @@ pub trait WorkflowService {
     where
         F: FnOnce(&mut Workflow) + Send;
 
-    async fn get_api_workflow(&self, version: Option<&str>) -> anyhow::Result<Workflow>;
+    async fn get_api_workflow(&self) -> anyhow::Result<Workflow>;
 }
 
 #[async_trait::async_trait]
@@ -452,8 +455,8 @@ impl<I: Services> WorkflowService for I {
         self.workflow_service().update_workflow(path, f).await
     }
 
-    async fn get_api_workflow(&self, version: Option<&str>) -> anyhow::Result<Workflow> {
-        self.workflow_service().get_api_workflow(version).await
+    async fn get_api_workflow(&self) -> anyhow::Result<Workflow> {
+        self.workflow_service().get_api_workflow().await
     }
 }
 

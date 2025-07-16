@@ -41,9 +41,9 @@ pub trait API: Sync + Send {
     async fn read_workflow(&self, path: Option<&Path>) -> Result<Workflow>;
 
     /// Fetches a workflow configuration from the backend API
-    /// The workflow YAML is retrieved based on the optional version parameter,
+    /// The workflow YAML is retrieved based on the App version,
     /// and then deserialized into a `Workflow` struct.
-    async fn get_api_workflow(&self, version: Option<&str>) -> Result<Workflow>;
+    async fn get_api_workflow(&self) -> Result<Workflow>;
 
     /// Reads the workflow from the given path and merges it with a default
     /// workflow. This provides a convenient way to get a complete workflow

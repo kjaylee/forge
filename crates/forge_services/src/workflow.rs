@@ -132,17 +132,14 @@ impl<F: FileWriterInfra + FileReaderInfra + HttpInfra + EnvironmentInfra> Workfl
         Ok(workflow)
     }
 
-    async fn get_api_workflow(&self, version: Option<&str>) -> anyhow::Result<Workflow> {
+    async fn get_api_workflow(&self) -> anyhow::Result<Workflow> {
+        let version = self.infra.get_environment().version();
         let base_url = self
             .infra
             .get_env_var("FORGE_API_URL")
             .unwrap_or(Provider::FORGE_URL.to_string());
 
-        let url = if let Some(v) = version {
-            format!("{base_url}api/v1/config?version={v}")
-        } else {
-            format!("{base_url}api/v1/config")
-        };
+        let url = format!("{base_url}config?version={version}");
 
         let response = self.infra.get(&url, None).await?;
         let response = response.error_for_status()?;
