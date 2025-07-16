@@ -129,9 +129,12 @@ impl Decoder for Utf8Codec {
         match str::from_utf8(src) {
             Ok(s) => {
                 let out = s.to_owned();
+                src.clear();
+
                 if out.is_empty() {
                     return Ok(None);
                 }
+
                 Ok(Some(out))
             }
             Err(e) if e.error_len().is_none() => {
@@ -140,6 +143,7 @@ impl Decoder for Utf8Codec {
                 if valid == 0 {
                     return Ok(None);
                 }
+
                 let out = str::from_utf8(&src[..valid])?.to_owned();
                 src.advance(valid);
                 Ok(Some(out))
