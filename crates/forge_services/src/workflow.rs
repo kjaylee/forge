@@ -186,9 +186,18 @@ impl<F: FileWriterInfra + FileReaderInfra + HttpInfra + EnvironmentInfra> Workfl
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::fs;
+    use std::sync::Arc;
 
+    use bytes::Bytes;
+    use forge_app::domain::Environment;
+    use pretty_assertions::assert_eq;
+    use reqwest::header::HeaderMap;
+    use reqwest::Response;
+    use serde_json::Value;
     use tempfile::TempDir;
+    use url::Url;
 
     use super::*;
 
@@ -281,5 +290,200 @@ mod tests {
 
         // Should return the custom path unchanged
         assert_eq!(result, custom_path);
+    }
+
+    #[derive(Debug)]
+    struct MockInfra {
+        file_contents: HashMap<PathBuf, String>,
+        http_response: Option<Result<String, String>>,
+        environment: Environment,
+    }
+
+    impl MockInfra {
+        fn new() -> Self {
+            Self {
+                file_contents: HashMap::new(),
+                http_response: None,
+                environment: Environment {
+                    os: "test".to_string(),
+                    pid: 12345,
+                    cwd: PathBuf::from("/test"),
+                    home: Some(PathBuf::from("/home/test")),
+                    shell: "bash".to_string(),
+                    base_path: PathBuf::from("/base"),
+                    retry_config: Default::default(),
+                    max_search_lines: 25,
+                    fetch_truncation_limit: 0,
+                    stdout_max_prefix_length: 0,
+                    stdout_max_suffix_length: 0,
+                    max_read_size: 0,
+                    http: Default::default(),
+                    max_file_size: 10_000_000,
+                    forge_api_url: Url::parse("http://forgecode.dev/api/").unwrap(),
+                },
+            }
+        }
+
+        fn with_http_response(mut self, response: Result<String, String>) -> Self {
+            self.http_response = Some(response);
+            self
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl FileReaderInfra for MockInfra {
+        async fn read_utf8(&self, path: &Path) -> anyhow::Result<String> {
+            self.file_contents
+                .get(path)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("File not found: {}", path.display()))
+        }
+
+        async fn read(&self, _path: &Path) -> anyhow::Result<Vec<u8>> {
+            unimplemented!("Not needed for these tests")
+        }
+
+        async fn range_read_utf8(
+            &self,
+            _path: &Path,
+            _start_line: u64,
+            _end_line: u64,
+        ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
+            unimplemented!("Not needed for these tests")
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl FileWriterInfra for MockInfra {
+        async fn write(
+            &self,
+            _path: &Path,
+            _contents: Bytes,
+            _capture_snapshot: bool,
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        async fn write_temp(
+            &self,
+            _prefix: &str,
+            _ext: &str,
+            _content: &str,
+        ) -> anyhow::Result<PathBuf> {
+            unimplemented!("Not needed for these tests")
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl HttpInfra for MockInfra {
+        async fn get(&self, _url: &str, _headers: Option<HeaderMap>) -> anyhow::Result<Response> {
+            match &self.http_response {
+                Some(Ok(body)) => {
+                    // Create a simple mock response using reqwest::Response
+                    let _url = reqwest::Url::parse("http://test.com").unwrap();
+                    let response = reqwest::Response::from(
+                        http::Response::builder()
+                            .status(200)
+                            .body(body.clone())
+                            .unwrap(),
+                    );
+                    Ok(response)
+                }
+                Some(Err(error)) => Err(anyhow::anyhow!("{}", error)),
+                None => Err(anyhow::anyhow!("No HTTP response configured")),
+            }
+        }
+
+        async fn post(&self, _url: &str, _body: Bytes) -> anyhow::Result<Response> {
+            unimplemented!("Not needed for these tests")
+        }
+
+        async fn delete(&self, _url: &str) -> anyhow::Result<Response> {
+            unimplemented!("Not needed for these tests")
+        }
+    }
+
+    impl EnvironmentInfra for MockInfra {
+        fn get_environment(&self) -> Environment {
+            self.environment.clone()
+        }
+
+        fn get_env_var(&self, _key: &str) -> Option<String> {
+            None
+        }
+    }
+
+    fn create_api_workflow_json() -> String {
+        r#"{
+  "agents": [
+    {
+      "id": "api-agent",
+      "model": "gpt-3.5-turbo",
+      "description": "API agent"
+    }
+  ],
+  "variables": {
+    "api_var": "api_value"
+  },
+  "temperature": 0.7
+}"#
+        .to_string()
+    }
+
+    #[tokio::test]
+    async fn test_read_merged_uses_cache_when_available() {
+        let test_path = PathBuf::from("/test/custom-forge.yaml");
+        let fixture = MockInfra::new();
+        let service = ForgeWorkflowService::new(Arc::new(fixture));
+
+        let mut cached_workflow = Workflow::new();
+        cached_workflow.variables.insert(
+            "cached_var".to_string(),
+            Value::String("cached_value".to_string()),
+        );
+        service
+            .workflow_cache
+            .write()
+            .await
+            .replace(cached_workflow.clone());
+
+        let actual = service.read_merged(Some(&test_path)).await.unwrap();
+
+        assert_eq!(
+            actual.variables.get("cached_var"),
+            Some(&Value::String("cached_value".to_string()))
+        );
+    }
+
+    #[tokio::test]
+    async fn test_read_merged_makes_api_call_when_no_cache() {
+        let test_path = PathBuf::from("/test/custom-forge.yaml");
+        let fixture = MockInfra::new().with_http_response(Ok(create_api_workflow_json()));
+        let service = ForgeWorkflowService::new(Arc::new(fixture));
+
+        let actual = service.read_merged(Some(&test_path)).await.unwrap();
+
+        // Should have API variables (proving API call was made)
+        assert_eq!(
+            actual.variables.get("api_var"),
+            Some(&Value::String("api_value".to_string()))
+        );
+
+        // Should cache the result
+        let cache_guard = service.workflow_cache.read().await;
+        assert!(cache_guard.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_read_merged_handles_api_failure() {
+        let test_path = PathBuf::from("/test/custom-forge.yaml");
+        let fixture = MockInfra::new().with_http_response(Err("Network error".to_string()));
+        let service = ForgeWorkflowService::new(Arc::new(fixture));
+
+        let actual = service.read_merged(Some(&test_path)).await.unwrap();
+
+        assert!(actual.variables.get("api_var").is_none());
+
+        assert!(actual.agents.len() >= 2);
     }
 }
