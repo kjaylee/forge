@@ -4,6 +4,8 @@ use std::sync::Arc;
 use anyhow::Context;
 use forge_app::domain::{Provider, Workflow};
 use forge_app::WorkflowService;
+use merge::Merge;
+use tokio::sync::RwLock;
 
 use crate::{EnvironmentInfra, FileReaderInfra, FileWriterInfra, HttpInfra};
 
@@ -11,11 +13,12 @@ use crate::{EnvironmentInfra, FileReaderInfra, FileWriterInfra, HttpInfra};
 /// It also resolves the internal paths specified in the workflow.
 pub struct ForgeWorkflowService<F> {
     infra: Arc<F>,
+    api_workflow_cache: Arc<RwLock<Option<Workflow>>>,
 }
 
 impl<F> ForgeWorkflowService<F> {
     pub fn new(infra: Arc<F>) -> Self {
-        Self { infra }
+        Self { infra, api_workflow_cache: Arc::new(RwLock::new(None)) }
     }
 }
 
@@ -115,6 +118,38 @@ impl<F: FileWriterInfra + FileReaderInfra + HttpInfra + EnvironmentInfra> Workfl
         self.infra.write(&resolved_path, content.into(), true).await
     }
 
+    async fn read_merged(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+        let workflow = self.read_workflow(path).await?;
+        let mut base_workflow = Workflow::default();
+        {
+            let cache_guard = self.api_workflow_cache.read().await;
+            if let Some(cached_workflow) = cache_guard.as_ref() {
+                base_workflow.merge(cached_workflow.clone());
+                drop(cache_guard);
+                base_workflow.merge(workflow);
+                return Ok(base_workflow);
+            }
+        }
+
+        match self.get_api_workflow().await {
+            Ok(api_workflow) => {
+                {
+                    self.api_workflow_cache
+                        .write()
+                        .await
+                        .replace(api_workflow.clone());
+                }
+                base_workflow.merge(api_workflow);
+            }
+            Err(error) => {
+                tracing::error!("Failed to fetch API workflow: {}", error);
+            }
+        }
+
+        base_workflow.merge(workflow);
+        Ok(base_workflow)
+    }
+
     async fn update_workflow<Func>(&self, path: Option<&Path>, f: Func) -> anyhow::Result<Workflow>
     where
         Func: FnOnce(&mut Workflow) + Send,
@@ -136,7 +171,7 @@ impl<F: FileWriterInfra + FileReaderInfra + HttpInfra + EnvironmentInfra> Workfl
         let version = self.infra.get_environment().version();
         let base_url = self
             .infra
-            .get_env_var("FORGE_API_URL")
+            .get_env_var("FORGE_DEFAULT_CONFIG_API_URL")
             .unwrap_or(Provider::FORGE_URL.to_string());
 
         let url = format!("{base_url}config?version={version}");
@@ -144,7 +179,7 @@ impl<F: FileWriterInfra + FileReaderInfra + HttpInfra + EnvironmentInfra> Workfl
         let response = self.infra.get(&url, None).await?;
         let response = response.error_for_status()?;
         let body = response.text().await?;
-        let workflow: Workflow = serde_yml::from_str(&body)
+        let workflow: Workflow = serde_json::from_str(&body)
             .with_context(|| "Failed to parse default workflow from response".to_string())?;
 
         Ok(workflow)

@@ -22,7 +22,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio_stream::StreamExt;
 
-use crate::cli::{CheckCommand, Cli, McpCommand, TopLevelCommand, Transport};
+use crate::cli::{Cli, McpCommand, TopLevelCommand, Transport};
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
@@ -235,55 +235,8 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
         }
     }
 
-    async fn handle_check_command(&mut self, check_command: CheckCommand) -> anyhow::Result<()> {
-        use std::fs;
-
-        let workflow_path = &check_command.workflow;
-
-        // Check if the file exists
-        if !workflow_path.exists() {
-            self.writeln(TitleFormat::error(format!(
-                "Workflow file does not exist: {}",
-                workflow_path.display()
-            )))?;
-            return Ok(());
-        }
-
-        // Read the workflow file
-        let workflow_content = match fs::read_to_string(workflow_path) {
-            Ok(content) => content,
-            Err(e) => {
-                self.writeln(TitleFormat::error(format!(
-                    "Failed to read workflow file: {e}"
-                )))?;
-                return Ok(());
-            }
-        };
-
-        // Parse the YAML content into a Workflow struct
-        let _workflow: forge_domain::Workflow = match serde_yml::from_str(&workflow_content) {
-            Ok(workflow) => workflow,
-            Err(e) => {
-                self.writeln(TitleFormat::error(format!("Failed to parse YAML: {e}")))?;
-                return Ok(());
-            }
-        };
-
-        // Since we successfully parsed the YAML into the Workflow struct,
-        // and the struct has JsonSchema derive, we know it's valid
-        self.writeln(TitleFormat::info(format!(
-            "✓ Workflow file '{}' is valid",
-            workflow_path.display()
-        )))?;
-
-        Ok(())
-    }
-
     async fn handle_subcommands(&mut self, subcommand: TopLevelCommand) -> anyhow::Result<()> {
         match subcommand {
-            TopLevelCommand::Check(check_command) => {
-                self.handle_check_command(check_command).await?;
-            }
             TopLevelCommand::Mcp(mcp_command) => match mcp_command.command {
                 McpCommand::Add(add) => {
                     let name = add.name;

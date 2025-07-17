@@ -5,7 +5,6 @@ use forge_domain::{
     Environment, File, McpConfig, Model, ModelId, PatchOperation, Provider, ResultStream, Scope,
     ToolCallFull, ToolDefinition, ToolOutput, Workflow,
 };
-use merge::Merge;
 
 use crate::user::User;
 use crate::{AppConfig, InitAuth, LoginInfo, Walker};
@@ -158,15 +157,7 @@ pub trait WorkflowService {
 
     /// Reads the workflow from the given path and merges it with an default
     /// workflow.
-    async fn read_merged(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        let workflow = self.read_workflow(path).await?;
-        let mut base_workflow = Workflow::default();
-        if let Ok(api_workflow) = self.get_api_workflow().await {
-            base_workflow.merge(api_workflow);
-        }
-        base_workflow.merge(workflow);
-        Ok(base_workflow)
-    }
+    async fn read_merged(&self, path: Option<&Path>) -> anyhow::Result<Workflow>;
 
     /// Writes the given workflow to the specified path.
     /// If no path is provided, it will try to find forge.yaml in the current
@@ -453,6 +444,10 @@ impl<I: Services> WorkflowService for I {
         F: FnOnce(&mut Workflow) + Send,
     {
         self.workflow_service().update_workflow(path, f).await
+    }
+
+    async fn read_merged(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+        self.workflow_service().read_merged(path).await
     }
 
     async fn get_api_workflow(&self) -> anyhow::Result<Workflow> {
