@@ -1,4 +1,4 @@
-use strum::{EnumMessage, IntoEnumIterator};
+use strum::EnumMessage;
 use strum_macros::{Display, EnumIter, EnumMessage as EnumMessageDerive, EnumString};
 
 /// Slash commands for the application
@@ -49,18 +49,6 @@ impl SlashCommand {
     pub fn description(&self) -> &'static str {
         self.get_message().unwrap_or("No description available")
     }
-
-    /// Get all available commands with their descriptions
-    pub fn all_commands() -> Vec<(SlashCommand, &'static str)> {
-        Self::iter()
-            .map(|cmd| (cmd.clone(), cmd.description()))
-            .collect()
-    }
-
-    /// Get the command name with the slash prefix
-    pub fn with_slash(&self) -> String {
-        format!("/{self}")
-    }
 }
 
 #[cfg(test)]
@@ -68,6 +56,7 @@ mod tests {
     use std::str::FromStr;
 
     use pretty_assertions::assert_eq;
+    use strum::IntoEnumIterator;
 
     use super::*;
 
@@ -96,30 +85,6 @@ mod tests {
     }
 
     #[test]
-    fn test_slash_command_with_slash() {
-        let fixture = SlashCommand::Help;
-        let actual = fixture.with_slash();
-        let expected = "/help";
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_all_commands_count() {
-        let fixture = SlashCommand::all_commands();
-        let actual = fixture.len();
-        let expected = 12; // Total number of commands
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_all_commands_contains_agent() {
-        let fixture = SlashCommand::all_commands();
-        let actual = fixture.iter().any(|(cmd, _)| *cmd == SlashCommand::Agent);
-        let expected = true;
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
     fn test_enum_iteration() {
         let fixture = SlashCommand::iter().collect::<Vec<_>>();
         let actual = fixture.len();
@@ -139,18 +104,6 @@ mod tests {
         let fixture = SlashCommand::Agent;
         let actual = fixture.description();
         let expected = "Switch between different AI agents. Use this command to change which agent handles your requests and see available options.";
-        assert_eq!(actual, expected);
-
-        // Demonstrate listing all commands
-        let fixture = SlashCommand::all_commands();
-        let actual = fixture.len();
-        let expected = 12;
-        assert_eq!(actual, expected);
-
-        // Demonstrate getting command with slash
-        let fixture = SlashCommand::Help;
-        let actual = fixture.with_slash();
-        let expected = "/help";
         assert_eq!(actual, expected);
     }
 }
