@@ -64,10 +64,21 @@ impl<F: FileDirectoryInfra + FileInfoInfra + FileReaderInfra + FileWriterInfra +
             None
         };
 
+        let line_count = content.lines().count();
+
         // Write file only after validation passes and directories are created
         self.0
             .write(path, Bytes::from(content), capture_snapshot)
             .await?;
+
+        tracing::info!(
+            path = %path.display(),
+            operation = "fs_create",
+            line_count = line_count,
+            file_exists = file_exists,
+            overwrite = overwrite,
+            "File create tool operation"
+        );
 
         Ok(FsCreateOutput {
             path: path.display().to_string(),

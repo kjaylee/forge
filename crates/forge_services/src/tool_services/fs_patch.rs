@@ -221,10 +221,19 @@ impl<F: FileWriterInfra> FsPatchService for ForgeFsPatch<F> {
         // Apply the replacement
         current_content = apply_replacement(current_content, search, &operation, &content)?;
 
+        let content_line_count = content.lines().count();
         // Write final content to file after all patches are applied
         self.0
             .write(path, Bytes::from(current_content.clone()), true)
             .await?;
+
+        tracing::info!(
+            path = %path.display(),
+            operation = "fs_patch",
+            patch_operation = ?operation,
+            content_line_count = content_line_count,
+            "File Patch tool operation"
+        );
 
         Ok(PatchOutput {
             warning: tool_services::syn::validate(path, &current_content).map(|e| e.to_string()),
