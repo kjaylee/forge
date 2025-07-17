@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_app::domain::{Provider, Workflow};
+use forge_app::domain::Workflow;
 use forge_app::WorkflowService;
 use merge::Merge;
 use tokio::sync::RwLock;
@@ -142,7 +142,7 @@ impl<F: FileWriterInfra + FileReaderInfra + HttpInfra + EnvironmentInfra> Workfl
                 base_workflow.merge(api_workflow);
             }
             Err(error) => {
-                tracing::error!("Failed to fetch API workflow: {}", error);
+                tracing::error!(error = ?error, "Failed to fetch API workflow");
             }
         }
 
@@ -168,12 +168,9 @@ impl<F: FileWriterInfra + FileReaderInfra + HttpInfra + EnvironmentInfra> Workfl
     }
 
     async fn get_api_workflow(&self) -> anyhow::Result<Workflow> {
-        let version = self.infra.get_environment().version();
-        let base_url = self
-            .infra
-            .get_env_var("FORGE_DEFAULT_CONFIG_API_URL")
-            .unwrap_or(Provider::FORGE_URL.to_string());
-
+        let env = self.infra.get_environment();
+        let version = env.version();
+        let base_url = env.forge_api_url;
         let url = format!("{base_url}config?version={version}");
 
         let response = self.infra.get(&url, None).await?;
