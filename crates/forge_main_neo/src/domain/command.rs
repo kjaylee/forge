@@ -24,6 +24,7 @@ pub enum Command {
         is_first: bool,
     },
     InterruptStream,
+    #[allow(unused)]
     Spotlight(SpotlightCommand),
     Interval {
         duration: Duration,

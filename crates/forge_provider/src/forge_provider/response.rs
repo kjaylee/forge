@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use forge_domain::{
+use forge_app::domain::{
     ChatCompletionMessage, Content, FinishReason, ToolCallFull, ToolCallId, ToolCallPart, ToolName,
     Usage,
 };
@@ -80,15 +80,15 @@ pub struct ReasoningDetail {
     pub signature: Option<String>,
 }
 
-impl From<ReasoningDetail> for forge_domain::ReasoningFull {
+impl From<ReasoningDetail> for forge_app::domain::ReasoningFull {
     fn from(detail: ReasoningDetail) -> Self {
-        forge_domain::ReasoningFull { text: detail.text, signature: detail.signature }
+        forge_app::domain::ReasoningFull { text: detail.text, signature: detail.signature }
     }
 }
 
-impl From<ReasoningDetail> for forge_domain::ReasoningPart {
+impl From<ReasoningDetail> for forge_app::domain::ReasoningPart {
     fn from(detail: ReasoningDetail) -> Self {
-        forge_domain::ReasoningPart { text: detail.text, signature: detail.signature }
+        forge_app::domain::ReasoningPart { text: detail.text, signature: detail.signature }
     }
 }
 
@@ -152,16 +152,16 @@ impl TryFrom<Response> for ChatCompletionMessage {
                             }
 
                             if let Some(reasoning_details) = &message.reasoning_details {
-                                let converted_details: Vec<forge_domain::ReasoningFull> =
+                                let converted_details: Vec<forge_app::domain::ReasoningFull> =
                                     reasoning_details
                                         .clone()
                                         .into_iter()
-                                        .map(forge_domain::ReasoningFull::from)
+                                        .map(forge_app::domain::ReasoningFull::from)
                                         .collect();
 
-                                resp = resp.add_reasoning_detail(forge_domain::Reasoning::Full(
-                                    converted_details,
-                                ));
+                                resp = resp.add_reasoning_detail(
+                                    forge_app::domain::Reasoning::Full(converted_details),
+                                );
                             }
 
                             if let Some(tool_calls) = &message.tool_calls {
@@ -196,15 +196,15 @@ impl TryFrom<Response> for ChatCompletionMessage {
                             }
 
                             if let Some(reasoning_details) = &delta.reasoning_details {
-                                let converted_details: Vec<forge_domain::ReasoningPart> =
+                                let converted_details: Vec<forge_app::domain::ReasoningPart> =
                                     reasoning_details
                                         .clone()
                                         .into_iter()
-                                        .map(forge_domain::ReasoningPart::from)
+                                        .map(forge_app::domain::ReasoningPart::from)
                                         .collect();
-                                resp = resp.add_reasoning_detail(forge_domain::Reasoning::Part(
-                                    converted_details,
-                                ));
+                                resp = resp.add_reasoning_detail(
+                                    forge_app::domain::Reasoning::Part(converted_details),
+                                );
                             }
 
                             if let Some(tool_calls) = &delta.tool_calls {
@@ -237,7 +237,7 @@ impl TryFrom<Response> for ChatCompletionMessage {
 #[cfg(test)]
 mod tests {
     use anyhow::Context;
-    use forge_domain::ChatCompletionMessage;
+    use forge_app::domain::ChatCompletionMessage;
 
     use super::*;
 
@@ -263,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn test_antinomy_response_event() {
+    fn test_forge_response_event() {
         let event = "{\"id\":\"gen-1739949430-JZMcABaj4fg8oFDtRNDZ\",\"provider\":\"OpenAI\",\"model\":\"openai/gpt-4o-mini\",\"object\":\"chat.completion.chunk\",\"created\":1739949430,\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"index\":0,\"id\":\"call_bhjvz9w48ov4DSRhM15qLMmh\",\"type\":\"function\",\"function\":{\"name\":\"forge_tool_process_shell\",\"arguments\":\"\"}}],\"refusal\":null},\"logprobs\":null,\"finish_reason\":null,\"native_finish_reason\":null}],\"system_fingerprint\":\"fp_00428b782a\"}";
         assert!(Fixture::test_response_compatibility(event));
     }
