@@ -1127,6 +1127,7 @@ dependencies = [
  "eserde",
  "forge_template",
  "forge_tool_macros",
+ "glob",
  "insta",
  "is_ci",
  "lazy_static",
