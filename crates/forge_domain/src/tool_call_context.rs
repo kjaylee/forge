@@ -3,7 +3,7 @@ use std::sync::Arc;
 use derive_setters::Setters;
 use tokio::sync::mpsc::Sender;
 
-use crate::{ChatResponse, TaskList};
+use crate::{ChatResponse, Policy, TaskList};
 
 /// Type alias for Arc<Sender<Result<ChatResponse>>>
 type ArcSender = Arc<Sender<anyhow::Result<ChatResponse>>>;
@@ -13,12 +13,13 @@ type ArcSender = Arc<Sender<anyhow::Result<ChatResponse>>>;
 pub struct ToolCallContext {
     sender: Option<ArcSender>,
     pub tasks: TaskList,
+    pub policy: Option<Policy>,
 }
 
 impl ToolCallContext {
     /// Creates a new ToolCallContext with default values
     pub fn new(task_list: TaskList) -> Self {
-        Self { sender: None, tasks: task_list }
+        Self { sender: None, tasks: task_list, policy: None }
     }
 
     /// Send a message through the sender if available

@@ -73,3 +73,21 @@ agents:
       - forge_tool_fs_search
       - forge_tool_fs_create
       - forge_tool_fs_patch
+
+policies:
+  policies:
+    - permission: allow_always
+      operation:
+        execute: "cargo*"
+    - permission: allow_always
+      operation:
+        read: forge*.yaml
+    - permission: allow_always
+      operation:
+        write: forge*.yaml
+    - permission: allow_always
+      operation:
+        write: /Users/ranjit/Desktop/workspace/forge/**/*
+    - permission: allow_always
+      operation:
+        read: /Users/ranjit/Desktop/workspace/forge/**/*

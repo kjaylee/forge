@@ -8,7 +8,9 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::task::TaskList;
-use crate::{Agent, AgentId, Compact, Context, Error, Event, ModelId, Result, ToolName, Workflow};
+use crate::{
+    Agent, AgentId, Compact, Context, Error, Event, ModelId, Policy, Result, ToolName, Workflow,
+};
 
 #[derive(Debug, Default, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
@@ -43,6 +45,7 @@ pub struct Conversation {
     pub tasks: TaskList,
     pub max_tool_failure_per_turn: Option<usize>,
     pub max_requests_per_turn: Option<usize>,
+    pub policy: Option<Policy>,
 }
 
 impl Conversation {
@@ -180,6 +183,9 @@ impl Conversation {
             tasks: TaskList::new(),
             max_tool_failure_per_turn: workflow.max_tool_failure_per_turn,
             max_requests_per_turn: workflow.max_requests_per_turn,
+            policy: workflow
+                .policies
+                .and_then(|policies| policies.to_policy().ok()),
         }
     }
 

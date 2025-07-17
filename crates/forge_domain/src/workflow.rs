@@ -1,14 +1,93 @@
 use std::collections::HashMap;
 
+use anyhow::{Context, Result};
 use derive_setters::Setters;
 use merge::Merge;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::policy::{Permission, Policy, Rule, Pattern};
 use crate::temperature::Temperature;
 use crate::update::Update;
 use crate::{Agent, AgentId, Compact, MaxTokens, ModelId, TopK, TopP};
+
+
+/// User-friendly policy configuration for YAML files
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct PolicyConfig {
+    /// List of individual policy definitions
+    pub policies: Vec<PolicyDefinition>,
+}
+
+/// Individual policy definition in user-friendly format
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct PolicyDefinition {
+    /// Permission level for this policy
+    pub permission: PermissionConfig,
+    /// Operation rules for this policy
+    pub operation: OperationConfig,
+}
+
+/// Permission configuration in user-friendly format
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PermissionConfig {
+    AllowAlways,
+    AllowOnce,
+    Confirm,
+    DisallowAlways,
+    DisallowOnce,
+}
+
+/// Operation configuration that allows exactly one operation type
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct OperationConfig {
+    /// File write operation pattern
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub write: Option<String>,
+    /// File read operation pattern  
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub read: Option<String>,
+    /// Command execution pattern
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execute: Option<String>,
+}
+
+impl TryFrom<OperationConfig> for Rule {
+    type Error = anyhow::Error;
+    fn try_from(value: OperationConfig) -> Result<Self> {
+        match (value.write, value.read, value.execute) {
+            (Some(write), None, None) => Ok(Rule::Write {
+                pattern: Pattern::new(&write)
+                    .with_context(|| format!("Invalid write pattern: {}", write))?,
+            }),
+            (None, Some(read), None) => Ok(Rule::Read {
+                pattern: Pattern::new(&read)
+                    .with_context(|| format!("Invalid read pattern: {}", read))?,
+            }),
+            (None, None, Some(execute)) => Ok(Rule::Execute {
+                command: Pattern::new(&execute)
+                    .with_context(|| format!("Invalid execute pattern: {}", execute))?,
+            }),
+            _ => Err(anyhow::anyhow!(
+                "Only one operation type allowed per policy definition"
+            )),
+        }
+    }
+}
+
+impl From<&PermissionConfig> for Permission {
+    fn from(config: &PermissionConfig) -> Self {
+        match config {
+            PermissionConfig::AllowAlways => Permission::AllowAlways,
+            PermissionConfig::AllowOnce => Permission::AllowOnce,
+            PermissionConfig::Confirm => Permission::Confirm,
+            PermissionConfig::DisallowAlways => Permission::DisallowAlways,
+            PermissionConfig::DisallowOnce => Permission::DisallowOnce,
+        }
+    }
+}
 
 /// Configuration for a workflow that contains all settings
 /// required to initialize a workflow.
@@ -140,6 +219,13 @@ pub struct Workflow {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub compact: Option<Compact>,
+
+    /// Policy configuration for this workflow
+    /// Defines what operations are allowed/denied with what permissions
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub policies: Option<PolicyConfig>,
 }
 
 impl Default for Workflow {
@@ -183,6 +269,7 @@ impl Workflow {
             max_tool_failure_per_turn: None,
             max_requests_per_turn: None,
             compact: None,
+            policies: None,
         }
     }
 
@@ -193,6 +280,35 @@ impl Workflow {
     pub fn get_agent(&self, id: &AgentId) -> crate::Result<&Agent> {
         self.find_agent(id)
             .ok_or_else(|| crate::Error::AgentUndefined(id.clone()))
+    }
+}
+
+impl PolicyConfig {
+    /// Transform user-friendly configuration into domain policy
+    /// Combines all policies using OR operation
+    pub fn to_policy(&self) -> Result<Policy> {
+        let mut domain_policies = Vec::with_capacity(self.policies.len());
+        for policy_def in &self.policies {
+            domain_policies.push(policy_def.to_policy()?);
+        }
+        let mut policies_iter = domain_policies.into_iter();
+        if let Some(mut first_policy) = policies_iter.next() {
+            for policy in policies_iter {
+                first_policy = first_policy.or(policy);
+            }
+            Ok(first_policy)
+        } else {
+            return Err(anyhow::anyhow!("No valid policies found"));
+        }
+    }
+}
+
+impl PolicyDefinition {
+    /// Transform a single policy definition into domain policy
+    pub fn to_policy(&self) -> Result<Policy> {
+        let permission = Permission::from(&self.permission);
+        let rule = Rule::try_from(self.operation.clone())?;
+        Ok(Policy::new(permission, rule))
     }
 }
 
@@ -222,6 +338,7 @@ mod tests {
         assert_eq!(actual.max_tokens, None);
         assert_eq!(actual.tool_supported, None);
         assert_eq!(actual.compact, None);
+        assert_eq!(actual.policies, None);
     }
 
     #[test]

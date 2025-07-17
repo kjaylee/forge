@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::{TaskList, ToolCallContext, ToolCallFull, ToolOutput, Tools};
+use forge_domain::{EvalResult, PolicyTrace, Valid};
+use forge_domain::{ToolCallContext, ToolCallFull, ToolOutput, Tools};
 
 use crate::error::Error;
 use crate::fmt::content::FormatContent;
@@ -27,14 +28,79 @@ impl<
         + ShellService
         + FollowUpService
         + ConversationService
-        + EnvironmentService,
+        + EnvironmentService
+        + FollowUpService,
 > ToolExecutor<S>
 {
     pub fn new(services: Arc<S>) -> Self {
         Self { services }
     }
 
-    async fn call_internal(&self, input: Tools, tasks: &mut TaskList) -> anyhow::Result<Operation> {
+    /// Check if tool execution is allowed by policy
+    async fn evaluate_policy(
+        &self,
+        tool: &Tools,
+        context: &mut ToolCallContext,
+    ) -> Option<Valid<EvalResult, String, PolicyTrace>> {
+        let policy = context.policy.as_mut()?;
+        let operation = match tool.into() {
+            Some(op) => op,
+            None => return None, // No policy check needed
+        };
+        Some(policy.eval(&operation))
+    }
+
+    async fn call_internal(
+        &self,
+        input: Tools,
+        context: &mut ToolCallContext,
+    ) -> anyhow::Result<Operation> {
+        // Check policy permission before executing any operation
+        if let Some(result) = self.evaluate_policy(&input, context).await {
+            let result_str = result.to_string();
+            if let Ok(permission) = result.to_result() {
+                match permission {
+                    EvalResult::Allow => {
+                        // policy allow this operation, so proceed
+                    }
+                    EvalResult::Confirm(policy) => {
+                        // ask for confirmation
+                        let response = self
+                            .services
+                            .follow_up(
+                                "Allow this operation?".to_string(),
+                                vec!["Yes", "No"]
+                                    .into_iter()
+                                    .map(|s| s.to_string())
+                                    .collect(),
+                                None,
+                            )
+                            .await?;
+                        if response.map_or(true, |r| r.contains("No")) {
+                            return Err(anyhow::anyhow!(
+                                "Operation was denied by user when prompted for confirmation so ensure you don't retry this operation. User has configured a policy that requires manual confirmation. configured policy: {}",
+                                policy
+                            ));
+                        }
+                    }
+                    EvalResult::Deny(policy) => {
+                        // operation is not allowed as per the policy but send the correct error back so that
+                        // llm can understand reasoning behind the denial.
+                        return Err(anyhow::anyhow!(
+                            "User has configured a policy that will always deny this operation so please ensure you don't retry this operation. configured policy: {}",
+                            policy
+                        ));
+                    }
+                }
+            } else {
+                return Err(anyhow::anyhow!(
+                    "User has configured a policy that will always deny this operation so please ensure you don't retry this operation. configured policy: {}",
+                    result_str
+                ));
+            }
+        }
+
+        let tasks = &mut context.tasks;
         Ok(match input {
             Tools::ForgeToolFsRead(input) => {
                 let output = self
@@ -166,9 +232,7 @@ impl<
 
         // Send tool call information
 
-        let execution_result = self
-            .call_internal(tool_input.clone(), &mut context.tasks)
-            .await;
+        let execution_result = self.call_internal(tool_input.clone(), context).await;
         if let Err(ref error) = execution_result {
             tracing::error!(error = ?error, "Tool execution failed");
         }
