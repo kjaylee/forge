@@ -50,6 +50,7 @@ mod tests {
     use forge_domain::{Environment, PatchOperation};
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
+    use url::Url;
 
     use super::FormatContent;
     use crate::fmt::content::ContentFormat;
@@ -110,6 +111,7 @@ mod tests {
             suppress_shell_output: false, // Allow output in tests
             http: Default::default(),
             max_file_size: 0,
+            forge_api_url: Url::parse("http://forgecode.dev/api").unwrap(),
         }
     }
 
