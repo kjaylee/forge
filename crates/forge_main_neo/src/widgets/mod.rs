@@ -1,6 +1,6 @@
 mod agent_selection;
 mod app;
-mod bordered_panel;
+// mod bordered_panel;
 mod chat;
 mod message_list;
 mod spinner;

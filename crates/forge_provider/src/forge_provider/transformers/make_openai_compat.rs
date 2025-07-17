@@ -1,4 +1,4 @@
-use forge_domain::Transformer;
+use forge_app::domain::Transformer;
 
 use crate::forge_provider::request::Request;
 
@@ -32,6 +32,10 @@ impl Transformer for MakeOpenAiCompat {
             // drop `parallel_tool_calls` field if tools are not passed to the request.
             request.parallel_tool_calls = None;
         }
+
+        // OpenAI has deprecated `max_tokens`, now it is `max_completion_tokens`.
+        request.max_completion_tokens = request.max_tokens.take();
+
         request
     }
 }
@@ -80,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_reasoning_removed() {
-        let fixture = Request::default().reasoning(forge_domain::ReasoningConfig {
+        let fixture = Request::default().reasoning(forge_app::domain::ReasoningConfig {
             enabled: Some(true),
             effort: None,
             max_tokens: None,
@@ -90,5 +94,15 @@ mod tests {
         let actual = transformer.transform(fixture);
         let expected = None;
         assert_eq!(actual.reasoning, expected);
+    }
+
+    #[test]
+    fn test_max_tokens_mapped_correctly() {
+        let fixture = Request::default().max_tokens(100);
+        let mut transformer = MakeOpenAiCompat;
+        let actual = transformer.transform(fixture);
+        let expected = Some(100);
+        assert_eq!(actual.max_completion_tokens, expected);
+        assert_eq!(actual.max_tokens, None);
     }
 }

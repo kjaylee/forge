@@ -24,6 +24,7 @@ pub enum Command {
         agent: AgentId,
     },
     InterruptStream,
+    #[allow(unused)]
     Spotlight(SpotlightCommand),
     Interval {
         duration: Duration,
