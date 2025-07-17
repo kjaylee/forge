@@ -89,10 +89,6 @@ impl<A: Services, F: CommandInfra> API for ForgeAPI<A, F> {
         self.services.read_workflow(path).await
     }
 
-    async fn get_api_workflow(&self) -> anyhow::Result<Workflow> {
-        self.services.get_api_workflow().await
-    }
-
     async fn read_merged(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         self.services.read_merged(path).await
     }
