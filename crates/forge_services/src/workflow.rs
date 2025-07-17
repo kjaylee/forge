@@ -13,12 +13,12 @@ use crate::{EnvironmentInfra, FileReaderInfra, FileWriterInfra, HttpInfra};
 /// It also resolves the internal paths specified in the workflow.
 pub struct ForgeWorkflowService<F> {
     infra: Arc<F>,
-    api_workflow_cache: Arc<RwLock<Option<Workflow>>>,
+    workflow_cache: Arc<RwLock<Option<Workflow>>>,
 }
 
 impl<F> ForgeWorkflowService<F> {
     pub fn new(infra: Arc<F>) -> Self {
-        Self { infra, api_workflow_cache: Arc::new(RwLock::new(None)) }
+        Self { infra, workflow_cache: Arc::new(RwLock::new(None)) }
     }
 }
 
@@ -122,7 +122,7 @@ impl<F: FileWriterInfra + FileReaderInfra + HttpInfra + EnvironmentInfra> Workfl
         let workflow = self.read_workflow(path).await?;
         let mut base_workflow = Workflow::default();
         {
-            let cache_guard = self.api_workflow_cache.read().await;
+            let cache_guard = self.workflow_cache.read().await;
             if let Some(cached_workflow) = cache_guard.as_ref() {
                 base_workflow.merge(cached_workflow.clone());
                 drop(cache_guard);
@@ -133,12 +133,6 @@ impl<F: FileWriterInfra + FileReaderInfra + HttpInfra + EnvironmentInfra> Workfl
 
         match self.get_api_workflow().await {
             Ok(api_workflow) => {
-                {
-                    self.api_workflow_cache
-                        .write()
-                        .await
-                        .replace(api_workflow.clone());
-                }
                 base_workflow.merge(api_workflow);
             }
             Err(error) => {
@@ -147,6 +141,13 @@ impl<F: FileWriterInfra + FileReaderInfra + HttpInfra + EnvironmentInfra> Workfl
         }
 
         base_workflow.merge(workflow);
+        {
+            self.workflow_cache
+                .write()
+                .await
+                .replace(base_workflow.clone());
+        }
+
         Ok(base_workflow)
     }
 
