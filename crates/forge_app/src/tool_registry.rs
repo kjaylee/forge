@@ -60,12 +60,12 @@ impl<S: Services> ToolRegistry<S> {
         tracing::info!(tool_name = %input.name, arguments = %input.arguments, "Executing tool call");
         let tool_name = input.name.clone();
 
-        // First, try to call a Forge tool
+        // First, try to call a Forge tool.
         if Tools::contains(&input.name) {
             self.call_with_timeout(&tool_name, || self.tool_executor.execute(input, context))
                 .await
         } else if self.agent_executor.contains_tool(&input.name).await? {
-            // Handle agent delegation tool calls
+            // Handle agent delegation tool calls.
             let agent_input = AgentInput::try_from(&input)?;
             // NOTE: Agents should not timeout
             self.agent_executor
