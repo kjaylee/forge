@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{HttpConfig, RetryConfig};
 
@@ -9,19 +10,6 @@ const VERSION: &str = match option_env!("APP_VERSION") {
     Some(val) => val,
     None => env!("CARGO_PKG_VERSION"),
 };
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct Cert(String);
-
-impl Cert {
-    pub fn new(cert: impl ToString) -> Self {
-        Self(cert.to_string())
-    }
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
 
 #[derive(Debug, Setters, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,6 +28,8 @@ pub struct Environment {
     pub shell: String,
     /// The base path relative to which everything else stored.
     pub base_path: PathBuf,
+    /// Base URL for Forge's backend APIs
+    pub forge_api_url: Url,
     /// Configuration for the retry mechanism
     pub retry_config: RetryConfig,
     /// The maximum number of lines returned for FSSearch.
@@ -55,8 +45,6 @@ pub struct Environment {
     pub http: HttpConfig,
     /// Maximum file size in bytes for operations
     pub max_file_size: u64,
-    /// Cert for mTLS
-    pub cert: Option<Cert>,
 }
 
 impl Environment {
