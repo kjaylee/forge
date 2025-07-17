@@ -156,11 +156,6 @@ impl<T: API + 'static> Executor<T> {
         // Exit command doesn't send any action
         Ok(())
     }
-    async fn execute_new(&self, tx: &Sender<anyhow::Result<Action>>) -> anyhow::Result<()> {
-        // Send NewConversation action to reset the conversation state
-        tx.send(Ok(Action::NewConversation)).await?;
-        Ok(())
-    }
 
     async fn execute_and(
         &self,
@@ -251,9 +246,6 @@ impl<T: API + 'static> Executor<T> {
             }
             Command::Exit => {
                 self.execute_exit().await?;
-            }
-            Command::New => {
-                self.execute_new(&tx).await?;
             }
             Command::And(commands) => {
                 self.execute_and(commands, &tx).await?;
