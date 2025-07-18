@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use forge_app::ProviderService;
 use forge_app::domain::{
-    Cert, ChatCompletionMessage, Context as ChatContext, HttpConfig, Model, ModelId, Provider,
+    ChatCompletionMessage, Context as ChatContext, HttpConfig, Model, ModelId, Provider,
     ResultStream, RetryConfig,
 };
-use forge_app::ProviderService;
 use forge_provider::Client;
 use tokio::sync::Mutex;
 
@@ -18,7 +18,6 @@ pub struct ForgeProviderService {
     cached_models: Arc<Mutex<Option<Vec<Model>>>>,
     version: String,
     timeout_config: HttpConfig,
-    cert: Option<Cert>,
 }
 
 impl ForgeProviderService {
@@ -32,7 +31,6 @@ impl ForgeProviderService {
             cached_models: Arc::new(Mutex::new(None)),
             version,
             timeout_config: env.http,
-            cert: env.cert,
         }
     }
 
@@ -48,7 +46,6 @@ impl ForgeProviderService {
                     self.retry_config.clone(),
                     &self.version,
                     &self.timeout_config,
-                    self.cert.as_ref(),
                 )?;
 
                 // Cache the new client

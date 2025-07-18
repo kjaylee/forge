@@ -24,7 +24,9 @@ impl FormatContent for Operation {
                 )
             }),
             Operation::FsPatch { input: _, output } => Some(ContentFormat::PlainText(
-                DiffFormat::format(&output.before, &output.after),
+                DiffFormat::format(&output.before, &output.after)
+                    .diff()
+                    .to_string(),
             )),
             Operation::FsUndo { input: _, output: _ } => None,
             Operation::NetFetch { input: _, output: _ } => None,
@@ -50,6 +52,7 @@ mod tests {
     use forge_domain::{Environment, PatchOperation, TaskList};
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
+    use url::Url;
 
     use super::FormatContent;
     use crate::fmt::content::ContentFormat;
@@ -109,7 +112,7 @@ mod tests {
             stdout_max_suffix_length: 10,
             http: Default::default(),
             max_file_size: 0,
-            cert: None,
+            forge_api_url: Url::parse("http://forgecode.dev/api").unwrap(),
         }
     }
 

@@ -1,13 +1,14 @@
 [package]
 name = "forge_ci"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
 gh-workflow-tailcall.workspace = true
 indexmap.workspace = true
+derive_setters.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true

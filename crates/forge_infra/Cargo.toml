@@ -1,7 +1,7 @@
 [package]
 name = "forge_infra"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 forge_snaps.workspace = true
@@ -26,5 +26,4 @@ backon.workspace = true
 thiserror.workspace = true
 forge_app.workspace = true
 forge_walker.workspace = true
-obfstr.workspace = true
 lazy_static.workspace = true

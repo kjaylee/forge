@@ -166,6 +166,7 @@ impl<
         input: ToolCallFull,
         context: &mut ToolCallContext,
     ) -> anyhow::Result<ToolOutput> {
+        let tool_name = input.name.clone();
         let tool_input = Tools::try_from(input).map_err(Error::CallArgument)?;
         let env = self.services.get_environment();
         if let Some(content) = tool_input.to_content(&env) {
@@ -190,6 +191,6 @@ impl<
             .to_create_temp(self.services.as_ref())
             .await?;
 
-        Ok(execution_result.into_tool_output(truncation_path, &env))
+        Ok(execution_result.into_tool_output(tool_name, truncation_path, &env))
     }
 }
