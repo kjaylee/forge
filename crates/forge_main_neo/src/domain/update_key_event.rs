@@ -82,6 +82,7 @@ fn handle_spotlight_navigation(
                     crate::domain::spotlight::SpotlightCommand::Custom(custom_cmd) => {
                         // For custom commands, show the command name first, then execute the prompt
                         state.add_user_message(format!("/{}", custom_cmd.name));
+                        state.add_user_message(custom_cmd.prompt.clone());
                         state.show_spinner = true;
                         let chat_command = Command::ChatMessage {
                             message: custom_cmd.prompt,
@@ -320,8 +321,8 @@ mod tests {
     use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     use super::*;
-    use crate::domain::slash_command::SlashCommand;
     use crate::domain::State;
+    use crate::domain::slash_command::SlashCommand;
 
     fn create_test_state_with_text() -> State {
         let mut state = State::default();
@@ -331,7 +332,7 @@ mod tests {
         );
         // Position cursor in the middle of the first word for testing
         state.editor.cursor = Index2::new(0, 6); // After "hello "
-                                                 // Ensure spotlight is not visible for main editor tests
+        // Ensure spotlight is not visible for main editor tests
         state.spotlight.is_visible = false;
         state
     }
@@ -571,7 +572,7 @@ mod tests {
         assert_eq!(actual_command, expected_command);
         // Cursor should have moved forward (navigation was handled)
         assert!(state.editor.cursor.col > 6); // Started at position 6
-                                              // Spotlight should remain hidden (spotlight_show was not called)
+        // Spotlight should remain hidden (spotlight_show was not called)
         assert!(!state.spotlight.is_visible);
     }
 
