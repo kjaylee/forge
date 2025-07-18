@@ -18,5 +18,4 @@ pub enum Action {
     InterruptStream,
     StartStream(CancelId),
     AgentSelected(AgentId),
-    ShowAgentSelection(Vec<forge_domain::Agent>),
 }

@@ -3,7 +3,7 @@ use forge_api::ChatResponse;
 use ratatui::crossterm::event::KeyEventKind;
 
 use crate::domain::update_key_event::handle_key_event;
-use crate::domain::{Action, Command, EditorStateExt, State};
+use crate::domain::{Action, Command, State};
 
 pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
     let action = action.into();
@@ -81,21 +81,12 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             Command::Empty
         }
         Action::AgentSelected(agent_id) => {
-            // Update the current agent in the state
-            state.current_agent = agent_id;
+            // Update the current agent in both the main state and agent selection state
+            state.current_agent = agent_id.clone();
+            state.agent_selection.current_agent = agent_id;
             // Hide agent selection
             state.agent_selection.is_visible = false;
             state.agent_selection.selected_index = 0;
-            Command::Empty
-        }
-        Action::ShowAgentSelection(agents) => {
-            // Show agent selection UI with available agents
-            state.agent_selection.is_visible = true;
-            state.agent_selection.available_agents = agents;
-            state.agent_selection.selected_index = 0;
-            // Clear any previous search and set editor to insert mode
-            state.agent_selection.editor.clear();
-            state.agent_selection.editor.mode = edtui::EditorMode::Insert;
             Command::Empty
         }
     }
@@ -446,6 +437,10 @@ mod tests {
     fn test_agent_selected_action_updates_current_agent() {
         let mut fixture_state = State::default();
         assert_eq!(fixture_state.current_agent, forge_api::AgentId::FORGE);
+        assert_eq!(
+            fixture_state.agent_selection.current_agent,
+            forge_api::AgentId::FORGE
+        );
 
         let actual_command = update(
             &mut fixture_state,
@@ -455,42 +450,11 @@ mod tests {
 
         assert_eq!(actual_command, expected_command);
         assert_eq!(fixture_state.current_agent, forge_api::AgentId::MUSE);
-        assert!(!fixture_state.agent_selection.is_visible);
-        assert_eq!(fixture_state.agent_selection.selected_index, 0);
-    }
-
-    #[test]
-    fn test_show_agent_selection_action_shows_ui() {
-        let mut fixture_state = State::default();
-        let fixture_agents = vec![
-            forge_domain::Agent::new(forge_api::AgentId::FORGE)
-                .title("Implementation Agent".to_string()),
-            forge_domain::Agent::new(forge_api::AgentId::MUSE).title("Planning Agent".to_string()),
-        ];
-
-        let actual_command = update(
-            &mut fixture_state,
-            Action::ShowAgentSelection(fixture_agents.clone()),
-        );
-        let expected_command = Command::Empty;
-
-        assert_eq!(actual_command, expected_command);
-        assert!(fixture_state.agent_selection.is_visible);
-        assert_eq!(fixture_state.agent_selection.available_agents.len(), 2);
-        assert_eq!(fixture_state.agent_selection.selected_index, 0);
         assert_eq!(
-            fixture_state.agent_selection.available_agents[0].id,
-            forge_api::AgentId::FORGE
-        );
-        assert_eq!(
-            fixture_state.agent_selection.available_agents[1].id,
+            fixture_state.agent_selection.current_agent,
             forge_api::AgentId::MUSE
         );
-        // Verify editor is cleared and in insert mode
-        assert_eq!(fixture_state.agent_selection.editor.get_text(), "");
-        assert_eq!(
-            fixture_state.agent_selection.editor.mode,
-            edtui::EditorMode::Insert
-        );
+        assert!(!fixture_state.agent_selection.is_visible);
+        assert_eq!(fixture_state.agent_selection.selected_index, 0);
     }
 }

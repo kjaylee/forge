@@ -9,3 +9,5 @@ mod status_bar;
 mod welcome;
 
 pub use app::App;
+
+mod popup;

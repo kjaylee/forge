@@ -122,7 +122,11 @@ fn handle_spotlight_navigation(
                     crate::domain::slash_command::SlashCommand::Exit => Command::Exit,
                     crate::domain::slash_command::SlashCommand::Agent => {
                         // Show agent selection UI instead of just toggling
-                        Command::ShowAgentSelection
+                        state.agent_selection.is_visible = true;
+                        state.agent_selection.selected_index = 0;
+                        state.agent_selection.editor.clear();
+                        state.agent_selection.editor.mode = edtui::EditorMode::Insert;
+                        Command::Empty
                     }
                     crate::domain::slash_command::SlashCommand::Model => {
                         // For now, just hide spotlight - proper model selection would need more UI

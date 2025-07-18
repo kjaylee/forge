@@ -29,7 +29,6 @@ pub enum Command {
     Interval {
         duration: Duration,
     },
-    ShowAgentSelection,
 }
 
 #[derive(Clone, From, PartialEq, Eq, Debug)]

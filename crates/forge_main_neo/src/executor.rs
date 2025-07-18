@@ -197,20 +197,6 @@ impl<T: API + 'static> Executor<T> {
         Ok(())
     }
 
-    async fn execute_show_agent_selection(
-        &self,
-        tx: &Sender<anyhow::Result<Action>>,
-    ) -> anyhow::Result<()> {
-        // Read the current workflow to get available agents
-        let workflow = self.api.read_merged(None).await?;
-
-        // Send action to show agent selection with available agents
-        tx.send(Ok(Action::ShowAgentSelection(workflow.agents)))
-            .await?;
-
-        Ok(())
-    }
-
     /// Execute an interval command that emits IntervalTick actions at regular
     /// intervals
     ///
@@ -290,9 +276,6 @@ impl<T: API + 'static> Executor<T> {
             Command::InterruptStream => {
                 // Send InterruptStream action to trigger state update
                 tx.send(Ok(Action::InterruptStream)).await?;
-            }
-            Command::ShowAgentSelection => {
-                self.execute_show_agent_selection(&tx).await?;
             }
         }
         Ok(())

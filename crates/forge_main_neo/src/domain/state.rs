@@ -26,12 +26,14 @@ pub struct State {
     pub agent_selection: AgentSelectionState,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, derive_setters::Setters)]
+#[setters(strip_option, into)]
 pub struct AgentSelectionState {
     pub is_visible: bool,
     pub available_agents: Vec<Agent>,
     pub selected_index: usize,
     pub editor: EditorState,
+    pub current_agent: AgentId,
 }
 
 impl std::fmt::Debug for AgentSelectionState {
@@ -41,6 +43,7 @@ impl std::fmt::Debug for AgentSelectionState {
             .field("available_agents", &self.available_agents)
             .field("selected_index", &self.selected_index)
             .field("editor", &"<EditorState>")
+            .field("current_agent", &self.current_agent)
             .finish()
     }
 }
@@ -90,7 +93,10 @@ impl Default for State {
             chat_stream: None,
             message_scroll_state: ScrollViewState::default(),
             current_agent: AgentId::FORGE,
-            agent_selection: AgentSelectionState::default(),
+            agent_selection: AgentSelectionState {
+                current_agent: AgentId::FORGE,
+                ..Default::default()
+            },
         }
     }
 }
