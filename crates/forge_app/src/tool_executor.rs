@@ -7,11 +7,11 @@ use crate::error::Error;
 use crate::fmt::content::FormatContent;
 use crate::operation::Operation;
 use crate::services::ShellService;
+use crate::tool_result_transformer::ToolResultTransformer;
 use crate::{
     ConversationService, EnvironmentService, FollowUpService, FsCreateService, FsPatchService,
     FsReadService, FsRemoveService, FsSearchService, FsUndoService, NetFetchService,
 };
-use crate::tool_result_transformer::ToolResultTransformer;
 
 pub struct ToolExecutor<S> {
     services: Arc<S>,
