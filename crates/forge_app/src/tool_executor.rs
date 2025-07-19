@@ -48,7 +48,7 @@ impl<
                 (input, output).into()
             }
             Tools::ForgeToolFsCreate(input) => {
-                match self
+                let output = self
                     .services
                     .create(
                         input.path.clone(),
@@ -56,39 +56,8 @@ impl<
                         input.overwrite,
                         true,
                     )
-                    .await
-                {
-                    Ok(output) => (input, output).into(),
-                    Err(error) => {
-                        if let Some(Error::FileExistsOverwriteRequired {
-                            original_path,
-                            temp_file_path,
-                        }) = error.downcast_ref::<Error>()
-                        {
-                            let element = forge_template::Element::new("error")
-                                .attr("type", "file_exists_overwrite_required")
-                                .attr("original_path", original_path)
-                                .attr("temp_file_path", temp_file_path)
-                                .append(
-                                    forge_template::Element::new("message").text(format!(
-                                        "File already exists at '{original_path}'. A temporary file has been created at '{temp_file_path}'."
-                                    ))
-                                )
-                                .append(
-                                    forge_template::Element::new("solution").text(format!(
-                                        "To overwrite: move the file \"{temp_file_path}\" to \"{original_path}\""
-                                    ))
-                                )
-                                .append(
-                                    forge_template::Element::new("alternative").text("Re-run the create operation with overwrite=true.")
-                                );
-
-                            return Err(anyhow::anyhow!("{}", element.to_string()));
-                        } else {
-                            return Err(error);
-                        }
-                    }
-                }
+                    .await?;
+                (input, output).into()
             }
             Tools::ForgeToolFsSearch(input) => {
                 let output = self

@@ -59,11 +59,10 @@ impl<F: FileDirectoryInfra + FileInfoInfra + FileReaderInfra + FileWriterInfra +
                 .await?;
 
             // Return the specific error that will be handled at the operation level
-            return Err(forge_app::Error::FileExistsOverwriteRequired {
+            return Ok(FsCreateOutput::Failure {
                 original_path: path.display().to_string(),
                 temp_file_path: tmp_path.display().to_string(),
-            }
-            .into());
+            });
         }
 
         // record the file content before they're modified
@@ -78,7 +77,7 @@ impl<F: FileDirectoryInfra + FileInfoInfra + FileReaderInfra + FileWriterInfra +
             .write(path, Bytes::from(content), capture_snapshot)
             .await?;
 
-        Ok(FsCreateOutput {
+        Ok(FsCreateOutput::Success {
             path: path.display().to_string(),
             before: old_content,
             warning: syntax_warning.map(|v| v.to_string()),

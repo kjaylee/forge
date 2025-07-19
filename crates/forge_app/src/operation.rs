@@ -161,31 +161,56 @@ impl Operation {
                 }
             },
             Operation::FsCreate { input, output } => {
-                let mut elm = if let Some(before) = output.before.as_ref() {
-                    let diff_result = DiffFormat::format(before, &input.content);
-                    let diff = console::strip_ansi_codes(diff_result.diff()).to_string();
-                    // Log file change stats
-                    file_change_stats(FileOperationStats {
-                        path: input.path.clone(),
-                        tool_name,
-                        lines_added: diff_result.lines_added(),
-                        lines_removed: diff_result.lines_removed(),
-                    });
+                match output {
+                    FsCreateOutput::Success { path: _, before, warning } => {
+                        let mut elm = if let Some(before) = before.as_ref() {
+                            let diff_result = DiffFormat::format(before, &input.content);
+                            let diff = console::strip_ansi_codes(diff_result.diff()).to_string();
+                            // Log file change stats
+                            file_change_stats(FileOperationStats {
+                                path: input.path.clone(),
+                                tool_name,
+                                lines_added: diff_result.lines_added(),
+                                lines_removed: diff_result.lines_removed(),
+                            });
 
-                    Element::new("file_overwritten").append(Element::new("file_diff").cdata(diff))
-                } else {
-                    Element::new("file_created")
-                };
+                            Element::new("file_overwritten")
+                                .append(Element::new("file_diff").cdata(diff))
+                        } else {
+                            Element::new("file_created")
+                        };
 
-                elm = elm
-                    .attr("path", input.path)
-                    .attr("total_lines", input.content.lines().count());
+                        elm = elm
+                            .attr("path", input.path)
+                            .attr("total_lines", input.content.lines().count());
 
-                if let Some(warning) = output.warning {
-                    elm = elm.append(Element::new("warning").text(warning));
+                        if let Some(warning) = warning {
+                            elm = elm.append(Element::new("warning").text(warning));
+                        }
+
+                        forge_domain::ToolOutput::text(elm)
+                    }
+                    FsCreateOutput::Failure { temp_file_path, original_path } => {
+                        let element = Element::new("error")
+                            .attr("type", "file_exists_overwrite_required")
+                            .attr("original_path", &original_path)
+                            .attr("temp_file_path", &temp_file_path)
+                            .append(
+                                Element::new("message").text(format!(
+                                    "File already exists at '{original_path}'. A temporary file has been created at '{temp_file_path}'."
+                                ))
+                            )
+                            .append(
+                                Element::new("solution").text(format!(
+                                    "To overwrite: move the file \"{temp_file_path}\" to \"{original_path}\""
+                                ))
+                            )
+                            .append(
+                                Element::new("alternative").text("Re-run the create operation with overwrite=true.")
+                            );
+                        forge_domain::ToolOutput::text(element).is_error(true)
+                    }
                 }
-
-                forge_domain::ToolOutput::text(elm)
             }
             Operation::FsRemove { input } => {
                 let display_path = display_path(env, Path::new(&input.path));
@@ -627,7 +652,7 @@ mod tests {
                 overwrite: false,
                 explanation: Some("Creating a new file".to_string()),
             },
-            output: FsCreateOutput {
+            output: FsCreateOutput::Success {
                 path: "/home/user/new_file.txt".to_string(),
                 before: None,
                 warning: None,
@@ -654,7 +679,7 @@ mod tests {
                 overwrite: true,
                 explanation: Some("Overwriting existing file".to_string()),
             },
-            output: FsCreateOutput {
+            output: FsCreateOutput::Success {
                 path: "/home/user/existing_file.txt".to_string(),
                 before: Some("Old content".to_string()),
                 warning: None,
@@ -1236,7 +1261,7 @@ mod tests {
                 overwrite: false,
                 explanation: Some("Creating file with warning".to_string()),
             },
-            output: FsCreateOutput {
+            output: FsCreateOutput::Success {
                 path: "/home/user/file_with_warning.txt".to_string(),
                 before: None,
                 warning: Some("File created in non-standard location".to_string()),
