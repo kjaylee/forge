@@ -11,6 +11,7 @@ use crate::{
     ConversationService, EnvironmentService, FollowUpService, FsCreateService, FsPatchService,
     FsReadService, FsRemoveService, FsSearchService, FsUndoService, NetFetchService,
 };
+use crate::tool_result_transformer::ToolResultTransformer;
 
 pub struct ToolExecutor<S> {
     services: Arc<S>,
@@ -48,7 +49,7 @@ impl<
                 (input, output).into()
             }
             Tools::ForgeToolFsCreate(input) => {
-                match self
+                let output = self
                     .services
                     .create(
                         input.path.clone(),
@@ -56,33 +57,8 @@ impl<
                         input.overwrite,
                         true,
                     )
-                    .await
-                {
-                    Ok(output) => (input, output).into(),
-                    Err(error) => {
-                        // Check if this is our specific error type
-                        if let Some(app_error) = error.downcast_ref::<Error>()
-                            && let Error::FileExistsOverwriteRequired {
-                                original_path,
-                                temp_file_path,
-                            } = app_error
-                        {
-                            // Create a custom output with helpful instructions for the LLM
-                            let custom_output = crate::FsCreateOutput {
-                                path: temp_file_path.clone(),
-                                before: None,
-                                warning: Some(format!(
-                                    "File already exists at '{original_path}'. A temporary file has been created at '{temp_file_path}'. \
-                                        If you intended to overwrite the original file, use the shell tool to move the temporary file: \
-                                        'mv \"{temp_file_path}\" \"{original_path}\"'. \
-                                        Alternatively, re-run the create operation with overwrite=true."
-                                )),
-                            };
-                            return Ok((input, custom_output).into());
-                        }
-                        return Err(error);
-                    }
-                }
+                    .await?;
+                (input, output).into()
             }
             Tools::ForgeToolFsSearch(input) => {
                 let output = self
@@ -199,7 +175,7 @@ impl<
             tracing::error!(error = ?error, "Tool execution failed");
         }
 
-        let execution_result = execution_result?;
+        let execution_result = ToolResultTransformer::transform(execution_result)?;
 
         // Send formatted output message
         if let Some(output) = execution_result.to_content(&env) {
