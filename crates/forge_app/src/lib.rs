@@ -13,7 +13,6 @@ mod retry;
 mod services;
 mod tool_executor;
 mod tool_registry;
-mod tool_result_transformer;
 mod truncation;
 mod user;
 mod utils;

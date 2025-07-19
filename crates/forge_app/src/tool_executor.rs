@@ -7,7 +7,6 @@ use crate::error::Error;
 use crate::fmt::content::FormatContent;
 use crate::operation::Operation;
 use crate::services::ShellService;
-use crate::tool_result_transformer::ToolResultTransformer;
 use crate::{
     ConversationService, EnvironmentService, FollowUpService, FsCreateService, FsPatchService,
     FsReadService, FsRemoveService, FsSearchService, FsUndoService, NetFetchService,
@@ -49,7 +48,7 @@ impl<
                 (input, output).into()
             }
             Tools::ForgeToolFsCreate(input) => {
-                let output = self
+                match self
                     .services
                     .create(
                         input.path.clone(),
@@ -57,8 +56,39 @@ impl<
                         input.overwrite,
                         true,
                     )
-                    .await?;
-                (input, output).into()
+                    .await
+                {
+                    Ok(output) => (input, output).into(),
+                    Err(error) => {
+                        if let Some(Error::FileExistsOverwriteRequired {
+                            original_path,
+                            temp_file_path,
+                        }) = error.downcast_ref::<Error>()
+                        {
+                            let element = forge_template::Element::new("error")
+                                .attr("type", "file_exists_overwrite_required")
+                                .attr("original_path", original_path)
+                                .attr("temp_file_path", temp_file_path)
+                                .append(
+                                    forge_template::Element::new("message").text(format!(
+                                        "File already exists at '{original_path}'. A temporary file has been created at '{temp_file_path}'."
+                                    ))
+                                )
+                                .append(
+                                    forge_template::Element::new("solution").text(format!(
+                                        "To overwrite: move the file \"{temp_file_path}\" to \"{original_path}\""
+                                    ))
+                                )
+                                .append(
+                                    forge_template::Element::new("alternative").text("Re-run the create operation with overwrite=true.")
+                                );
+
+                            return Err(anyhow::anyhow!("{}", element.to_string()));
+                        } else {
+                            return Err(error);
+                        }
+                    }
+                }
             }
             Tools::ForgeToolFsSearch(input) => {
                 let output = self
@@ -175,7 +205,7 @@ impl<
             tracing::error!(error = ?error, "Tool execution failed");
         }
 
-        let execution_result = ToolResultTransformer::transform(execution_result)?;
+        let execution_result = execution_result?;
 
         // Send formatted output message
         if let Some(output) = execution_result.to_content(&env) {
