@@ -1692,4 +1692,49 @@ mod tests {
 
         insta::assert_snapshot!(to_value(actual));
     }
+
+    #[test]
+    fn test_fs_create_attempt_to_edit_without_overwrite() {
+        let fixture = Operation::FsCreate {
+            input: forge_domain::FSWrite {
+                path: "/home/user/existing_file.txt".to_string(),
+                content: "New content that cannot be written".to_string(),
+                overwrite: false,
+                explanation: Some("Attempting to edit without overwrite".to_string()),
+            },
+            output: FsCreateOutput::AttemptToEditWithoutOverwrite,
+        };
+
+        let env = fixture_environment();
+        let temp_files =
+            TempContentFiles::default().stdout(PathBuf::from("/tmp/forge_temp_abc123.tmp"));
+
+        let actual =
+            fixture.into_tool_output(ToolName::new("forge_tool_fs_create"), temp_files, &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_fs_create_attempt_to_edit_without_overwrite_no_temp_file() {
+        let fixture = Operation::FsCreate {
+            input: forge_domain::FSWrite {
+                path: "/home/user/existing_file.txt".to_string(),
+                content: "New content that cannot be written".to_string(),
+                overwrite: false,
+                explanation: Some("Attempting to edit without overwrite".to_string()),
+            },
+            output: FsCreateOutput::AttemptToEditWithoutOverwrite,
+        };
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(
+            ToolName::new("forge_tool_fs_create"),
+            TempContentFiles::default(),
+            &env,
+        );
+
+        insta::assert_snapshot!(to_value(actual));
+    }
 }
