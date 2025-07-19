@@ -78,7 +78,7 @@ pub enum FsCreateOutput {
     Failure {
         original_path: String,
         temp_file_path: String,
-    }
+    },
 }
 
 #[derive(Debug)]
