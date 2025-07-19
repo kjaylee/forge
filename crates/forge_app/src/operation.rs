@@ -190,19 +190,21 @@ impl Operation {
 
                         forge_domain::ToolOutput::text(elm)
                     }
-                    FsCreateOutput::Failure { temp_file_path, original_path } => {
+                    FsCreateOutput::AttemptToEditWithoutOverwrite => {
                         let element = Element::new("error")
                             .attr("type", "file_exists_overwrite_required")
-                            .attr("original_path", &original_path)
-                            .attr("temp_file_path", &temp_file_path)
+                            .attr("original_path", &input.path)
+                            .attr_if_some("temp_file_path", content_files.stdout.and_then(|v| v.to_str().map(|v| v.to_string())))
                             .append(
                                 Element::new("message").text(format!(
-                                    "File already exists at '{original_path}'. A temporary file has been created at '{temp_file_path}'."
+                                    "File already exists at '{}'. A temporary file has been created with the newly modified content.",
+                                    input.path,
                                 ))
                             )
                             .append(
                                 Element::new("solution").text(format!(
-                                    "To overwrite: move the file \"{temp_file_path}\" to \"{original_path}\""
+                                    "To overwrite: Use shell tool to move contents of the temporary file to the file at: '{}'",
+                                    input.path,
                                 ))
                             )
                             .append(
@@ -470,6 +472,15 @@ impl Operation {
                 }
 
                 Ok(files)
+            }
+            Operation::FsCreate {
+                input,
+                output: FsCreateOutput::AttemptToEditWithoutOverwrite,
+            } => {
+                // Create a temporary file path
+                let tmp_path_str =
+                    create_temp_file(services, "forge_fs_create_", ".tmp", &input.content).await?;
+                Ok(TempContentFiles::default().stdout(tmp_path_str))
             }
             _ => Ok(TempContentFiles::default()),
         }

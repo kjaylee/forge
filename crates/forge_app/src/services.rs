@@ -75,10 +75,7 @@ pub enum FsCreateOutput {
         before: Option<String>,
         warning: Option<String>,
     },
-    Failure {
-        original_path: String,
-        temp_file_path: String,
-    },
+    AttemptToEditWithoutOverwrite,
 }
 
 #[derive(Debug)]

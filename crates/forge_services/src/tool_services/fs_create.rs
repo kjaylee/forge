@@ -49,20 +49,7 @@ impl<F: FileDirectoryInfra + FileInfoInfra + FileReaderInfra + FileWriterInfra +
         // If file exists and overwrite flag is not set, create a temporary file
         // and return an error with helpful next steps
         if file_exists && !overwrite {
-            // Create temporary file path
-            let tmp_path_str = format!("{}.tmp", path.display());
-            let tmp_path = Path::new(&tmp_path_str);
-
-            // Write content to temporary file
-            self.0
-                .write(tmp_path, Bytes::from(content), capture_snapshot)
-                .await?;
-
-            // Return the specific error that will be handled at the operation level
-            return Ok(FsCreateOutput::Failure {
-                original_path: path.display().to_string(),
-                temp_file_path: tmp_path.display().to_string(),
-            });
+            return Ok(FsCreateOutput::AttemptToEditWithoutOverwrite);
         }
 
         // record the file content before they're modified
@@ -195,25 +182,13 @@ mod tests {
             .await
             .unwrap();
 
-        let expected = forge_app::FsCreateOutput::Failure {
-            original_path: "/home/user/test.rs".to_string(),
-            temp_file_path: "/home/user/test.rs.tmp".to_string(),
-        };
+        let expected = forge_app::FsCreateOutput::AttemptToEditWithoutOverwrite;
 
         match (actual, expected) {
             (
-                forge_app::FsCreateOutput::Failure {
-                    original_path: actual_path,
-                    temp_file_path: actual_temp,
-                },
-                forge_app::FsCreateOutput::Failure {
-                    original_path: expected_path,
-                    temp_file_path: expected_temp,
-                },
-            ) => {
-                assert_eq!(actual_path, expected_path);
-                assert_eq!(actual_temp, expected_temp);
-            }
+                forge_app::FsCreateOutput::AttemptToEditWithoutOverwrite,
+                forge_app::FsCreateOutput::AttemptToEditWithoutOverwrite,
+            ) => (),
             _ => panic!("Expected Failure variant"),
         }
     }
