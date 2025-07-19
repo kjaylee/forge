@@ -24,10 +24,4 @@ pub enum Error {
 
     #[error("Authentication still in progress")]
     AuthInProgress,
-
-    #[error("File already exists at '{original_path}' and overwrite flag is not set")]
-    FileExistsOverwriteRequired {
-        original_path: String,
-        temp_file_path: String,
-    },
 }
