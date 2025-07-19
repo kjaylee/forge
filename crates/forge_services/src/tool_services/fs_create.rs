@@ -46,15 +46,24 @@ impl<F: FileDirectoryInfra + FileInfoInfra + FileReaderInfra + FileWriterInfra +
         // Check if the file exists
         let file_exists = self.0.is_file(path).await?;
 
-        // If file exists and overwrite flag is not set, return an error with the
-        // existing content
+        // If file exists and overwrite flag is not set, create a temporary file
+        // and return an error with helpful next steps
         if file_exists && !overwrite {
-            // Special message for the LLM
-            return Err(anyhow::anyhow!(
-                "Cannot overwrite existing file: overwrite flag not set.",
-            ))
-            // What the user sees
-            .with_context(|| format!("File already exists at {}", path.display()));
+            // Create temporary file path
+            let tmp_path_str = format!("{}.tmp", path.display());
+            let tmp_path = Path::new(&tmp_path_str);
+
+            // Write content to temporary file
+            self.0
+                .write(tmp_path, Bytes::from(content), capture_snapshot)
+                .await?;
+
+            // Return the specific error that will be handled at the operation level
+            return Err(forge_app::Error::FileExistsOverwriteRequired {
+                original_path: path.display().to_string(),
+                temp_file_path: tmp_path.display().to_string(),
+            }
+            .into());
         }
 
         // record the file content before they're modified
@@ -74,5 +83,181 @@ impl<F: FileDirectoryInfra + FileInfoInfra + FileReaderInfra + FileWriterInfra +
             before: old_content,
             warning: syntax_warning.map(|v| v.to_string()),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+    use std::sync::Arc;
+
+    use bytes::Bytes;
+    use forge_app::FsCreateService;
+    use pretty_assertions::assert_eq;
+
+    use super::ForgeFsCreate;
+
+    // Mock infrastructure for testing
+    #[derive(Default)]
+    struct MockInfra {
+        files: std::collections::HashMap<String, String>,
+        file_exists: bool,
+    }
+
+    impl MockInfra {
+        fn with_existing_file(path: &str, content: &str) -> Self {
+            let mut files = std::collections::HashMap::new();
+            files.insert(path.to_string(), content.to_string());
+            Self { files, file_exists: true }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl crate::FileDirectoryInfra for MockInfra {
+        async fn create_dirs(&self, _path: &Path) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl crate::FileInfoInfra for MockInfra {
+        async fn is_file(&self, _path: &Path) -> anyhow::Result<bool> {
+            Ok(self.file_exists)
+        }
+
+        async fn exists(&self, _path: &Path) -> anyhow::Result<bool> {
+            Ok(self.file_exists)
+        }
+
+        async fn file_size(&self, _path: &Path) -> anyhow::Result<u64> {
+            Ok(0)
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl crate::FileReaderInfra for MockInfra {
+        async fn read(&self, _path: &Path) -> anyhow::Result<Vec<u8>> {
+            Ok(vec![])
+        }
+
+        async fn read_utf8(&self, path: &Path) -> anyhow::Result<String> {
+            self.files
+                .get(&path.display().to_string())
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("File not found"))
+        }
+
+        async fn range_read_utf8(
+            &self,
+            _path: &Path,
+            _start_line: u64,
+            _end_line: u64,
+        ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
+            Ok((String::new(), forge_fs::FileInfo::new(1, 1, 1)))
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl crate::FileWriterInfra for MockInfra {
+        async fn write(
+            &self,
+            _path: &Path,
+            _content: Bytes,
+            _capture_snapshot: bool,
+        ) -> anyhow::Result<()> {
+            // Just verify the path for testing
+            Ok(())
+        }
+
+        async fn write_temp(
+            &self,
+            _prefix: &str,
+            _ext: &str,
+            _content: &str,
+        ) -> anyhow::Result<PathBuf> {
+            Ok(PathBuf::from("/tmp/test"))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_temp_file_when_file_exists_and_overwrite_false() {
+        let fixture = ForgeFsCreate::new(Arc::new(MockInfra::with_existing_file(
+            "/home/user/test.rs",
+            "existing content",
+        )));
+
+        let actual = fixture
+            .create(
+                "/home/user/test.rs".to_string(),
+                "new content".to_string(),
+                false,
+                false,
+            )
+            .await;
+
+        // Should return an error with our specific error type
+        assert!(actual.is_err());
+        let error = actual.unwrap_err();
+        let app_error = error.downcast_ref::<forge_app::Error>().unwrap();
+        match app_error {
+            forge_app::Error::FileExistsOverwriteRequired { original_path, temp_file_path } => {
+                assert_eq!(original_path, "/home/user/test.rs");
+                assert_eq!(temp_file_path, "/home/user/test.rs.tmp");
+            }
+            _ => panic!("Expected FileExistsOverwriteRequired error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_new_file_when_file_does_not_exist() {
+        let fixture = ForgeFsCreate::new(Arc::new(MockInfra::default()));
+
+        let actual = fixture
+            .create(
+                "/home/user/new_file.rs".to_string(),
+                "new content".to_string(),
+                false,
+                false,
+            )
+            .await
+            .unwrap();
+
+        let expected = forge_app::FsCreateOutput {
+            path: "/home/user/new_file.rs".to_string(),
+            before: None,
+            warning: Some("Syntax error found in file with extension rs. Hint: Please retry in raw mode without HTML-encoding angle brackets.".to_string()),
+        };
+
+        assert_eq!(actual.path, expected.path);
+        assert_eq!(actual.before, expected.before);
+        assert_eq!(actual.warning, expected.warning);
+    }
+
+    #[tokio::test]
+    async fn test_overwrite_existing_file_when_overwrite_true() {
+        let fixture = ForgeFsCreate::new(Arc::new(MockInfra::with_existing_file(
+            "/home/user/test.rs",
+            "old content",
+        )));
+
+        let actual = fixture
+            .create(
+                "/home/user/test.rs".to_string(),
+                "new content".to_string(),
+                true,
+                false,
+            )
+            .await
+            .unwrap();
+
+        let expected = forge_app::FsCreateOutput {
+            path: "/home/user/test.rs".to_string(),
+            before: Some("old content".to_string()),
+            warning: Some("Syntax error found in file with extension rs. Hint: Please retry in raw mode without HTML-encoding angle brackets.".to_string()),
+        };
+
+        assert_eq!(actual.path, expected.path);
+        assert_eq!(actual.before, expected.before);
+        assert_eq!(actual.warning, expected.warning);
     }
 }
