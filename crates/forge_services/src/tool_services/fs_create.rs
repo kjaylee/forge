@@ -192,18 +192,29 @@ mod tests {
                 false,
                 false,
             )
-            .await;
+            .await
+            .unwrap();
 
-        // Should return an error with our specific error type
-        assert!(actual.is_err());
-        let error = actual.unwrap_err();
-        let app_error = error.downcast_ref::<forge_app::Error>().unwrap();
-        match app_error {
-            forge_app::Error::FileExistsOverwriteRequired { original_path, temp_file_path } => {
-                assert_eq!(original_path, "/home/user/test.rs");
-                assert_eq!(temp_file_path, "/home/user/test.rs.tmp");
+        let expected = forge_app::FsCreateOutput::Failure {
+            original_path: "/home/user/test.rs".to_string(),
+            temp_file_path: "/home/user/test.rs.tmp".to_string(),
+        };
+
+        match (actual, expected) {
+            (
+                forge_app::FsCreateOutput::Failure {
+                    original_path: actual_path,
+                    temp_file_path: actual_temp,
+                },
+                forge_app::FsCreateOutput::Failure {
+                    original_path: expected_path,
+                    temp_file_path: expected_temp,
+                },
+            ) => {
+                assert_eq!(actual_path, expected_path);
+                assert_eq!(actual_temp, expected_temp);
             }
-            _ => panic!("Expected FileExistsOverwriteRequired error"),
+            _ => panic!("Expected Failure variant"),
         }
     }
 
@@ -221,15 +232,31 @@ mod tests {
             .await
             .unwrap();
 
-        let expected = forge_app::FsCreateOutput {
+        let expected = forge_app::FsCreateOutput::Success {
             path: "/home/user/new_file.rs".to_string(),
             before: None,
             warning: Some("Syntax error found in file with extension rs. Hint: Please retry in raw mode without HTML-encoding angle brackets.".to_string()),
         };
 
-        assert_eq!(actual.path, expected.path);
-        assert_eq!(actual.before, expected.before);
-        assert_eq!(actual.warning, expected.warning);
+        match (actual, expected) {
+            (
+                forge_app::FsCreateOutput::Success {
+                    path: actual_path,
+                    before: actual_before,
+                    warning: actual_warning,
+                },
+                forge_app::FsCreateOutput::Success {
+                    path: expected_path,
+                    before: expected_before,
+                    warning: expected_warning,
+                },
+            ) => {
+                assert_eq!(actual_path, expected_path);
+                assert_eq!(actual_before, expected_before);
+                assert_eq!(actual_warning, expected_warning);
+            }
+            _ => panic!("Expected Success variant"),
+        }
     }
 
     #[tokio::test]
@@ -249,14 +276,30 @@ mod tests {
             .await
             .unwrap();
 
-        let expected = forge_app::FsCreateOutput {
+        let expected = forge_app::FsCreateOutput::Success {
             path: "/home/user/test.rs".to_string(),
             before: Some("old content".to_string()),
             warning: Some("Syntax error found in file with extension rs. Hint: Please retry in raw mode without HTML-encoding angle brackets.".to_string()),
         };
 
-        assert_eq!(actual.path, expected.path);
-        assert_eq!(actual.before, expected.before);
-        assert_eq!(actual.warning, expected.warning);
+        match (actual, expected) {
+            (
+                forge_app::FsCreateOutput::Success {
+                    path: actual_path,
+                    before: actual_before,
+                    warning: actual_warning,
+                },
+                forge_app::FsCreateOutput::Success {
+                    path: expected_path,
+                    before: expected_before,
+                    warning: expected_warning,
+                },
+            ) => {
+                assert_eq!(actual_path, expected_path);
+                assert_eq!(actual_before, expected_before);
+                assert_eq!(actual_warning, expected_warning);
+            }
+            _ => panic!("Expected Success variant"),
+        }
     }
 }
