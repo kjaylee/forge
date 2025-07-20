@@ -89,10 +89,7 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
     async fn active_workflow(&self) -> Result<Workflow> {
         // Read the current workflow to validate the agent
         // Use read_merged to automatically load agents from forge/agent directory
-        let workflow = self
-            .api
-            .read_merged(self.cli.workflow.as_deref())
-            .await?;
+        let workflow = self.api.read_merged(self.cli.workflow.as_deref()).await?;
         Ok(workflow)
     }
 
@@ -575,10 +572,7 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
     async fn init_state(&mut self, first: bool) -> Result<Workflow> {
         let provider = self.init_provider().await?;
         // Use read_merged to automatically load agents from forge/agent directory
-        let mut workflow = self
-            .api
-            .read_merged(self.cli.workflow.as_deref())
-            .await?;
+        let mut workflow = self.api.read_merged(self.cli.workflow.as_deref()).await?;
         if workflow.model.is_none() {
             workflow.model = Some(
                 self.select_model()
