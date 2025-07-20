@@ -23,6 +23,7 @@ pub enum Command {
         is_first: bool,
     },
     InterruptStream,
+    NewConversation,
     #[allow(unused)]
     Spotlight(SpotlightCommand),
     Interval {

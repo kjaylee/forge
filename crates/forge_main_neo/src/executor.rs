@@ -157,6 +157,23 @@ impl<T: API + 'static> Executor<T> {
         Ok(())
     }
 
+    async fn execute_new_conversation(
+        &self,
+        tx: &Sender<anyhow::Result<Action>>,
+    ) -> anyhow::Result<()> {
+        // Initialize a new workflow with agents loaded from forge/agent directory
+        let workflow = self.api.read_merged(None).await?;
+
+        // Initialize new conversation with the loaded workflow
+        let new_conversation = self.api.init_conversation(workflow).await?;
+
+        // Send action to update conversation state
+        tx.send(Ok(Action::ConversationInitialized(new_conversation.id)))
+            .await?;
+
+        Ok(())
+    }
+
     async fn execute_and(
         &self,
         commands: Vec<Command>,
@@ -257,6 +274,9 @@ impl<T: API + 'static> Executor<T> {
             Command::InterruptStream => {
                 // Send InterruptStream action to trigger state update
                 tx.send(Ok(Action::InterruptStream)).await?;
+            }
+            Command::NewConversation => {
+                self.execute_new_conversation(&tx).await?;
             }
         }
         Ok(())

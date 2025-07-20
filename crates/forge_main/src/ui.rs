@@ -14,7 +14,6 @@ use forge_domain::{McpConfig, McpServerConfig, Provider, Scope};
 use forge_fs::ForgeFS;
 use forge_spinner::SpinnerManager;
 use forge_tracker::ToolCallPayload;
-use merge::Merge;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio_stream::StreamExt;
@@ -89,10 +88,12 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
 
     async fn active_workflow(&self) -> Result<Workflow> {
         // Read the current workflow to validate the agent
-        let workflow = self.api.read_workflow(self.cli.workflow.as_deref()).await?;
-        let mut base_workflow = Workflow::default();
-        base_workflow.merge(workflow.clone());
-        Ok(base_workflow)
+        // Use read_merged to automatically load agents from forge/agent directory
+        let workflow = self
+            .api
+            .read_merged(self.cli.workflow.as_deref())
+            .await?;
+        Ok(workflow)
     }
 
     // Set the current mode and update conversation variable
@@ -573,7 +574,11 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
     /// Initialize the state of the UI
     async fn init_state(&mut self, first: bool) -> Result<Workflow> {
         let provider = self.init_provider().await?;
-        let mut workflow = self.api.read_workflow(self.cli.workflow.as_deref()).await?;
+        // Use read_merged to automatically load agents from forge/agent directory
+        let mut workflow = self
+            .api
+            .read_merged(self.cli.workflow.as_deref())
+            .await?;
         if workflow.model.is_none() {
             workflow.model = Some(
                 self.select_model()
@@ -581,18 +586,16 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
                     .ok_or(anyhow::anyhow!("Model selection is required to continue"))?,
             );
         }
-        let mut base_workflow = Workflow::default();
-        base_workflow.merge(workflow.clone());
         if first {
             // only call on_update if this is the first initialization
-            on_update(self.api.clone(), base_workflow.updates.as_ref()).await;
+            on_update(self.api.clone(), workflow.updates.as_ref()).await;
         }
         self.api
             .write_workflow(self.cli.workflow.as_deref(), &workflow)
             .await?;
 
-        self.command.register_all(&base_workflow);
-        self.state = UIState::new(base_workflow).provider(provider);
+        self.command.register_all(&workflow);
+        self.state = UIState::new(workflow.clone()).provider(provider);
 
         Ok(workflow)
     }

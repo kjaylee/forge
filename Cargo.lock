@@ -1521,6 +1521,7 @@ dependencies = [
  "dissimilar",
  "forge_app",
  "forge_display",
+ "forge_domain",
  "forge_fs",
  "forge_provider",
  "forge_snaps",
