@@ -1,6 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use forge_domain::{Agent, Attachment, ChatCompletionMessage, CommandOutput, Context, Conversation, ConversationId, Environment, File, McpConfig, Model, ModelId, PatchOperation, Provider, ResultStream, Scope, ToolCallFull, ToolDefinition, ToolOutput, Workflow};
+use forge_domain::{
+    Agent, Attachment, ChatCompletionMessage, CommandOutput, Context, Conversation, ConversationId,
+    Environment, File, McpConfig, Model, ModelId, PatchOperation, Provider, ResultStream, Scope,
+    ToolCallFull, ToolDefinition, ToolOutput, Workflow,
+};
 use merge::Merge;
 
 use crate::user::User;
