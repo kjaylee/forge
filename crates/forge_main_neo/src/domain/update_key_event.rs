@@ -206,7 +206,7 @@ fn handle_menu_navigation(
     }
 
     // Menu items count - this should match the menu items defined in chat.rs
-    const MENU_ITEMS_COUNT: usize = 15;
+    const MENU_ITEMS_COUNT: usize = 14;
 
     match key_event.code {
         KeyCode::Up => {
@@ -775,7 +775,7 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        assert_eq!(state.menu.list.selected(), Some(14)); // 15 items, so last index is 14
+        assert_eq!(state.menu.list.selected(), Some(13)); // 14 items, so last index is 13
 
         // Test down navigation at bottom boundary (should wrap to top)
         let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
@@ -835,5 +835,47 @@ mod tests {
         // Menu selection should remain at initial value (0) since navigation is
         // disabled
         assert_eq!(state.menu.list.selected(), Some(0));
+    }
+
+    #[test]
+    fn test_menu_navigation_full_cycle_down() {
+        let mut state = State::default();
+        state.editor.mode = EditorMode::Normal;
+        state.spotlight.is_visible = false;
+
+        // Start from index 0 and navigate down through all items
+        for expected_index in 1..14 {
+            let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+            let actual_command = handle_key_event(&mut state, key_event);
+            assert_eq!(actual_command, Command::Empty);
+            assert_eq!(state.menu.list.selected(), Some(expected_index));
+        }
+
+        // Now we're at index 13 (last item), pressing down should wrap to 0
+        let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+        let actual_command = handle_key_event(&mut state, key_event);
+        assert_eq!(actual_command, Command::Empty);
+        assert_eq!(state.menu.list.selected(), Some(0));
+    }
+
+    #[test]
+    fn test_menu_navigation_full_cycle_up() {
+        let mut state = State::default();
+        state.editor.mode = EditorMode::Normal;
+        state.spotlight.is_visible = false;
+
+        // Start from index 0, pressing up should wrap to 13
+        let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+        let actual_command = handle_key_event(&mut state, key_event);
+        assert_eq!(actual_command, Command::Empty);
+        assert_eq!(state.menu.list.selected(), Some(13));
+
+        // Navigate up through all items
+        for expected_index in (0..13).rev() {
+            let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+            let actual_command = handle_key_event(&mut state, key_event);
+            assert_eq!(actual_command, Command::Empty);
+            assert_eq!(state.menu.list.selected(), Some(expected_index));
+        }
     }
 }
