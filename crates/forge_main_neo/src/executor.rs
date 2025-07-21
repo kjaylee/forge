@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use chrono::Utc;
-use forge_api::{AgentId, ChatRequest, ConversationId, Event, API};
+use forge_api::{API, AgentId, ChatRequest, ConversationId, Event};
 use serde_json::Value;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::StreamExt;
