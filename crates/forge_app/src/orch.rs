@@ -268,10 +268,11 @@ impl<S: AgentService> Orchestrator<S> {
         &self,
         agent: &Agent,
         context: &Context,
+        usage: &Usage,
     ) -> anyhow::Result<Option<Context>> {
         // Estimate token count for compaction decision
-        let estimated_tokens = context.token_count();
-        if agent.should_compact(context, estimated_tokens) {
+        let total_tokens = usage.total_tokens;
+        if agent.should_compact(context, total_tokens) {
             info!(agent_id = %agent.id, "Compaction needed");
             Compactor::new(self.services.clone())
                 .compact(agent, context.clone(), false)
@@ -380,7 +381,13 @@ impl<S: AgentService> Orchestrator<S> {
             self.services.update(self.conversation.clone()).await?;
 
             // Run the main chat request and compaction check in parallel
-            let main_request = crate::retry::retry_with_config(
+            let ChatCompletionMessageFull {
+                    tool_calls,
+                    content,
+                    mut usage,
+                    reasoning,
+                    reasoning_details,
+                } = crate::retry::retry_with_config(
                 &self.environment.retry_config,
                 || self.execute_chat_turn(&model_id, context.clone(), tool_supported, reasoning_supported),
                 self.sender.as_ref().map(|sender| {
@@ -397,38 +404,14 @@ impl<S: AgentService> Orchestrator<S> {
                         let _ = sender.try_send(Ok(retry_event));
                     }
                 }),
-            );
-
-            // Prepare compaction task that runs in parallel
-
-            // Execute both operations in parallel
-            let (
-                ChatCompletionMessageFull {
-                    tool_calls,
-                    content,
-                    mut usage,
-                    reasoning,
-                    reasoning_details,
-                },
-                compaction_result,
-            ) = tokio::try_join!(main_request, self.check_and_compact(&agent, &context))?;
-
-            // Apply compaction result if it completed successfully
-            match compaction_result {
-                Some(compacted_context) => {
-                    info!(agent_id = %agent.id, "Using compacted context from execution");
-                    context = compacted_context;
-                }
-                None => {
-                    debug!(agent_id = %agent.id, "No compaction was needed");
-                }
-            }
+            ).await?;
 
             // Set estimated tokens
             usage.estimated_tokens = context.token_count();
 
             info!(
                 token_usage = usage.prompt_tokens,
+                total_usage = usage.total_tokens,
                 estimated_token_usage = usage.estimated_tokens,
                 "Processing usage information"
             );
@@ -559,6 +542,18 @@ impl<S: AgentService> Orchestrator<S> {
                 }
 
                 is_complete = true;
+            }
+
+            // Perform compaction if needed
+            let compaction_result = self.check_and_compact(&agent, &context, &usage).await?;
+            match compaction_result {
+                Some(compacted_context) => {
+                    info!(agent_id = %agent.id, "Using compacted context from execution");
+                    context = compacted_context;
+                }
+                None => {
+                    debug!(agent_id = %agent.id, "No compaction was needed");
+                }
             }
 
             // Update context in the conversation
