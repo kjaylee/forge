@@ -83,10 +83,7 @@ impl<F: FileWriterInfra + FileReaderInfra> ForgeWorkflowService<F> {
         };
 
         // Load agents from forge/agent directory and merge them into the workflow
-        let workflow = self
-            .agent_loader
-            .extend(workflow)
-            .await?;
+        let workflow = self.agent_loader.extend(workflow).await?;
 
         Ok(workflow)
     }

@@ -55,9 +55,10 @@ impl<F: FileReaderInfra + FileWriterInfra> AgentLoaderService<F> {
 
             // Only process .md files
             if path.extension().and_then(|s| s.to_str()) == Some("md")
-                && let Ok(agent_def) = self.parse_agent_file(&path).await {
-                    agents.push(agent_def)
-                }
+                && let Ok(agent_def) = self.parse_agent_file(&path).await
+            {
+                agents.push(agent_def)
+            }
         }
 
         Ok(agents)
