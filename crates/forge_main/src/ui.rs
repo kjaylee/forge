@@ -10,7 +10,7 @@ use forge_api::{
     InterruptionReason, Model, ModelId, Workflow,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
-use forge_domain::{McpConfig, McpServerConfig, Provider, Scope};
+use forge_domain::{Agent, McpConfig, McpServerConfig, Provider, Scope};
 use forge_fs::ForgeFS;
 use forge_spinner::SpinnerManager;
 use forge_tracker::ToolCallPayload;
@@ -877,7 +877,26 @@ impl Display for CliModel {
         Ok(())
     }
 }
-
+/// Merge loaded agents into an existing workflow
+fn merge_agents_into_workflow(
+    workflow: &mut Workflow,
+    agent_definitions: Vec<Agent>,
+) {
+    for agent_def in agent_definitions {
+        // Check if an agent with this ID already exists in the workflow
+        if let Some(existing_agent) = workflow
+            .agents
+            .iter_mut()
+            .find(|a| a.id == agent_def.id)
+        {
+            // Merge the loaded agent into the existing one
+            existing_agent.merge(agent_def);
+        } else {
+            // Add the new agent to the workflow
+            workflow.agents.push(agent_def);
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use console::strip_ansi_codes;

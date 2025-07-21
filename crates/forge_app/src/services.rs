@@ -1,10 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use forge_domain::{
-    Attachment, ChatCompletionMessage, CommandOutput, Context, Conversation, ConversationId,
-    Environment, File, McpConfig, Model, ModelId, PatchOperation, Provider, ResultStream, Scope,
-    ToolCallFull, ToolDefinition, ToolOutput, Workflow,
-};
+use forge_domain::{Agent, Attachment, ChatCompletionMessage, CommandOutput, Context, Conversation, ConversationId, Environment, File, McpConfig, Model, ModelId, PatchOperation, Provider, ResultStream, Scope, ToolCallFull, ToolDefinition, ToolOutput, Workflow};
 use merge::Merge;
 
 use crate::user::User;
@@ -293,6 +289,12 @@ pub trait ProviderRegistry: Send + Sync {
     async fn get_provider(&self, config: AppConfig) -> anyhow::Result<Provider>;
 }
 
+#[async_trait::async_trait]
+pub trait AgentLoaderService: Send + Sync {
+    /// Load all agent definitions from the forge/agent directory
+    async fn load_agents(&self) -> anyhow::Result<Vec<Agent>>;
+}
+
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
@@ -318,6 +320,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     type AuthService: AuthService;
     type AppConfigService: AppConfigService;
     type ProviderRegistry: ProviderRegistry;
+    type AgentLoaderService: AgentLoaderService;
 
     fn provider_service(&self) -> &Self::ProviderService;
     fn conversation_service(&self) -> &Self::ConversationService;
@@ -340,6 +343,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn auth_service(&self) -> &Self::AuthService;
     fn app_config_service(&self) -> &Self::AppConfigService;
     fn provider_registry(&self) -> &Self::ProviderRegistry;
+    fn agent_loader_service(&self) -> &Self::AgentLoaderService;
 }
 
 #[async_trait::async_trait]
@@ -599,5 +603,12 @@ impl<I: Services> AuthService for I {
 
     async fn user_info(&self, api_key: &str) -> anyhow::Result<User> {
         self.auth_service().user_info(api_key).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<I: Services> AgentLoaderService for I {
+    async fn load_agents(&self) -> anyhow::Result<Vec<Agent>> {
+        self.agent_loader_service().load_agents().await
     }
 }

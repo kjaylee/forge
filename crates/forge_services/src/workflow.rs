@@ -4,26 +4,22 @@ use std::sync::Arc;
 use anyhow::Context;
 use forge_app::WorkflowService;
 use forge_app::domain::Workflow;
-use forge_domain::Environment;
 
-use crate::{AgentLoaderService, FileInfoInfra, FileReaderInfra, FileWriterInfra};
+use crate::{FileReaderInfra, FileWriterInfra};
 
 /// A workflow loader to load the workflow from the given path.
 /// It also resolves the internal paths specified in the workflow.
-/// Additionally loads agent definitions from forge/agent directory.
 pub struct ForgeWorkflowService<F> {
     infra: Arc<F>,
-    agent_loader: AgentLoaderService<F>,
 }
 
 impl<F> ForgeWorkflowService<F> {
-    pub fn new(infra: Arc<F>, environment: Environment) -> Self {
-        let agent_loader = AgentLoaderService::new(infra.clone(), environment);
-        Self { infra, agent_loader }
+    pub fn new(infra: Arc<F>) -> Self {
+        Self { infra }
     }
 }
 
-impl<F: FileWriterInfra + FileReaderInfra + FileInfoInfra> ForgeWorkflowService<F> {
+impl<F: FileWriterInfra + FileReaderInfra> ForgeWorkflowService<F> {
     /// Find a forge.yaml config file by traversing parent directories.
     /// Returns the path to the first found config file, or the original path if
     /// none is found.
@@ -63,29 +59,23 @@ impl<F: FileWriterInfra + FileReaderInfra + FileInfoInfra> ForgeWorkflowService<
     /// If the path is just "forge.yaml", searches for it in parent directories.
     /// If the file doesn't exist anywhere, creates a new empty workflow file at
     /// the specified path (in the current directory).
-    /// Additionally loads agent definitions from forge/agent directory.
     async fn read(&self, path: &Path) -> anyhow::Result<Workflow> {
         // First, try to find the config file in parent directories if needed
         let path = &self.resolve_path(Some(path.into())).await;
 
-        let workflow = if !path.exists() {
+        if !path.exists() {
             let workflow = Workflow::new();
             self.infra
                 .write(path, self.serialize_workflow(&workflow)?.into(), true)
                 .await?;
 
-            workflow
+            Ok(workflow)
         } else {
             let content = self.infra.read_utf8(path).await?;
             let workflow: Workflow = serde_yml::from_str(&content)
                 .with_context(|| format!("Failed to parse workflow from {}", path.display()))?;
-            workflow
-        };
-
-        // Load agents from forge/agent directory and merge them into the workflow
-        let workflow = self.agent_loader.extend(workflow).await?;
-
-        Ok(workflow)
+            Ok(workflow)
+        }
     }
 
     // Serializes the workflow to a YAML string.
@@ -101,9 +91,7 @@ impl<F: FileWriterInfra + FileReaderInfra + FileInfoInfra> ForgeWorkflowService<
 }
 
 #[async_trait::async_trait]
-impl<F: FileWriterInfra + FileReaderInfra + FileInfoInfra> WorkflowService
-    for ForgeWorkflowService<F>
-{
+impl<F: FileWriterInfra + FileReaderInfra> WorkflowService for ForgeWorkflowService<F> {
     async fn resolve(&self, path: Option<PathBuf>) -> PathBuf {
         self.resolve_path(path).await
     }
