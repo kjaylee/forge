@@ -53,6 +53,7 @@ strum.workspace = true
 bytes.workspace = true
 console.workspace = true
 serde_yml.workspace = true
+gray_matter = "0.3.2"
 merge.workspace = true
 strip-ansi-escapes.workspace = true
 rmcp.workspace = true

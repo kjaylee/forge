@@ -1,10 +1,12 @@
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_app::domain::{Agent, AgentId, Workflow};
 use forge_domain::Environment;
 use forge_walker::Walker;
+use gray_matter::Matter;
+use gray_matter::engine::YAML;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
 
@@ -41,24 +43,23 @@ impl<F: FileReaderInfra + FileWriterInfra + FileInfoInfra> AgentLoaderService<F>
     /// Load all agent definitions from the forge/agent directory
     pub async fn load_agents(&self) -> Result<Vec<AgentDefinitionFile>> {
         let agent_dir = self.environment.agent_path();
-
         if !self.infra.exists(&agent_dir).await? {
             return Ok(vec![]);
         }
 
         let mut agents = vec![];
         let entries = Walker::min_all()
+            .cwd(agent_dir.clone())
             .get()
             .await
-            .with_context(|| format!("Failed to read agent directory: {}", agent_dir.display()))?;
+            .with_context(|| "Failed to read agent directory")?;
 
         for entry in entries {
-            let path = entry.path;
+            let path = agent_dir.join(entry.path);
 
             // Only process .md files
-            if entry.file_name.map(|v| v.ends_with(".md")).unwrap_or(false)
-                && let Ok(agent_def) = self.parse_agent_file(&path).await
-            {
+            if entry.file_name.map(|v| v.ends_with(".md")).unwrap_or(false) {
+                let agent_def = self.parse_agent_file(path).await?;
                 agents.push(agent_def)
             }
         }
@@ -67,33 +68,23 @@ impl<F: FileReaderInfra + FileWriterInfra + FileInfoInfra> AgentLoaderService<F>
     }
 
     /// Parse an individual agent definition file with YAML frontmatter
-    async fn parse_agent_file(&self, path: &str) -> Result<AgentDefinitionFile> {
-        let path = Path::new(path);
+    async fn parse_agent_file(&self, path: PathBuf) -> Result<AgentDefinitionFile> {
         let content = self
             .infra
-            .read_utf8(path)
+            .read_utf8(&path)
             .await
             .with_context(|| format!("Failed to read agent file: {}", path.display()))?;
 
-        // Split frontmatter and markdown content
-        let (frontmatter_str, markdown_content) = if content.starts_with("---") {
-            let mut parts = content.splitn(3, "---");
-            parts.next(); // Skip the first empty part
-            let frontmatter = parts
-                .next()
-                .ok_or_else(|| anyhow::anyhow!("Missing frontmatter in {}", path.display()))?;
-            let markdown = parts.next().unwrap_or("");
-            (frontmatter, markdown)
-        } else {
-            return Err(anyhow::anyhow!(
-                "No YAML frontmatter found in {}",
-                path.display()
-            ));
-        };
-
-        // Parse the frontmatter
-        let frontmatter: AgentFrontmatter = serde_yml::from_str(frontmatter_str)
+        // Parse the frontmatter using gray_matter with type-safe deserialization
+        let matter = Matter::<YAML>::new();
+        let result = matter
+            .parse::<AgentFrontmatter>(&content)
             .with_context(|| format!("Failed to parse YAML frontmatter in {}", path.display()))?;
+
+        // Extract the frontmatter
+        let frontmatter = result
+            .data
+            .context(format!("No YAML frontmatter found in {}", path.display()))?;
 
         // Use the filename (without extension) as the agent ID if not specified
         let mut agent = frontmatter.agent;
@@ -105,7 +96,7 @@ impl<F: FileReaderInfra + FileWriterInfra + FileInfoInfra> AgentLoaderService<F>
             agent.id = AgentId::new(filename);
         }
 
-        Ok(AgentDefinitionFile { agent, content: markdown_content.trim().to_string() })
+        Ok(AgentDefinitionFile { agent, content: result.content.trim().to_string() })
     }
 
     /// Enhance workflow with loaded agents

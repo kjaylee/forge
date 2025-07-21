@@ -70,7 +70,7 @@ impl Environment {
         self.base_path.join("templates")
     }
     pub fn agent_path(&self) -> PathBuf {
-        self.base_path.join("forge/agent")
+        self.base_path.join("agents")
     }
 
     pub fn mcp_local_config(&self) -> PathBuf {
