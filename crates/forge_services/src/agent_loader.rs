@@ -1,13 +1,13 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::{FileInfoInfra, FileReaderInfra, FileWriterInfra};
 use anyhow::{Context, Result};
 use forge_app::domain::{Agent, AgentId, Workflow};
 use forge_domain::Environment;
+use forge_walker::Walker;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
-
-use crate::{FileReaderInfra, FileWriterInfra};
 
 /// A service for loading agent definitions from individual files in the
 /// forge/agent directory
@@ -36,28 +36,29 @@ impl<F> AgentLoaderService<F> {
     }
 }
 
-impl<F: FileReaderInfra + FileWriterInfra> AgentLoaderService<F> {
+impl<F: FileReaderInfra + FileWriterInfra + FileInfoInfra> AgentLoaderService<F> {
     /// Load all agent definitions from the forge/agent directory
     pub async fn load_agents(&self) -> Result<Vec<AgentDefinitionFile>> {
         let agent_dir = self.environment.agent_path();
 
-        if !agent_dir.exists() {
-            return Ok(Vec::new());
+        if !self.infra.exists(&agent_dir).await? {
+            return Ok(vec![]);
         }
 
-        let mut agents = Vec::new();
-        let entries = std::fs::read_dir(&agent_dir)
+        let mut agents = vec![];
+        let entries = Walker::min_all()
+            .get()
+            .await
             .with_context(|| format!("Failed to read agent directory: {}", agent_dir.display()))?;
 
         for entry in entries {
-            let entry = entry?;
-            let path = entry.path();
+            let path = entry.path;
 
             // Only process .md files
-            if path.extension().and_then(|s| s.to_str()) == Some("md")
+            if entry.file_name.map(|v| v.ends_with(".md")).unwrap_or(false)
                 && let Ok(agent_def) = self.parse_agent_file(&path).await
-            {
-                agents.push(agent_def)
+            
+            {    agents.push(agent_def)
             }
         }
 
@@ -65,7 +66,8 @@ impl<F: FileReaderInfra + FileWriterInfra> AgentLoaderService<F> {
     }
 
     /// Parse an individual agent definition file with YAML frontmatter
-    async fn parse_agent_file(&self, path: &Path) -> Result<AgentDefinitionFile> {
+    async fn parse_agent_file(&self, path: &str) -> Result<AgentDefinitionFile> {
+        let path = Path::new(path);
         let content = self
             .infra
             .read_utf8(path)
