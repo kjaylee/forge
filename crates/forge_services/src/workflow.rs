@@ -101,7 +101,9 @@ impl<F: FileWriterInfra + FileReaderInfra + FileInfoInfra> ForgeWorkflowService<
 }
 
 #[async_trait::async_trait]
-impl<F: FileWriterInfra + FileReaderInfra + FileInfoInfra> WorkflowService for ForgeWorkflowService<F> {
+impl<F: FileWriterInfra + FileReaderInfra + FileInfoInfra> WorkflowService
+    for ForgeWorkflowService<F>
+{
     async fn resolve(&self, path: Option<PathBuf>) -> PathBuf {
         self.resolve_path(path).await
     }

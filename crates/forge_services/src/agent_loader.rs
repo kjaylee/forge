@@ -1,13 +1,14 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::{FileInfoInfra, FileReaderInfra, FileWriterInfra};
 use anyhow::{Context, Result};
 use forge_app::domain::{Agent, AgentId, Workflow};
 use forge_domain::Environment;
 use forge_walker::Walker;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
+
+use crate::{FileInfoInfra, FileReaderInfra, FileWriterInfra};
 
 /// A service for loading agent definitions from individual files in the
 /// forge/agent directory
@@ -57,8 +58,8 @@ impl<F: FileReaderInfra + FileWriterInfra + FileInfoInfra> AgentLoaderService<F>
             // Only process .md files
             if entry.file_name.map(|v| v.ends_with(".md")).unwrap_or(false)
                 && let Ok(agent_def) = self.parse_agent_file(&path).await
-            
-            {    agents.push(agent_def)
+            {
+                agents.push(agent_def)
             }
         }
 
