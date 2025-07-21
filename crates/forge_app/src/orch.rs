@@ -271,7 +271,7 @@ impl<S: AgentService> Orchestrator<S> {
         usage: &Usage,
     ) -> anyhow::Result<Option<Context>> {
         // Estimate token count for compaction decision
-        let total_tokens = usage.total_tokens;
+        let total_tokens = usage.total_tokens.max(usage.estimated_tokens);
         if agent.should_compact(context, total_tokens) {
             info!(agent_id = %agent.id, "Compaction needed");
             Compactor::new(self.services.clone())
