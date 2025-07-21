@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_app::domain::{Agent, AgentId, Workflow};
+use forge_domain::Environment;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +13,7 @@ use crate::{FileReaderInfra, FileWriterInfra};
 /// forge/agent directory
 pub struct AgentLoaderService<F> {
     infra: Arc<F>,
+    environment: Environment,
 }
 
 /// Represents the frontmatter structure of an agent definition file
@@ -29,16 +31,15 @@ pub struct AgentDefinitionFile {
 }
 
 impl<F> AgentLoaderService<F> {
-    pub fn new(infra: Arc<F>) -> Self {
-        Self { infra }
+    pub fn new(infra: Arc<F>, environment: Environment) -> Self {
+        Self { infra, environment }
     }
 }
 
 impl<F: FileReaderInfra + FileWriterInfra> AgentLoaderService<F> {
     /// Load all agent definitions from the forge/agent directory
-    pub async fn load_agents(&self, base_path: Option<&Path>) -> Result<Vec<AgentDefinitionFile>> {
-        let base_path = base_path.unwrap_or_else(|| Path::new("."));
-        let agent_dir = base_path.join("forge/agent");
+    pub async fn load_agents(&self) -> Result<Vec<AgentDefinitionFile>> {
+        let agent_dir = self.environment.agent_path();
 
         if !agent_dir.exists() {
             return Ok(Vec::new());
@@ -112,12 +113,8 @@ impl<F: FileReaderInfra + FileWriterInfra> AgentLoaderService<F> {
     }
 
     /// Load agents and merge them into a workflow
-    pub async fn load_and_merge_agents(
-        &self,
-        workflow: &mut Workflow,
-        base_path: Option<&Path>,
-    ) -> Result<()> {
-        let agent_definitions = self.load_agents(base_path).await?;
+    pub async fn load_and_merge_agents(&self, workflow: &mut Workflow) -> Result<()> {
+        let agent_definitions = self.load_agents().await?;
         merge_agents_into_workflow(workflow, agent_definitions);
         Ok(())
     }

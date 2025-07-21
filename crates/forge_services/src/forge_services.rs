@@ -73,7 +73,10 @@ impl<
         let template_service = Arc::new(ForgeTemplateService::new(infra.clone()));
         let attachment_service = Arc::new(ForgeChatRequest::new(infra.clone()));
 
-        let workflow_service = Arc::new(ForgeWorkflowService::new(infra.clone()));
+        let workflow_service = Arc::new(ForgeWorkflowService::new(
+            infra.clone(),
+            infra.get_environment(),
+        ));
         let suggestion_service = Arc::new(ForgeDiscoveryService::new(infra.clone()));
         let conversation_service = Arc::new(ForgeConversationService::new(mcp_service.clone()));
         let config_service = Arc::new(ForgeConfigService::new(infra.clone()));

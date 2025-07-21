@@ -4,6 +4,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use forge_app::WorkflowService;
 use forge_app::domain::Workflow;
+use forge_domain::Environment;
 
 use crate::{AgentLoaderService, FileReaderInfra, FileWriterInfra};
 
@@ -16,8 +17,8 @@ pub struct ForgeWorkflowService<F> {
 }
 
 impl<F> ForgeWorkflowService<F> {
-    pub fn new(infra: Arc<F>) -> Self {
-        let agent_loader = AgentLoaderService::new(infra.clone());
+    pub fn new(infra: Arc<F>, environment: Environment) -> Self {
+        let agent_loader = AgentLoaderService::new(infra.clone(), environment);
         Self { infra, agent_loader }
     }
 }
@@ -82,9 +83,8 @@ impl<F: FileWriterInfra + FileReaderInfra> ForgeWorkflowService<F> {
         };
 
         // Load agents from forge/agent directory and merge them into the workflow
-        let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
         self.agent_loader
-            .load_and_merge_agents(&mut workflow, Some(base_dir))
+            .load_and_merge_agents(&mut workflow)
             .await?;
 
         Ok(workflow)
