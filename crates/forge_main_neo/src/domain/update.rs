@@ -8,7 +8,13 @@ use crate::domain::{Action, Command, State};
 pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
     let action = action.into();
     match action {
-        Action::Initialize => Command::ReadWorkspace,
+        Action::Initialize => Command::ReadWorkspace.and(Command::ReadWorkflow),
+        Action::WorkflowLoaded(model_id) => {
+            // Set the current model from the workflow
+            state.current_model = Some(model_id.clone());
+            tracing::info!("Loaded model from workflow: {}", model_id.as_str());
+            Command::Empty
+        }
         Action::Workspace { current_dir, current_branch } => {
             // TODO: can simply get workspace object from the action
             state.workspace.current_dir = current_dir;
@@ -79,6 +85,30 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             // Store the cancellation token for this stream
             state.chat_stream = Some(cancel_id);
             Command::Empty
+        }
+        Action::ShowModelSelection => {
+            // Show model selection modal immediately
+            tracing::info!("Showing model selection modal");
+            state.model_selection.show();
+            state.spotlight.is_visible = false;
+            Command::Empty
+        }
+        Action::ModelsLoaded(models) => {
+            // Update model selection state with loaded models
+            tracing::info!("Models loaded action received: {} models", models.len());
+            state.model_selection.set_models(models);
+            // Modal should already be visible from ShowModelSelection action
+            Command::Empty
+        }
+        Action::ModelSelected(model_id) => {
+            // Handle model selection
+            state.model_selection.hide();
+            // Set the current model
+            state.current_model = Some(model_id.clone());
+            tracing::info!("Model selected: {}", model_id.as_str());
+
+            // Return command to update workflow and conversation with the selected model
+            Command::UpdateModel(model_id)
         }
     }
 }
