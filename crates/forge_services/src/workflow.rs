@@ -68,7 +68,7 @@ impl<F: FileWriterInfra + FileReaderInfra> ForgeWorkflowService<F> {
         // First, try to find the config file in parent directories if needed
         let path = &self.resolve_path(Some(path.into())).await;
 
-        let mut workflow = if !path.exists() {
+        let workflow = if !path.exists() {
             let workflow = Workflow::new();
             self.infra
                 .write(path, self.serialize_workflow(&workflow)?.into(), true)
@@ -83,8 +83,9 @@ impl<F: FileWriterInfra + FileReaderInfra> ForgeWorkflowService<F> {
         };
 
         // Load agents from forge/agent directory and merge them into the workflow
-        self.agent_loader
-            .load_and_merge_agents(&mut workflow)
+        let workflow = self
+            .agent_loader
+            .extend(workflow)
             .await?;
 
         Ok(workflow)

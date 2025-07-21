@@ -54,18 +54,10 @@ impl<F: FileReaderInfra + FileWriterInfra> AgentLoaderService<F> {
             let path = entry.path();
 
             // Only process .md files
-            if path.extension().and_then(|s| s.to_str()) == Some("md") {
-                match self.parse_agent_file(&path).await {
-                    Ok(agent_def) => agents.push(agent_def),
-                    Err(e) => {
-                        eprintln!(
-                            "Warning: Failed to parse agent file {}: {}",
-                            path.display(),
-                            e
-                        );
-                    }
+            if path.extension().and_then(|s| s.to_str()) == Some("md")
+                && let Ok(agent_def) = self.parse_agent_file(&path).await {
+                    agents.push(agent_def)
                 }
-            }
         }
 
         Ok(agents)
@@ -112,11 +104,11 @@ impl<F: FileReaderInfra + FileWriterInfra> AgentLoaderService<F> {
         Ok(AgentDefinitionFile { agent, content: markdown_content.trim().to_string() })
     }
 
-    /// Load agents and merge them into a workflow
-    pub async fn load_and_merge_agents(&self, workflow: &mut Workflow) -> Result<()> {
+    /// Enhance workflow with loaded agents
+    pub async fn extend(&self, mut workflow: Workflow) -> Result<Workflow> {
         let agent_definitions = self.load_agents().await?;
-        merge_agents_into_workflow(workflow, agent_definitions);
-        Ok(())
+        merge_agents_into_workflow(&mut workflow, agent_definitions);
+        Ok(workflow)
     }
 }
 
