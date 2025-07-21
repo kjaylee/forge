@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use colored::Colorize;
-use forge_api::{Update, API};
+use forge_api::{API, Update};
 use forge_tracker::VERSION;
-use update_informer::{registry, Check, Version};
+use update_informer::{Check, Version, registry};
 
 /// Package name for forge on npm.
 const FORGE_NPM_PACKAGE: &str = "forgecode";
@@ -23,13 +23,12 @@ async fn execute_update_command(api: Arc<impl API>) {
         }
         Ok(output) => {
             if output.success() {
-                let answer = inquire::Confirm::new(
+                let answer = crate::select::ForgeSelect::confirm(
                     "You need to close forge to complete update. Do you want to close it now?",
                 )
                 .with_default(true)
-                .with_error_message("Invalid response!")
                 .prompt();
-                if answer.unwrap_or_default() {
+                if answer.unwrap_or_default().unwrap_or_default() {
                     std::process::exit(0);
                 }
             } else {
@@ -45,16 +44,19 @@ async fn execute_update_command(api: Arc<impl API>) {
 }
 
 async fn confirm_update(version: Version) -> bool {
-    let answer = inquire::Confirm::new(&format!(
+    let answer = crate::select::ForgeSelect::confirm(format!(
         "Confirm upgrade from {} -> {} (latest)?",
         VERSION.to_string().bold().white(),
         version.to_string().bold().white()
     ))
     .with_default(true)
-    .with_error_message("Invalid response!")
     .prompt();
 
-    answer.unwrap_or(false)
+    match answer {
+        Ok(Some(result)) => result,
+        Ok(None) => false, // User canceled
+        Err(_) => false,   // Error occurred
+    }
 }
 
 /// Checks if there is an update available
@@ -73,10 +75,10 @@ pub async fn on_update(api: Arc<impl API>, update: Option<&Update>) {
     let informer =
         update_informer::new(registry::Npm, FORGE_NPM_PACKAGE, VERSION).interval(frequency.into());
 
-    if let Some(version) = informer.check_version().ok().flatten() {
-        if auto_update || confirm_update(version).await {
-            execute_update_command(api).await;
-        }
+    if let Some(version) = informer.check_version().ok().flatten()
+        && (auto_update || confirm_update(version).await)
+    {
+        execute_update_command(api).await;
     }
 }
 

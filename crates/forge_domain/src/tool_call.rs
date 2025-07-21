@@ -84,44 +84,60 @@ impl ToolCallFull {
             return Ok(vec![]);
         }
 
-        let mut tool_name: Option<&ToolName> = None;
-        let mut tool_call_id = None;
-
         let mut tool_calls = Vec::new();
+        let mut current_call_id: Option<ToolCallId> = None;
+        let mut current_tool_name: Option<ToolName> = None;
+        let mut current_arguments = String::new();
 
-        let mut arguments = String::new();
         for part in parts.iter() {
-            if let Some(value) = &part.call_id {
-                if let Some(tool_name) = tool_name {
-                    tool_calls.push(ToolCallFull {
-                        name: tool_name.clone(),
-                        call_id: tool_call_id,
-                        arguments: if arguments.is_empty() {
-                            Value::default()
-                        } else {
-                            serde_json::from_str(&arguments).map_err(Error::ToolCallArgument)?
-                        },
-                    });
-                    arguments.clear();
+            // If we encounter a new call_id that's different from the current one,
+            // finalize the previous tool call
+            if let Some(new_call_id) = &part.call_id {
+                if let Some(ref existing_call_id) = current_call_id
+                    && existing_call_id.as_str() != new_call_id.as_str()
+                {
+                    // Finalize the previous tool call
+                    if let Some(tool_name) = current_tool_name.take() {
+                        tool_calls.push(ToolCallFull {
+                            name: tool_name,
+                            call_id: Some(existing_call_id.clone()),
+                            arguments: if current_arguments.is_empty() {
+                                Value::default()
+                            } else {
+                                serde_json::from_str(&current_arguments).map_err(|error| {
+                                    Error::ToolCallArgument {
+                                        error,
+                                        args: current_arguments.clone(),
+                                    }
+                                })?
+                            },
+                        });
+                    }
+                    current_arguments.clear();
                 }
-                tool_call_id = Some(value.clone());
+                current_call_id = Some(new_call_id.clone());
             }
 
-            if let Some(value) = &part.name {
-                tool_name = Some(value);
+            if let Some(name) = &part.name
+                && !name.as_str().is_empty()
+            {
+                current_tool_name = Some(name.clone());
             }
 
-            arguments.push_str(&part.arguments_part);
+            current_arguments.push_str(&part.arguments_part);
         }
 
-        if let Some(tool_name) = tool_name {
+        // Finalize the last tool call
+        if let Some(tool_name) = current_tool_name {
             tool_calls.push(ToolCallFull {
-                name: tool_name.clone(),
-                call_id: tool_call_id,
-                arguments: if arguments.is_empty() {
+                name: tool_name,
+                call_id: current_call_id,
+                arguments: if current_arguments.is_empty() {
                     Value::default()
                 } else {
-                    serde_json::from_str(&arguments).map_err(Error::ToolCallArgument)?
+                    serde_json::from_str(&current_arguments).map_err(|error| {
+                        Error::ToolCallArgument { error, args: current_arguments.clone() }
+                    })?
                 },
             });
         }
@@ -135,7 +151,10 @@ impl ToolCallFull {
             None => Ok(Default::default()),
             Some(content) => {
                 let mut tool_call: ToolCallFull =
-                    serde_json::from_str(content).map_err(Error::ToolCallArgument)?;
+                    serde_json::from_str(content).map_err(|error| Error::ToolCallArgument {
+                        error,
+                        args: content.to_string(),
+                    })?;
 
                 // User might switch the model from a tool unsupported to tool supported model
                 // leaving a lot of messages without tool calls
@@ -172,7 +191,8 @@ mod tests {
                 arguments_part: "{\"path\": \"docs/".to_string(),
             },
             ToolCallPart {
-                call_id: None,
+                // NOTE: Call ID can be repeated with each message
+                call_id: Some(ToolCallId("call_2".to_string())),
                 name: None,
                 arguments_part: "onboarding.md\"}".to_string(),
             },
@@ -270,5 +290,37 @@ mod tests {
         let tool_call = ToolCallFull::try_from_xml(message).unwrap();
         let actual = tool_call.first().unwrap().call_id.as_ref().unwrap();
         assert!(actual.as_str().starts_with("forge_call_id_"));
+    }
+    #[test]
+    fn test_try_from_parts_handles_empty_tool_names() {
+        // Fixture: Tool call parts where empty names in subsequent parts should not
+        // override valid names
+        let input = [
+            ToolCallPart {
+                call_id: Some(ToolCallId("0".to_string())),
+                name: Some(ToolName::new("forge_tool_fs_read")),
+                arguments_part: "".to_string(),
+            },
+            ToolCallPart {
+                call_id: Some(ToolCallId("0".to_string())),
+                name: Some(ToolName::new("")), // Empty name should not override valid name
+                arguments_part: "{\"path\"".to_string(),
+            },
+            ToolCallPart {
+                call_id: Some(ToolCallId("0".to_string())),
+                name: Some(ToolName::new("")), // Empty name should not override valid name
+                arguments_part: ": \"/test/file.md\"}".to_string(),
+            },
+        ];
+
+        let actual = ToolCallFull::try_from_parts(&input).unwrap();
+
+        let expected = vec![ToolCallFull {
+            name: ToolName::new("forge_tool_fs_read"),
+            call_id: Some(ToolCallId("0".to_string())),
+            arguments: serde_json::json!({"path": "/test/file.md"}),
+        }];
+
+        assert_eq!(actual, expected);
     }
 }

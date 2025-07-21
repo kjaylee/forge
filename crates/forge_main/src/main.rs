@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::Parser;
 use forge_api::ForgeAPI;
 use forge_display::TitleFormat;
-use forge_main::{tracker, Cli, UI};
+use forge_main::{Cli, UI, tracker};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -27,6 +27,10 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     // Initialize the ForgeAPI with the restricted mode if specified
     let restricted = cli.restricted;
+    let neo_ui = cli.neo_ui;
+    if neo_ui {
+        return forge_main_neo::main_neo().await;
+    }
     let mut ui = UI::init(cli, move || ForgeAPI::init(restricted))?;
     ui.run().await;
 
