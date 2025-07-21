@@ -413,8 +413,8 @@ mod tests {
     use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     use super::*;
-    use crate::domain::slash_command::SlashCommand;
     use crate::domain::State;
+    use crate::domain::slash_command::SlashCommand;
 
     fn create_test_state_with_text() -> State {
         let mut state = State::default();
@@ -424,7 +424,7 @@ mod tests {
         );
         // Position cursor in the middle of the first word for testing
         state.editor.cursor = Index2::new(0, 6); // After "hello "
-                                                 // Ensure spotlight is not visible for main editor tests
+        // Ensure spotlight is not visible for main editor tests
         state.spotlight.is_visible = false;
         state
     }
@@ -664,7 +664,7 @@ mod tests {
         assert_eq!(actual_command, expected_command);
         // Cursor should have moved forward (navigation was handled)
         assert!(state.editor.cursor.col > 6); // Started at position 6
-                                              // Spotlight should remain hidden (spotlight_show was not called)
+        // Spotlight should remain hidden (spotlight_show was not called)
         assert!(!state.spotlight.is_visible);
     }
 
