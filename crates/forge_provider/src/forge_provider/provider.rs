@@ -1,9 +1,9 @@
 use anyhow::{Context as _, Result};
 use derive_builder::Builder;
-use forge_domain::{
-    self, ChatCompletionMessage, Context as ChatContext, ModelId, Provider, ResultStream,
+use forge_app::domain::{
+    ChatCompletionMessage, Context as ChatContext, ModelId, Provider, ResultStream,
 };
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio_stream::StreamExt;
@@ -170,7 +170,7 @@ impl ForgeProvider {
         Ok(Box::pin(stream))
     }
 
-    async fn inner_models(&self) -> Result<Vec<forge_domain::Model>> {
+    async fn inner_models(&self) -> Result<Vec<forge_app::domain::Model>> {
         let url = self.url("models")?;
         debug!(url = %url, "Fetching models");
         match self.fetch_models(url.clone()).await {
@@ -227,12 +227,12 @@ impl ForgeProvider {
         self.inner_chat(model, context).await
     }
 
-    pub async fn models(&self) -> Result<Vec<forge_domain::Model>> {
+    pub async fn models(&self) -> Result<Vec<forge_app::domain::Model>> {
         self.inner_models().await
     }
 }
 
-impl From<Model> for forge_domain::Model {
+impl From<Model> for forge_app::domain::Model {
     fn from(value: Model) -> Self {
         let tools_supported = value
             .supported_parameters
@@ -250,7 +250,7 @@ impl From<Model> for forge_domain::Model {
             .flatten()
             .any(|param| param == "reasoning");
 
-        forge_domain::Model {
+        forge_app::domain::Model {
             id: value.id,
             name: value.name,
             description: value.description,
@@ -268,7 +268,7 @@ mod tests {
     use reqwest::Client;
 
     use super::*;
-    use crate::mock_server::{normalize_ports, MockServer};
+    use crate::mock_server::{MockServer, normalize_ports};
 
     fn create_provider(base_url: &str) -> anyhow::Result<ForgeProvider> {
         let provider = Provider::OpenAI {

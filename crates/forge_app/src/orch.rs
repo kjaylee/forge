@@ -350,20 +350,23 @@ impl<S: AgentService> Orchestrator<S> {
             .fold(context.clone(), |ctx, attachment| {
                 ctx.add_message(match attachment.content {
                     AttachmentContent::Image(image) => ContextMessage::Image(image),
-                    AttachmentContent::FileContent(content) => {
+                    AttachmentContent::FileContent {
+                        content,
+                        start_line,
+                        end_line,
+                        total_lines,
+                    } => {
                         let elm = Element::new("file_content")
                             .attr("path", attachment.path)
-                            .attr("start_line", 1)
-                            .attr("end_line", content.lines().count())
-                            .attr("total_lines", content.lines().count())
+                            .attr("start_line", start_line)
+                            .attr("end_line", end_line)
+                            .attr("total_lines", total_lines)
                             .cdata(content);
 
                         ContextMessage::user(elm, model_id.clone().into())
                     }
                 })
             });
-
-        self.conversation.context = Some(context.clone());
 
         // Indicates whether the tool execution has been completed
         let mut is_complete = false;
@@ -388,7 +391,8 @@ impl<S: AgentService> Orchestrator<S> {
                     let agent_id = agent.id.clone();
                     let model_id = model_id.clone();
                     move |error: &anyhow::Error, duration: Duration| {
-                        tracing::error!(agent_id = %agent_id, error = %error, model=%model_id, "Retry Attempt");
+                        let root_cause = error.root_cause();
+                        tracing::error!(agent_id = %agent_id, error = ?root_cause, model=%model_id, "Retry Attempt");
                         let retry_event = ChatResponse::RetryAttempt {
                             cause: error.into(),
                             duration,
@@ -457,6 +461,7 @@ impl<S: AgentService> Orchestrator<S> {
 
             if let Some(reasoning) = reasoning.as_ref()
                 && !is_complete
+                && reasoning_supported
             {
                 // If reasoning is present, send it as a separate message
                 self.send(ChatResponse::Reasoning { content: reasoning.to_string() })
@@ -468,7 +473,7 @@ impl<S: AgentService> Orchestrator<S> {
 
             // Check if tool calls are within allowed limits if max_tool_failure_per_turn is
             // configured
-            let allowed_limits_exceeded =
+            let mut allowed_limits_exceeded =
                 self.check_tool_call_failures(&tool_failure_attempts, &tool_calls);
 
             // Process tool calls and update context
@@ -532,6 +537,7 @@ impl<S: AgentService> Orchestrator<S> {
                         empty_tool_call_count,
                         "Forced completion due to repeated empty tool calls"
                     );
+                    allowed_limits_exceeded = true;
                 }
             } else {
                 empty_tool_call_count = 0;

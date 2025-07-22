@@ -1,6 +1,8 @@
 use anyhow::Context as _;
 use derive_builder::Builder;
-use forge_domain::{ChatCompletionMessage, Context, Model, ModelId, ResultStream, Transformer};
+use forge_app::domain::{
+    ChatCompletionMessage, Context, Model, ModelId, ResultStream, Transformer,
+};
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
@@ -190,13 +192,13 @@ impl Anthropic {
 
 #[cfg(test)]
 mod tests {
-    use forge_domain::{
+    use forge_app::domain::{
         Context, ContextMessage, ToolCallFull, ToolCallId, ToolChoice, ToolName, ToolOutput,
         ToolResult,
     };
 
     use super::*;
-    use crate::mock_server::{normalize_ports, MockServer};
+    use crate::mock_server::{MockServer, normalize_ports};
 
     fn create_anthropic(base_url: &str) -> anyhow::Result<Anthropic> {
         Ok(Anthropic::builder()

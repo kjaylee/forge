@@ -17,14 +17,16 @@ impl FormatContent for Operation {
                         result
                             .matches
                             .iter()
-                            .map(|match_| format_match(match_, env))
+                            .map(|matched| format_match(matched, env.cwd.as_path()))
                             .collect::<Vec<_>>(),
                     )
                     .format(),
                 )
             }),
             Operation::FsPatch { input: _, output } => Some(ContentFormat::PlainText(
-                DiffFormat::format(&output.before, &output.after),
+                DiffFormat::format(&output.before, &output.after)
+                    .diff()
+                    .to_string(),
             )),
             Operation::FsUndo { input: _, output: _ } => None,
             Operation::NetFetch { input: _, output: _ } => None,
@@ -50,6 +52,7 @@ mod tests {
     use forge_domain::{Environment, PatchOperation};
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
+    use url::Url;
 
     use super::FormatContent;
     use crate::fmt::content::ContentFormat;
@@ -109,6 +112,7 @@ mod tests {
             stdout_max_suffix_length: 10,
             http: Default::default(),
             max_file_size: 0,
+            forge_api_url: Url::parse("http://forgecode.dev/api").unwrap(),
         }
     }
 

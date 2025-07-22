@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use forge_app::WorkflowService;
-use forge_domain::Workflow;
+use forge_app::domain::Workflow;
 
 use crate::{FileReaderInfra, FileWriterInfra};
 

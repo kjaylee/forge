@@ -1,16 +1,17 @@
-use forge_domain::{Context, Transformer};
+use forge_app::domain::{Context, Transformer};
 
 pub struct ReasoningTransform;
 
 impl Transformer for ReasoningTransform {
     type Value = Context;
     fn transform(&mut self, mut context: Self::Value) -> Self::Value {
-        if let Some(reasoning) = context.reasoning.as_ref() {
-            if reasoning.enabled.unwrap_or(false) && reasoning.max_tokens.is_some() {
-                // if reasoning is enabled then we've to drop top_k and top_p
-                context.top_k = None;
-                context.top_p = None;
-            }
+        if let Some(reasoning) = context.reasoning.as_ref()
+            && reasoning.enabled.unwrap_or(false)
+            && reasoning.max_tokens.is_some()
+        {
+            // if reasoning is enabled then we've to drop top_k and top_p
+            context.top_k = None;
+            context.top_p = None;
         }
 
         context
@@ -19,7 +20,7 @@ impl Transformer for ReasoningTransform {
 
 #[cfg(test)]
 mod tests {
-    use forge_domain::{Context, ReasoningConfig, TopK, TopP, Transformer};
+    use forge_app::domain::{Context, ReasoningConfig, TopK, TopP, Transformer};
     use pretty_assertions::assert_eq;
 
     use super::*;
