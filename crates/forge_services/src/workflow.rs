@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_app::domain::Workflow;
 use forge_app::WorkflowService;
+use forge_app::domain::Workflow;
 use merge::Merge;
 use tokio::sync::RwLock;
 
@@ -193,8 +193,8 @@ mod tests {
     use bytes::Bytes;
     use forge_app::domain::Environment;
     use pretty_assertions::assert_eq;
-    use reqwest::header::HeaderMap;
     use reqwest::Response;
+    use reqwest::header::HeaderMap;
     use serde_json::Value;
     use tempfile::TempDir;
     use url::Url;

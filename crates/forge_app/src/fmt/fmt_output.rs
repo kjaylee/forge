@@ -17,14 +17,16 @@ impl FormatContent for Operation {
                         result
                             .matches
                             .iter()
-                            .map(|match_| format_match(match_, env))
+                            .map(|matched| format_match(matched, env.cwd.as_path()))
                             .collect::<Vec<_>>(),
                     )
                     .format(),
                 )
             }),
             Operation::FsPatch { input: _, output } => Some(ContentFormat::PlainText(
-                DiffFormat::format(&output.before, &output.after),
+                DiffFormat::format(&output.before, &output.after)
+                    .diff()
+                    .to_string(),
             )),
             Operation::FsUndo { input: _, output: _ } => None,
             Operation::NetFetch { input: _, output: _ } => None,

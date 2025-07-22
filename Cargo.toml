@@ -1,23 +1,6 @@
 [workspace]
 members = [
-    "crates/forge_api",
-    "crates/forge_app", 
-    "crates/forge_ci",
-    "crates/forge_display",
-    "crates/forge_domain",
-    "crates/forge_fs",
-    "crates/forge_infra",
-    "crates/forge_inte",
-    "crates/forge_main",
-    "crates/forge_provider",
-    "crates/forge_services",
-    "crates/forge_snaps",
-    "crates/forge_spinner",
-    "crates/forge_stream",
-    "crates/forge_template",
-    "crates/forge_tool_macros",
-    "crates/forge_tracker",
-    "crates/forge_walker"
+    "crates/*",
 ]
 resolver = "2"
 
@@ -69,9 +52,10 @@ proc-macro2 = "1.0"
 quote = "1.0"
 reedline = "0.40.0"
 regex = "1.11.1"
-reqwest = { version = "0.12.12", features = [
+reqwest = { version = "0.12.22", features = [
     "json",
     "rustls-tls",
+    "hickory-dns",
 ], default-features = false }
 reqwest-eventsource = "0.6.0"
 rust-embed = "8.5.0"
@@ -90,6 +74,7 @@ termimad = "0.31.2"
 thiserror = "2.0.11"
 tokio = { version = "1.44.2", features = ["full", "test-util"] }
 tokio-stream = "0.1.17"
+tokio-util = "0.7"
 tracing = "0.1.41"
 tracing-appender = "0.2.3"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
@@ -122,6 +107,7 @@ rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", rev = "3a9791
     "transport-sse-server",
 ] }
 open = "5.3.2"
+ansi-to-tui = "7.0.0"
 
 # Internal crates
 forge_api = { path = "crates/forge_api" }
@@ -133,6 +119,7 @@ forge_fs = { path = "crates/forge_fs" }
 forge_infra = { path = "crates/forge_infra" }
 forge_inte = { path = "crates/forge_inte" }
 forge_main = { path = "crates/forge_main" }
+forge_main_neo = { path = "crates/forge_main_neo" }
 forge_provider = { path = "crates/forge_provider" }
 forge_services = { path = "crates/forge_services" }
 forge_snaps = { path = "crates/forge_snaps" }
