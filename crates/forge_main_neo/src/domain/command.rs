@@ -28,6 +28,9 @@ pub enum Command {
     Interval {
         duration: Duration,
     },
+    Compact {
+        conversation_id: ConversationId,
+    },
 }
 
 #[derive(Clone, From, PartialEq, Eq, Debug)]

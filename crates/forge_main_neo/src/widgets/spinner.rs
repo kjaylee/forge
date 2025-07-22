@@ -25,8 +25,12 @@ impl Spinner {
             .throbber_style(ratatui::style::Style::default().fg(ratatui::style::Color::Green))
             .throbber_set(throbber_widgets_tui::BRAILLE_SIX)
             .to_line(&state.spinner);
+        let message = state.spinner_message.as_deref().unwrap_or("Forging");
         let lb_line = Line::from(vec![
-            Span::styled("Forging ", Style::default().fg(Color::Green).bold()),
+            Span::styled(
+                format!("{message} "),
+                Style::default().fg(Color::Green).bold(),
+            ),
             Span::styled(format!("{duration}s"), Style::default()),
             Span::styled(" · Ctrl+C to interrupt", Style::default().dim()),
         ]);

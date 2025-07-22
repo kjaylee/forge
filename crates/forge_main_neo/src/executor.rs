@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use chrono::Utc;
-use forge_api::{API, AgentId, ChatRequest, ConversationId, Event};
+use forge_api::{AgentId, ChatRequest, ConversationId, Event, API};
 use serde_json::Value;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::StreamExt;
@@ -180,6 +180,22 @@ impl<T: API + 'static> Executor<T> {
         Ok(())
     }
 
+    async fn execute_compact(
+        &self,
+        conversation_id: ConversationId,
+        tx: &Sender<anyhow::Result<Action>>,
+    ) -> anyhow::Result<()> {
+        match self.api.compact_conversation(&conversation_id).await {
+            Ok(result) => {
+                tx.send(Ok(Action::CompactionSuccess(result))).await?;
+            }
+            Err(err) => {
+                tx.send(Ok(Action::CompactionFailure(err.to_string())))
+                    .await?;
+            }
+        }
+        Ok(())
+    }
     /// Execute an interval command that emits IntervalTick actions at regular
     /// intervals
     ///
@@ -254,6 +270,9 @@ impl<T: API + 'static> Executor<T> {
                 self.execute_interval(duration, &tx).await?;
             }
             Command::Spotlight(_) => todo!(),
+            Command::Compact { conversation_id } => {
+                self.execute_compact(conversation_id, &tx).await?;
+            }
             Command::InterruptStream => {
                 // Send InterruptStream action to trigger state update
                 tx.send(Ok(Action::InterruptStream)).await?;

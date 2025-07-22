@@ -80,6 +80,37 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             state.chat_stream = Some(cancel_id);
             Command::Empty
         }
+        Action::CompactionSuccess(compaction_result) => {
+            state.show_spinner = false;
+            state.spinner_message = None;
+            if let Some(ref timer) = state.timer {
+                timer.cancel.cancel();
+                state.timer = None;
+            }
+
+            let token_reduction = compaction_result.token_reduction_percentage();
+            let message_reduction = compaction_result.message_reduction_percentage();
+
+            let message = format!(
+                "Compaction complete: {token_reduction:.1}% token reduction, {message_reduction:.1}% message reduction"
+            );
+            state.add_user_message(message);
+            Command::Empty
+        }
+        Action::CompactionFailure(error_msg) => {
+            state.show_spinner = false;
+            state.spinner_message = None;
+
+            // Cancel timer if active
+            if let Some(ref timer) = state.timer {
+                timer.cancel.cancel();
+                state.timer = None;
+            }
+            let message = format!("Compaction failed: {error_msg}");
+            state.add_user_message(message);
+
+            Command::Empty
+        }
     }
 }
 
