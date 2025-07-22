@@ -13,6 +13,7 @@ pub struct BorderedPanel<W> {
 
 impl<W> BorderedPanel<W> {
     /// Create a new bordered panel with the given content widget
+    #[allow(dead_code)]
     pub fn new(content: W) -> Self {
         Self { content }
     }

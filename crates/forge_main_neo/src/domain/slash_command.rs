@@ -51,6 +51,7 @@ impl SlashCommand {
     }
 
     /// Get all available commands with their descriptions
+    #[allow(dead_code)]
     pub fn all_commands() -> Vec<(SlashCommand, &'static str)> {
         Self::iter()
             .map(|cmd| (cmd.clone(), cmd.description()))
@@ -58,6 +59,7 @@ impl SlashCommand {
     }
 
     /// Get the command name with the slash prefix
+    #[allow(dead_code)]
     pub fn with_slash(&self) -> String {
         format!("/{self}")
     }

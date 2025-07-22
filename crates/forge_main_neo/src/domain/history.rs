@@ -64,6 +64,7 @@ impl<T> NavigationState<T> {
 
 impl HistorySearchState {
     /// Enter search mode with an optional initial query
+    #[allow(dead_code)]
     pub fn enter_search(&mut self, initial_query: Option<String>) {
         self.is_active = true;
         self.query = initial_query.unwrap_or_default();
@@ -78,6 +79,7 @@ impl HistorySearchState {
     }
 
     /// Update search query and reset match index
+    #[allow(dead_code)]
     pub fn update_query(&mut self, query: String) {
         self.query = query;
         self.navigation.reset();
@@ -178,16 +180,19 @@ impl History {
     }
 
     /// Get the number of commands in history
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.history.total_entries()
     }
 
     /// Check if history is empty
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Flush history to file
+    #[allow(dead_code)]
     pub fn flush(&mut self) -> Result<()> {
         self.history.sync().map_err(|e| anyhow::anyhow!(e))
     }
@@ -207,6 +212,7 @@ impl History {
     }
 
     /// Get all commands for search (most recent first)
+    #[allow(dead_code)]
     pub fn get_all_commands(&self) -> Vec<String> {
         self.history
             .get_all_items()

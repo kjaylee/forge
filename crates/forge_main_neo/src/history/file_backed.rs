@@ -21,7 +21,6 @@ impl FileBackedHistory {
     pub fn with_file(capacity: usize, file_path: PathBuf) -> anyhow::Result<Self> {
         let file = std::fs::OpenOptions::new()
             .read(true)
-            .write(true)
             .create(true)
             .append(true)
             .open(&file_path)?;
@@ -67,6 +66,7 @@ impl FileBackedHistory {
     }
 
     /// Get command at index from most recent (0 = most recent)
+    #[allow(dead_code)]
     pub fn get(&self, index: usize) -> Option<&HistoryItem> {
         self.items.get(index)
     }
@@ -85,6 +85,7 @@ impl FileBackedHistory {
         self.sync_to_file()
     }
 
+    #[allow(dead_code)]
     pub fn total_entries(&self) -> usize {
         self.items.len()
     }
@@ -147,8 +148,6 @@ fn unescape(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Read, Seek, SeekFrom};
-
     use pretty_assertions::assert_eq;
     use tempfile::NamedTempFile;
 
