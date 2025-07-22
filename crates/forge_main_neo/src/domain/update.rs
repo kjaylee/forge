@@ -80,6 +80,21 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             state.chat_stream = Some(cancel_id);
             Command::Empty
         }
+        Action::ShowTools(tools) => {
+            let max_digits = tools.len().to_string().len();
+            for (i, tool) in tools.iter().enumerate() {
+                let mut message = String::new();
+                message.push_str(&format!(
+                    "{:>width$}. {}",
+                    i + 1,
+                    tool.name,
+                    width = max_digits
+                ));
+                state.add_assistant_message(ChatResponse::Summary { content: message })
+            }
+
+            Command::Empty
+        }
     }
 }
 

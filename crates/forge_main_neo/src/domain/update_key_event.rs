@@ -71,6 +71,7 @@ fn handle_spotlight_navigation(
                         // For now, just hide spotlight - proper model selection would need more UI
                         Command::Empty
                     }
+                    crate::domain::slash_command::SlashCommand::Tools => Command::ShowTools,
                     _ => {
                         // For other commands, just hide spotlight for now
                         Command::Empty

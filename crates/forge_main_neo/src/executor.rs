@@ -254,6 +254,10 @@ impl<T: API + 'static> Executor<T> {
                 self.execute_interval(duration, &tx).await?;
             }
             Command::Spotlight(_) => todo!(),
+            Command::ShowTools => {
+                let tools = self.api.tools().await?;
+                tx.send(Ok(Action::ShowTools(tools))).await?;
+            }
             Command::InterruptStream => {
                 // Send InterruptStream action to trigger state update
                 tx.send(Ok(Action::InterruptStream)).await?;
