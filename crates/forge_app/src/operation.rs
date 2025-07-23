@@ -1068,7 +1068,7 @@ mod tests {
         insta::assert_snapshot!(to_value(actual));
     }
 
-     #[test]
+    #[test]
     fn test_fs_search_very_lengthy_one_line_match() {
         let mut matches = Vec::new();
         let total_lines = 1; // Total lines found.
@@ -1076,7 +1076,11 @@ mod tests {
             matches.push(Match {
                 path: "/home/user/project/foo.txt".to_string(),
                 result: Some(MatchResult::Found {
-                    line: format!("Match line {}: {}", i, "abcdefghijklmnopqrstuvwxyz".repeat(40)),
+                    line: format!(
+                        "Match line {}: {}",
+                        i,
+                        "abcdefghijklmnopqrstuvwxyz".repeat(40)
+                    ),
                     line_number: i,
                 }),
             });
