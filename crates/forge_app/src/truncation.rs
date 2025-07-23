@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::utils::format_match;
-use crate::{FsCreateService, Match};
+use crate::{FsCreateService, Match, MatchResult};
 
 pub async fn create_temp_file<S: FsCreateService>(
     services: &S,
@@ -312,23 +312,25 @@ fn truncate_line(line: &str, max_length: usize) -> String {
 pub fn truncate_search_output(
     output: &[Match],
     start_line: u64,
-    count: u64,
+    max_lines: u64,
     max_line_length: usize,
     search_dir: &Path,
 ) -> TruncatedSearchOutput {
-    let total_outputs = output.len() as u64;
-    let is_truncated = total_outputs > count;
     let output = output
         .iter()
         .map(|v| format_match(v, search_dir))
         .map(|s| truncate_line(&s, max_line_length))
         .collect::<Vec<_>>();
 
+    // Count the actual number of lines in the output
+    let total_lines = output.iter().map(|s| s.lines().count()).sum::<usize>() as u64;
+    let is_truncated = total_lines > max_lines;
+
     let truncated_output = if is_truncated {
         output
             .iter()
             .skip(start_line as usize)
-            .take(count as usize)
+            .take(max_lines as usize)
             .map(String::from)
             .collect::<Vec<_>>()
     } else {
@@ -337,12 +339,12 @@ pub fn truncate_search_output(
 
     TruncatedSearchOutput {
         output: truncated_output.join("\n"),
-        total_lines: total_outputs,
+        total_lines,
         start_line: start_line + 1,
         end_line: if is_truncated {
-            start_line + count
+            start_line + max_lines
         } else {
-            total_outputs
+            total_lines
         },
     }
 }
