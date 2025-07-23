@@ -4,7 +4,7 @@ expression: to_value(actual)
 ---
 <search_results
   path="/home/user/project"
-  max_bytes_allowed="1048"
+  max_bytes_allowed="1049"
   total_lines="50"
   display_lines="6-13"
   regex="search"
@@ -17,5 +17,5 @@ foo.txt:10:Match line 10: ABABABABABABABABABABABABABABABABABABABABABABABABABABAB
 foo.txt:11:Match line 11: ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB
 foo.txt:12:Match line 12: ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB
 foo.txt:13:Match line 13: ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB
-[Results truncated due to exceeding the 0.001MB size limit. Please use a more specific search pattern.]]]>
+[Results truncated due to exceeding the 1049 bytes size limit. Please use a more specific search pattern.]]]>
 </search_results>

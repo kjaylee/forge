@@ -90,6 +90,7 @@ mod tests {
     }
 
     fn fixture_environment() -> Environment {
+        let max_bytes: f64 = 0.25 * 1024.0 * 1024.0; // 0.25 MB
         Environment {
             os: "linux".to_string(),
             pid: 12345,
@@ -106,7 +107,7 @@ mod tests {
                 max_delay: None,
             },
             max_search_lines: 25,
-            max_search_result_size_mb: 0.25,
+            max_search_result_bytes: max_bytes.ceil() as usize,
             fetch_truncation_limit: 55,
             max_read_size: 10,
             stdout_max_prefix_length: 10,

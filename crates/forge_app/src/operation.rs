@@ -201,7 +201,6 @@ impl Operation {
                         input.max_search_lines.unwrap_or(i32::MAX) as u64,
                     );
                     // Convert MB to bytes
-                    let max_bytes_size = (env.max_search_result_size_mb * 1024.0 * 1024.0) as usize;
                     let start_index = input.start_index.unwrap_or(1);
                     let start_index = if start_index > 0 { start_index - 1 } else { 0 };
                     let search_dir = Path::new(&input.path);
@@ -209,13 +208,13 @@ impl Operation {
                         &out.matches,
                         start_index as u64,
                         max_lines,
-                        max_bytes_size,
+                        env.max_search_result_bytes,
                         search_dir,
                     );
 
                     let mut elm = Element::new("search_results")
                         .attr("path", &input.path)
-                        .attr("max_bytes_allowed", max_bytes_size)
+                        .attr("max_bytes_allowed", env.max_search_result_bytes)
                         .attr("total_lines", truncated_output.total_lines)
                         .attr(
                             "display_lines",
@@ -231,8 +230,8 @@ impl Operation {
                     match truncated_output.output {
                         TruncationResult::ByteSize(mut output) => {
                             let instruction = format!(
-                                "\n[Results truncated due to exceeding the {}MB size limit. Please use a more specific search pattern.]",
-                                env.max_search_result_size_mb
+                                "\n[Results truncated due to exceeding the {} bytes size limit. Please use a more specific search pattern.]",
+                                env.max_search_result_bytes
                             );
                             output.push_str(&instruction);
                             elm = elm.cdata(output);
@@ -491,6 +490,7 @@ mod tests {
     use crate::{Match, MatchResult};
 
     fn fixture_environment() -> Environment {
+        let max_bytes: f64 = 0.25 * 1024.0 * 1024.0; // 0.25 MB
         Environment {
             os: "linux".to_string(),
             pid: 12345,
@@ -507,7 +507,7 @@ mod tests {
                 max_delay: None,
             },
             max_search_lines: 25,
-            max_search_result_size_mb: 0.25,
+            max_search_result_bytes: max_bytes.ceil() as usize,
             fetch_truncation_limit: 55,
             max_read_size: 10,
             stdout_max_prefix_length: 10,
@@ -1057,7 +1057,8 @@ mod tests {
         let mut env = fixture_environment();
         // Total lines found are 50, but we limit to 20 for this test
         env.max_search_lines = 20;
-        env.max_search_result_size_mb = 0.001; // limit to 0.001 MB
+        let max_bytes: f64 = 0.001 * 1024.0 * 1024.0;
+        env.max_search_result_bytes = max_bytes.ceil() as usize; // limit to 0.001 MB
 
         let actual = fixture.into_tool_output(
             ToolName::new("forge_tool_fs_search"),
