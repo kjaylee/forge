@@ -186,7 +186,7 @@ mod tests {
             fetch_truncation_limit: 0,
             stdout_max_prefix_length: 0,
             max_search_lines: 0,
-            max_line_length: 100,
+            max_search_result_size_mb: 0.25,
             max_read_size: 0,
             stdout_max_suffix_length: 0,
             http: Default::default(),

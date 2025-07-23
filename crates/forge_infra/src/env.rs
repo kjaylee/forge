@@ -123,8 +123,9 @@ impl ForgeEnvironmentInfra {
                 .unwrap_or(PathBuf::from(".").join("forge")),
             home: dirs::home_dir(),
             retry_config,
-            max_search_lines: 100,
-            max_line_length: 1000,
+            max_search_lines: 200,
+            // allow only search result upto 0.25 MB
+            max_search_result_size_mb: 0.25,
             fetch_truncation_limit: 40_000,
             max_read_size: 500,
             stdout_max_prefix_length: 200,

@@ -11,8 +11,8 @@ use forge_domain::{
 use forge_template::Element;
 
 use crate::truncation::{
-    StreamElement, create_temp_file, truncate_fetch_content, truncate_search_output,
-    truncate_shell_output,
+    StreamElement, TruncationResult, create_temp_file, truncate_fetch_content,
+    truncate_search_output, truncate_shell_output,
 };
 use crate::utils::format_display_path;
 use crate::{
@@ -200,6 +200,8 @@ impl Operation {
                         env.max_search_lines,
                         input.max_search_lines.unwrap_or(i32::MAX) as u64,
                     );
+                    // Convert MB to bytes
+                    let max_bytes_size = (env.max_search_result_size_mb * 1024.0 * 1024.0) as usize;
                     let start_index = input.start_index.unwrap_or(1);
                     let start_index = if start_index > 0 { start_index - 1 } else { 0 };
                     let search_dir = Path::new(&input.path);
@@ -207,13 +209,13 @@ impl Operation {
                         &out.matches,
                         start_index as u64,
                         max_lines,
-                        env.max_line_length,
+                        max_bytes_size,
                         search_dir,
                     );
 
                     let mut elm = Element::new("search_results")
                         .attr("path", &input.path)
-                        .attr("max_line_length", env.max_line_length)
+                        .attr("max_bytes_allowed", max_bytes_size)
                         .attr("total_lines", truncated_output.total_lines)
                         .attr(
                             "display_lines",
@@ -226,7 +228,27 @@ impl Operation {
                     elm = elm.attr_if_some("regex", input.regex);
                     elm = elm.attr_if_some("file_pattern", input.file_pattern);
 
-                    elm = elm.cdata(truncated_output.output.trim());
+                    match truncated_output.output {
+                        TruncationResult::ByteSize(mut output) => {
+                            let instruction = format!(
+                                "\n[Results truncated due to exceeding the {}MB size limit. Please use a more specific search pattern.]",
+                                max_bytes_size
+                            );
+                            output.push_str(&instruction);
+                            elm = elm.cdata(output);
+                        }
+                        TruncationResult::Line(mut output) => {
+                            let instruction = format!(
+                                "\n[Results truncated due to exceeding the {} lines limit. Please use a more specific search pattern.]",
+                                max_lines
+                            );
+                            output.push_str(&instruction);
+                            elm = elm.cdata(output);
+                        }
+                        TruncationResult::Full(output) => {
+                            elm = elm.cdata(output);
+                        }
+                    }
 
                     forge_domain::ToolOutput::text(elm)
                 }
@@ -486,7 +508,7 @@ mod tests {
                 max_delay: None,
             },
             max_search_lines: 25,
-            max_line_length: 100,
+            max_search_result_size_mb: 0.25,
             fetch_truncation_limit: 55,
             max_read_size: 10,
             stdout_max_prefix_length: 10,

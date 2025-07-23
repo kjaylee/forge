@@ -284,27 +284,47 @@ pub fn truncate_fetch_content(content: &str, truncation_limit: usize) -> Truncat
 /// Represents the result of fs_search truncation
 #[derive(Debug)]
 pub struct TruncatedSearchOutput {
-    pub output: String,
+    pub output: TruncationResult<String>,
     pub total_lines: u64,
     pub start_line: u64,
     pub end_line: u64,
 }
 
-const TRUNCATION_SUFFIX: &str = "...[Truncated]";
+/// Represents a truncation result
+#[derive(Debug, Clone)]
+pub enum TruncationResult<T> {
+    Line(T),
+    ByteSize(T),
+    Full(T),
+}
 
-/// Truncates a line to a specified maximum length, appending a suffix if
-/// truncated
-fn truncate_line(line: String, max_length: usize) -> String {
-    if line.chars().count() > max_length {
-        let truncate_at = max_length.saturating_sub(TRUNCATION_SUFFIX.chars().count());
-        format!(
-            "{}{}",
-            line.chars().take(truncate_at).collect::<String>(),
-            TRUNCATION_SUFFIX
-        )
-    } else {
-        line
+impl<T> TruncationResult<T> {
+    pub fn map<F, U>(&self, f: F) -> TruncationResult<U>
+    where
+        F: FnOnce(&T) -> U,
+        U: Clone,
+    {
+        match self {
+            TruncationResult::Line(value) => TruncationResult::Line(f(value)),
+            TruncationResult::ByteSize(value) => TruncationResult::ByteSize(f(value)),
+            TruncationResult::Full(value) => TruncationResult::Full(f(value)),
+        }
     }
+}
+
+fn truncate_by_byte_size(input: Vec<String>, max_bytes: usize) -> Vec<String> {
+    let mut total_bytes = 0;
+    let mut output = Vec::with_capacity(input.len());
+    for out in input {
+        let current_bytes = out.bytes().count();
+        if total_bytes + current_bytes > max_bytes {
+            break;
+        }
+        output.push(out);
+        total_bytes += current_bytes;
+    }
+
+    output
 }
 
 /// Truncates search output based on line limit, using search directory for
@@ -313,13 +333,12 @@ pub fn truncate_search_output(
     output: &[Match],
     start_line: u64,
     max_lines: u64,
-    max_line_length: usize,
+    max_bytes: usize,
     search_dir: &Path,
 ) -> TruncatedSearchOutput {
     let output = output
         .iter()
         .map(|v| format_match(v, search_dir))
-        .map(|s| truncate_line(s, max_line_length))
         .collect::<Vec<_>>();
 
     // Count the actual number of lines in the output
@@ -337,36 +356,26 @@ pub fn truncate_search_output(
         output
     };
 
+    let line_truncated_output_len = truncated_output.len();
+    let byte_truncated_output = truncate_by_byte_size(truncated_output, max_bytes);
+    let byte_truncated_output_len = byte_truncated_output.len();
+    let truncated_output = match (
+        byte_truncated_output_len < line_truncated_output_len,
+        is_truncated,
+    ) {
+        (true, _) => TruncationResult::ByteSize(byte_truncated_output),
+        (false, true) => TruncationResult::Line(byte_truncated_output),
+        (false, false) => TruncationResult::Full(byte_truncated_output),
+    };
+
     TruncatedSearchOutput {
-        output: truncated_output.join("\n"),
+        output: truncated_output.map(|lines| lines.join("\n")),
         total_lines,
         start_line: start_line + 1,
         end_line: if is_truncated {
-            start_line + max_lines
+            start_line + byte_truncated_output_len as u64
         } else {
-            total_lines
+            byte_truncated_output_len as u64
         },
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_truncate_line() {
-        // case 1: line exceeds the maximum length
-        let long_line =
-            "This is a very long line that exceeds the maximum length allowed for truncation."
-                .to_string();
-        let max_length = 50;
-        let truncated = truncate_line(long_line, max_length);
-        assert!(truncated.len() <= max_length);
-        assert!(truncated.ends_with(TRUNCATION_SUFFIX));
-
-        // case 2: line is within the maximum length
-        let short_line = "This line is short enough.".to_string();
-        let truncated_short = truncate_line(short_line.clone(), max_length);
-        assert_eq!(truncated_short, short_line);
     }
 }
