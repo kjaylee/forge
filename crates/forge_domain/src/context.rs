@@ -164,7 +164,10 @@ impl ContextMessage {
 
     pub fn has_reasoning_details(&self) -> bool {
         match self {
-            ContextMessage::Text(message) => message.reasoning_details.is_some(),
+            ContextMessage::Text(message) => message
+                .reasoning_details
+                .as_ref()
+                .map_or(false, |details| !details.is_empty()),
             ContextMessage::Tool(_) => false,
             ContextMessage::Image(_) => false,
         }
@@ -668,5 +671,29 @@ mod tests {
             .add_message(ContextMessage::user("I'm looking for a restaurant.", None))
             .usage(usage);
         assert_eq!(fixture.token_count(), TokenCount::Approx(18));
+    }
+
+    #[test]
+    fn test_has_reasoning_details() {
+        let fixture = Context::default()
+            .add_message(ContextMessage::user("Hello", None))
+            .add_message(ContextMessage::assistant("Hi there!", None, None))
+            .add_message(ContextMessage::assistant(
+                "How can I help you?",
+                Some(vec![]),
+                None,
+            ))
+            .add_message(ContextMessage::user("I'm looking for a restaurant.", None))
+            .add_message(ContextMessage::assistant(
+                "I'm not sure how to respond to this query.",
+                Some(vec![ReasoningFull {
+                    text: Some("User was asking for restaurant recommendations.".to_string()),
+                    signature: Some("reasoning-sig".to_string()),
+                }]),
+                None,
+            ));
+
+        assert_eq!(fixture.messages[2].has_reasoning_details(), false);
+        assert_eq!(fixture.messages[4].has_reasoning_details(), true);
     }
 }
