@@ -290,12 +290,15 @@ pub struct TruncatedSearchOutput {
     pub end_line: u64,
 }
 
+const TRUNCATION_SUFFIX: &str = "...[Truncated]";
+
 /// Truncates search output based on line limit, using search directory for
 /// relative paths
 pub fn truncate_search_output(
     output: &[Match],
     start_line: u64,
     count: u64,
+    max_line_length: usize,
     search_dir: &Path,
 ) -> TruncatedSearchOutput {
     let total_outputs = output.len() as u64;
@@ -303,6 +306,18 @@ pub fn truncate_search_output(
     let output = output
         .iter()
         .map(|v| format_match(v, search_dir))
+        .map(|s| {
+            // Always ensure the line is within the max line length limit
+            if s.len() > max_line_length {
+                format!(
+                    "{}{}",
+                    &s[..max_line_length - TRUNCATION_SUFFIX.len()],
+                    TRUNCATION_SUFFIX
+                )
+            } else {
+                s
+            }
+        })
         .collect::<Vec<_>>();
 
     let truncated_output = if is_truncated {

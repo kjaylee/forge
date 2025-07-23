@@ -207,11 +207,13 @@ impl Operation {
                         &out.matches,
                         start_index as u64,
                         max_lines,
+                        env.max_line_length,
                         search_dir,
                     );
 
                     let mut elm = Element::new("search_results")
                         .attr("path", &input.path)
+                        .attr("max_line_length", env.max_line_length)
                         .attr("total_lines", truncated_output.total_lines)
                         .attr(
                             "display_lines",
