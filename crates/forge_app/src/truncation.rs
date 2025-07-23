@@ -356,8 +356,8 @@ pub fn truncate_search_output(
         output
     };
 
-    // Note: after truncating by line count, we may still need to truncate by byte size
-    // as there's possibility that lines are too long.
+    // Note: after truncating by line count, we may still need to truncate by byte
+    // size as there's possibility that lines are too long.
     let line_truncated_output_len = truncated_output.len();
     let byte_truncated_output = truncate_by_byte_size(truncated_output, max_bytes);
     let byte_truncated_output_len = byte_truncated_output.len();
