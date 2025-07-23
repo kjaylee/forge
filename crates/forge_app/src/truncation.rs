@@ -292,6 +292,20 @@ pub struct TruncatedSearchOutput {
 
 const TRUNCATION_SUFFIX: &str = "...[Truncated]";
 
+/// Truncates a line to a specified maximum length, appending a suffix if truncated
+fn truncate_line(line: &str, max_length: usize) -> String {
+    if line.chars().count() > max_length {
+        let truncate_at = max_length.saturating_sub(TRUNCATION_SUFFIX.chars().count());
+        format!(
+            "{}{}",
+            line.chars().take(truncate_at).collect::<String>(),
+            TRUNCATION_SUFFIX
+        )
+    } else {
+        line.to_string()
+    }
+}
+
 /// Truncates search output based on line limit, using search directory for
 /// relative paths
 pub fn truncate_search_output(
@@ -306,19 +320,7 @@ pub fn truncate_search_output(
     let output = output
         .iter()
         .map(|v| format_match(v, search_dir))
-        .map(|s| {
-            // Always ensure the line is within the max line length limit
-            if s.chars().count() > max_line_length {
-                let truncate_at = max_line_length.saturating_sub(TRUNCATION_SUFFIX.chars().count());
-                format!(
-                    "{}{}",
-                    s.chars().take(truncate_at).collect::<String>(),
-                    TRUNCATION_SUFFIX
-                )
-            } else {
-                s
-            }
-        })
+        .map(|s| truncate_line(&s, max_line_length))
         .collect::<Vec<_>>();
 
     let truncated_output = if is_truncated {
