@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::utils::format_match;
-use crate::{FsCreateService, Match, MatchResult};
+use crate::{FsCreateService, Match};
 
 pub async fn create_temp_file<S: FsCreateService>(
     services: &S,
@@ -346,5 +346,26 @@ pub fn truncate_search_output(
         } else {
             total_lines
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_truncate_line() {
+        // case 1: line exceeds the maximum length
+        let long_line =
+            "This is a very long line that exceeds the maximum length allowed for truncation.";
+        let max_length = 50;
+        let truncated = truncate_line(long_line, max_length);
+        assert!(truncated.len() <= max_length);
+        assert!(truncated.ends_with(TRUNCATION_SUFFIX));
+
+        // case 2: line is within the maximum length
+        let short_line = "This line is short enough.";
+        let truncated_short = truncate_line(short_line, max_length);
+        assert_eq!(truncated_short, short_line);
     }
 }
