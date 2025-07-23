@@ -152,4 +152,20 @@ mod tests {
             TransformationSnapshot::new("ReasoningNormalizer_first_no_reasoning", context, actual);
         assert_yaml_snapshot!(snapshot);
     }
+
+    #[test]
+    fn test_reasoning_normalizer_retains_reasoning_config_when_context_has_no_assistant_message() {
+        let context = Context::default()
+            .reasoning(ReasoningConfig::default().enabled(true))
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User message", None));
+        let mut transformer = ReasoningNormalizer::default();
+        let actual = transformer.transform(context.clone());
+
+        // All reasoning details should be removed since first assistant has no
+        // reasoning
+        let snapshot =
+            TransformationSnapshot::new("ReasoningNormalizer_no_assistant_message_present", context, actual);
+        assert_yaml_snapshot!(snapshot);
+    }
 }
