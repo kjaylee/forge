@@ -308,10 +308,11 @@ pub fn truncate_search_output(
         .map(|v| format_match(v, search_dir))
         .map(|s| {
             // Always ensure the line is within the max line length limit
-            if s.len() > max_line_length {
+            if s.chars().count() > max_line_length {
+                let truncate_at = max_line_length.saturating_sub(TRUNCATION_SUFFIX.chars().count());
                 format!(
                     "{}{}",
-                    &s[..max_line_length - TRUNCATION_SUFFIX.len()],
+                    s.chars().take(truncate_at).collect::<String>(),
                     TRUNCATION_SUFFIX
                 )
             } else {
