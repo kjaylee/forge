@@ -19,11 +19,10 @@ impl Transformer for ReasoningNormalizer {
             .messages
             .iter()
             .find(|message| message.has_role(crate::Role::Assistant))
-            .map(|message| message.has_reasoning_details())
-            .unwrap_or(false);
+            .map(|message| message.has_reasoning_details());
 
         // Second pass: apply the consistency rule
-        if !first_assistant_has_reasoning {
+        if first_assistant_has_reasoning.is_some() {
             // Remove reasoning details from all assistant messages
             for message in context.messages.iter_mut() {
                 if message.has_role(crate::Role::Assistant)
@@ -33,7 +32,7 @@ impl Transformer for ReasoningNormalizer {
                 }
             }
 
-            // Ensure global reasoning config is reset
+            // drop the reasoning config if it was enabled
             context.reasoning = None;
         }
 
