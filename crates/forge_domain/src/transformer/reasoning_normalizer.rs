@@ -22,7 +22,7 @@ impl Transformer for ReasoningNormalizer {
             .map(|message| message.has_reasoning_details());
 
         // Second pass: apply the consistency rule
-        if first_assistant_has_reasoning.is_some() {
+        if first_assistant_has_reasoning == Some(false) {
             // Remove reasoning details from all assistant messages
             for message in context.messages.iter_mut() {
                 if message.has_role(crate::Role::Assistant)
