@@ -167,7 +167,7 @@ impl ContextMessage {
             ContextMessage::Text(message) => message
                 .reasoning_details
                 .as_ref()
-                .map_or(false, |details| !details.is_empty()),
+                .is_some_and(|details| !details.is_empty()),
             ContextMessage::Tool(_) => false,
             ContextMessage::Image(_) => false,
         }
