@@ -294,7 +294,7 @@ const TRUNCATION_SUFFIX: &str = "...[Truncated]";
 
 /// Truncates a line to a specified maximum length, appending a suffix if
 /// truncated
-fn truncate_line(line: &str, max_length: usize) -> String {
+fn truncate_line(line: String, max_length: usize) -> String {
     if line.chars().count() > max_length {
         let truncate_at = max_length.saturating_sub(TRUNCATION_SUFFIX.chars().count());
         format!(
@@ -303,7 +303,7 @@ fn truncate_line(line: &str, max_length: usize) -> String {
             TRUNCATION_SUFFIX
         )
     } else {
-        line.to_string()
+        line
     }
 }
 
@@ -319,7 +319,7 @@ pub fn truncate_search_output(
     let output = output
         .iter()
         .map(|v| format_match(v, search_dir))
-        .map(|s| truncate_line(&s, max_line_length))
+        .map(|s| truncate_line(s, max_line_length))
         .collect::<Vec<_>>();
 
     // Count the actual number of lines in the output
@@ -357,15 +357,16 @@ mod tests {
     fn test_truncate_line() {
         // case 1: line exceeds the maximum length
         let long_line =
-            "This is a very long line that exceeds the maximum length allowed for truncation.";
+            "This is a very long line that exceeds the maximum length allowed for truncation."
+                .to_string();
         let max_length = 50;
         let truncated = truncate_line(long_line, max_length);
         assert!(truncated.len() <= max_length);
         assert!(truncated.ends_with(TRUNCATION_SUFFIX));
 
         // case 2: line is within the maximum length
-        let short_line = "This line is short enough.";
-        let truncated_short = truncate_line(short_line, max_length);
+        let short_line = "This line is short enough.".to_string();
+        let truncated_short = truncate_line(short_line.clone(), max_length);
         assert_eq!(truncated_short, short_line);
     }
 }
