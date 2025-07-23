@@ -232,7 +232,7 @@ impl Operation {
                         TruncationResult::ByteSize(mut output) => {
                             let instruction = format!(
                                 "\n[Results truncated due to exceeding the {}MB size limit. Please use a more specific search pattern.]",
-                                max_bytes_size
+                                env.max_search_result_size_mb
                             );
                             output.push_str(&instruction);
                             elm = elm.cdata(output);
@@ -1018,6 +1018,47 @@ mod tests {
         let mut env = fixture_environment();
         // Total lines found are 50, but we limit to 10 for this test
         env.max_search_lines = 10;
+
+        let actual = fixture.into_tool_output(
+            ToolName::new("forge_tool_fs_search"),
+            TempContentFiles::default(),
+            &env,
+        );
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_fs_search_min_lines_but_max_line_length() {
+        // Create a large number of search matches to trigger truncation
+        let mut matches = Vec::new();
+        let total_lines = 50; // Total lines found.
+        for i in 1..=total_lines {
+            matches.push(Match {
+                path: "/home/user/project/foo.txt".to_string(),
+                result: Some(MatchResult::Found {
+                    line: format!("Match line {}: {}", i, "AB".repeat(50)),
+                    line_number: i,
+                }),
+            });
+        }
+
+        let fixture = Operation::FsSearch {
+            input: forge_domain::FSSearch {
+                path: "/home/user/project".to_string(),
+                regex: Some("search".to_string()),
+                start_index: Some(6),
+                max_search_lines: Some(30), // This will be limited by env.max_search_lines (20)
+                file_pattern: Some("*.txt".to_string()),
+                explanation: Some("Testing truncated search output".to_string()),
+            },
+            output: Some(SearchResult { matches }),
+        };
+
+        let mut env = fixture_environment();
+        // Total lines found are 50, but we limit to 20 for this test
+        env.max_search_lines = 20;
+        env.max_search_result_size_mb = 0.001; // limit to 0.001 MB
 
         let actual = fixture.into_tool_output(
             ToolName::new("forge_tool_fs_search"),
