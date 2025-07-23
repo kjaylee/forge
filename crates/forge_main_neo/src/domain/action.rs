@@ -4,7 +4,7 @@ use ratatui::crossterm::event::Event;
 use crate::domain::{CancelId, Timer};
 
 /// Top-level application actions that wrap route-specific actions
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Action {
     CrossTerm(Event),
     Initialize,
@@ -17,6 +17,5 @@ pub enum Action {
     IntervalTick(Timer),
     InterruptStream,
     StartStream(CancelId),
-    CompactionSuccess(CompactionResult),
-    CompactionFailure(String),
+    CompactionResult(anyhow::Result<CompactionResult>),
 }

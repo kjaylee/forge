@@ -696,4 +696,93 @@ mod tests {
         assert_eq!(fixture.messages.len(), 0);
         assert!(!fixture.show_spinner);
     }
+
+    #[test]
+    fn test_compact_slash_command_with_conversation_id() {
+        let mut fixture_state = State::default();
+        fixture_state.spotlight.is_visible = true;
+        fixture_state.conversation.conversation_id = Some(forge_api::ConversationId::generate());
+
+        // Set up spotlight to show compact command
+        fixture_state
+            .spotlight
+            .editor
+            .set_text_with_cursor_at_end("compact".to_string());
+        fixture_state.spotlight.selected_index = 0;
+
+        let key_event = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+
+        let actual_command = handle_key_event(&mut fixture_state, key_event);
+
+        // Should return an And command with Interval and Compact
+        match actual_command {
+            Command::And(commands) => {
+                assert_eq!(commands.len(), 2);
+                assert!(matches!(commands[0], Command::Interval { .. }));
+                assert!(matches!(commands[1], Command::Compact { .. }));
+            }
+            _ => panic!("Expected Command::And with Interval and Compact commands"),
+        }
+
+        // Should set spinner state
+        assert!(fixture_state.show_spinner);
+        assert_eq!(
+            fixture_state.spinner_message,
+            Some("Compacting".to_string())
+        );
+
+        // Spotlight should be hidden after command execution
+        assert!(!fixture_state.spotlight.is_visible);
+    }
+
+    #[test]
+    fn test_compact_slash_command_without_conversation_id() {
+        let mut fixture_state = State::default();
+        fixture_state.spotlight.is_visible = true;
+        fixture_state.conversation.conversation_id = None; // No conversation ID
+
+        // Set up spotlight to show compact command
+        fixture_state
+            .spotlight
+            .editor
+            .set_text_with_cursor_at_end("compact".to_string());
+        fixture_state.spotlight.selected_index = 0;
+
+        let key_event = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+
+        let actual_command = handle_key_event(&mut fixture_state, key_event);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+
+        // Should not set spinner state when no conversation ID
+        assert!(!fixture_state.show_spinner);
+        assert_eq!(fixture_state.spinner_message, None);
+
+        // Spotlight should still be hidden after command execution
+        assert!(!fixture_state.spotlight.is_visible);
+    }
+
+    #[test]
+    fn test_compact_slash_command_selection() {
+        let mut fixture_state = State::default();
+        fixture_state.spotlight.is_visible = true;
+
+        // Set up spotlight to filter for compact command
+        fixture_state
+            .spotlight
+            .editor
+            .set_text_with_cursor_at_end("compact".to_string());
+
+        let filtered_commands = fixture_state.spotlight.filtered_commands();
+
+        // Should find the compact command
+        assert!(filtered_commands.contains(&SlashCommand::Compact));
+
+        // When compact is the only match, it should be selected
+        if filtered_commands.len() == 1 {
+            let selected = fixture_state.spotlight.selected_command();
+            assert_eq!(selected, Some(SlashCommand::Compact));
+        }
+    }
 }

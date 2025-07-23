@@ -185,15 +185,8 @@ impl<T: API + 'static> Executor<T> {
         conversation_id: ConversationId,
         tx: &Sender<anyhow::Result<Action>>,
     ) -> anyhow::Result<()> {
-        match self.api.compact_conversation(&conversation_id).await {
-            Ok(result) => {
-                tx.send(Ok(Action::CompactionSuccess(result))).await?;
-            }
-            Err(err) => {
-                tx.send(Ok(Action::CompactionFailure(err.to_string())))
-                    .await?;
-            }
-        }
+        let result = self.api.compact_conversation(&conversation_id).await;
+        let _ = tx.send(Ok(Action::CompactionResult(result))).await;
         Ok(())
     }
     /// Execute an interval command that emits IntervalTick actions at regular

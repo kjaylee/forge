@@ -80,7 +80,7 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             state.chat_stream = Some(cancel_id);
             Command::Empty
         }
-        Action::CompactionSuccess(compaction_result) => {
+        Action::CompactionResult(compaction_result) => {
             state.show_spinner = false;
             state.spinner_message = None;
             if let Some(ref timer) = state.timer {
@@ -88,27 +88,21 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
                 state.timer = None;
             }
 
-            let token_reduction = compaction_result.token_reduction_percentage();
-            let message_reduction = compaction_result.message_reduction_percentage();
+            match compaction_result {
+                Ok(result) => {
+                    let token_reduction = result.token_reduction_percentage();
+                    let message_reduction = result.message_reduction_percentage();
 
-            let message = format!(
-                "Compaction complete: {token_reduction:.1}% token reduction, {message_reduction:.1}% message reduction"
-            );
-            state.add_user_message(message);
-            Command::Empty
-        }
-        Action::CompactionFailure(error_msg) => {
-            state.show_spinner = false;
-            state.spinner_message = None;
-
-            // Cancel timer if active
-            if let Some(ref timer) = state.timer {
-                timer.cancel.cancel();
-                state.timer = None;
-            }
-            let message = format!("Compaction failed: {error_msg}");
-            state.add_user_message(message);
-
+                    let message = format!(
+                        "Compaction complete: {token_reduction:.1}% token reduction, {message_reduction:.1}% message reduction"
+                    );
+                    state.add_user_message(message);
+                }
+                Err(err) => {
+                    let message = format!("Compaction failed: {err}");
+                    state.add_user_message(message);
+                }
+            };
             Command::Empty
         }
     }
@@ -121,7 +115,7 @@ mod tests {
     use tokio_util::sync::CancellationToken;
 
     use super::*;
-    use crate::domain::{CancelId, EditorStateExt};
+    use crate::domain::{CancelId, EditorStateExt, Message};
 
     #[test]
     fn test_update_processes_key_press_events() {
@@ -453,5 +447,172 @@ mod tests {
         assert_eq!(actual_command, expected_command);
         // Timer should be replaced with the new timer from the action
         assert_eq!(fixture_state.timer, Some(timer_2));
+    }
+
+    #[test]
+    fn test_compaction_result_success_stops_spinner_and_adds_message() {
+        let mut fixture_state = State::default();
+        fixture_state.show_spinner = true;
+        fixture_state.spinner_message = Some("Compacting".to_string());
+
+        let fixture_compaction_result = forge_api::CompactionResult::new(1000, 500, 20, 10);
+        let fixture_action = Action::CompactionResult(Ok(fixture_compaction_result));
+
+        let actual_command = update(&mut fixture_state, fixture_action);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert_eq!(fixture_state.show_spinner, false);
+        assert_eq!(fixture_state.spinner_message, None);
+
+        // Check that success message was added
+        let actual_messages = &fixture_state.messages;
+        assert_eq!(actual_messages.len(), 1);
+        let expected_message_content =
+            "Compaction complete: 50.0% token reduction, 50.0% message reduction";
+        match &actual_messages[0] {
+            Message::User(content) => assert!(content.contains(expected_message_content)),
+            _ => panic!("Expected User message"),
+        }
+    }
+
+    #[test]
+    fn test_compaction_result_success_cancels_timer() {
+        let mut fixture_state = State::default();
+        let cancel_id = crate::domain::CancelId::new(CancellationToken::new());
+        let timer = crate::domain::state::Timer {
+            start_time: chrono::Utc::now(),
+            current_time: chrono::Utc::now(),
+            duration: std::time::Duration::from_secs(1),
+            cancel: cancel_id.clone(),
+        };
+        fixture_state.timer = Some(timer);
+
+        let fixture_compaction_result = forge_api::CompactionResult::new(1000, 500, 20, 10);
+        let fixture_action = Action::CompactionResult(Ok(fixture_compaction_result));
+
+        let actual_command = update(&mut fixture_state, fixture_action);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert_eq!(fixture_state.timer, None);
+        assert!(cancel_id.is_cancelled());
+    }
+
+    #[test]
+    fn test_compaction_result_error_stops_spinner_and_adds_error_message() {
+        let mut fixture_state = State::default();
+        fixture_state.show_spinner = true;
+        fixture_state.spinner_message = Some("Compacting".to_string());
+
+        let fixture_error_message = "Compaction failed due to network error".to_string();
+        let fixture_action =
+            Action::CompactionResult(Err(anyhow::anyhow!(fixture_error_message.clone())));
+
+        let actual_command = update(&mut fixture_state, fixture_action);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert_eq!(fixture_state.show_spinner, false);
+        assert_eq!(fixture_state.spinner_message, None);
+
+        // Check that error message was added
+        let actual_messages = &fixture_state.messages;
+        assert_eq!(actual_messages.len(), 1);
+        let expected_message_content = format!("Compaction failed: {}", fixture_error_message);
+        match &actual_messages[0] {
+            Message::User(content) => assert!(content.contains(&expected_message_content)),
+            _ => panic!("Expected User message"),
+        }
+    }
+
+    #[test]
+    fn test_compaction_result_error_cancels_timer() {
+        let mut fixture_state = State::default();
+        let cancel_id = crate::domain::CancelId::new(CancellationToken::new());
+        let timer = crate::domain::state::Timer {
+            start_time: chrono::Utc::now(),
+            current_time: chrono::Utc::now(),
+            duration: std::time::Duration::from_secs(1),
+            cancel: cancel_id.clone(),
+        };
+        fixture_state.timer = Some(timer);
+
+        let fixture_error_message = "Compaction failed".to_string();
+        let fixture_action = Action::CompactionResult(Err(anyhow::anyhow!(fixture_error_message)));
+
+        let actual_command = update(&mut fixture_state, fixture_action);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert_eq!(fixture_state.timer, None);
+        assert!(cancel_id.is_cancelled());
+    }
+
+    #[test]
+    fn test_compaction_result_success_with_zero_reduction() {
+        let mut fixture_state = State::default();
+
+        let fixture_compaction_result = forge_api::CompactionResult::new(1000, 1000, 20, 20);
+        let fixture_action = Action::CompactionResult(Ok(fixture_compaction_result));
+
+        let actual_command = update(&mut fixture_state, fixture_action);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+
+        // Check that message shows 0% reduction
+        let actual_messages = &fixture_state.messages;
+        assert_eq!(actual_messages.len(), 1);
+        let expected_message_content =
+            "Compaction complete: 0.0% token reduction, 0.0% message reduction";
+        match &actual_messages[0] {
+            Message::User(content) => assert!(content.contains(expected_message_content)),
+            _ => panic!("Expected User message"),
+        }
+    }
+
+    #[test]
+    fn test_compaction_result_success_with_complete_reduction() {
+        let mut fixture_state = State::default();
+
+        let fixture_compaction_result = forge_api::CompactionResult::new(1000, 0, 20, 0);
+        let fixture_action = Action::CompactionResult(Ok(fixture_compaction_result));
+
+        let actual_command = update(&mut fixture_state, fixture_action);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+
+        // Check that message shows 100% reduction
+        let actual_messages = &fixture_state.messages;
+        assert_eq!(actual_messages.len(), 1);
+        let expected_message_content =
+            "Compaction complete: 100.0% token reduction, 100.0% message reduction";
+        match &actual_messages[0] {
+            Message::User(content) => assert!(content.contains(expected_message_content)),
+            _ => panic!("Expected User message"),
+        }
+    }
+
+    #[test]
+    fn test_compaction_result_success_when_no_timer_active() {
+        let mut fixture_state = State::default();
+        fixture_state.show_spinner = true;
+        fixture_state.timer = None; // No timer active
+
+        let fixture_compaction_result = forge_api::CompactionResult::new(1000, 500, 20, 10);
+        let fixture_action = Action::CompactionResult(Ok(fixture_compaction_result));
+
+        let actual_command = update(&mut fixture_state, fixture_action);
+        let expected_command = Command::Empty;
+
+        assert_eq!(actual_command, expected_command);
+        assert_eq!(fixture_state.show_spinner, false);
+        assert_eq!(fixture_state.timer, None);
+
+        // Should still add success message
+        let actual_messages = &fixture_state.messages;
+        assert_eq!(actual_messages.len(), 1);
     }
 }
