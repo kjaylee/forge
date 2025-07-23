@@ -292,7 +292,8 @@ pub struct TruncatedSearchOutput {
 
 const TRUNCATION_SUFFIX: &str = "...[Truncated]";
 
-/// Truncates a line to a specified maximum length, appending a suffix if truncated
+/// Truncates a line to a specified maximum length, appending a suffix if
+/// truncated
 fn truncate_line(line: &str, max_length: usize) -> String {
     if line.chars().count() > max_length {
         let truncate_at = max_length.saturating_sub(TRUNCATION_SUFFIX.chars().count());
