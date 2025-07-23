@@ -316,7 +316,7 @@ fn truncate_by_byte_size(input: Vec<String>, max_bytes: usize) -> Vec<String> {
     let mut total_bytes = 0;
     let mut output = Vec::with_capacity(input.len());
     for out in input {
-        let current_bytes = out.bytes().count();
+        let current_bytes = out.len();
         if total_bytes + current_bytes > max_bytes {
             break;
         }

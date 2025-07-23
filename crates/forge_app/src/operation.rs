@@ -239,8 +239,7 @@ impl Operation {
                         }
                         TruncationResult::Line(mut output) => {
                             let instruction = format!(
-                                "\n[Results truncated due to exceeding the {} lines limit. Please use a more specific search pattern.]",
-                                max_lines
+                                "\n[Results truncated due to exceeding the {max_lines} lines limit. Please use a more specific search pattern.]"
                             );
                             output.push_str(&instruction);
                             elm = elm.cdata(output);
