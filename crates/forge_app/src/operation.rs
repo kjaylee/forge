@@ -11,8 +11,8 @@ use forge_domain::{
 use forge_template::Element;
 
 use crate::truncation::{
-    StreamElement, Truncator, create_temp_file, truncate_fetch_content,
-    truncate_search_output, truncate_shell_output,
+    StreamElement, Truncator, create_temp_file, truncate_fetch_content, truncate_search_output,
+    truncate_shell_output,
 };
 use crate::utils::format_display_path;
 use crate::{
