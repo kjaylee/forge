@@ -304,51 +304,56 @@ impl<T> From<T> for TruncationResult<T> {
     }
 }
 
-impl TruncationResult<Vec<String>> {
-    /// Apply line truncation to a vector of strings
+impl<T, I> TruncationResult<T>
+where
+    T: IntoIterator<Item = I> + FromIterator<I> + Clone,
+    T: AsRef<[I]>,
+    I: AsRef<str>,
+{
+    /// Apply line truncation to any collection that can be iterated and
+    /// collected
     pub fn apply_line_truncation(self, start_line: usize, max_lines: usize) -> Self {
         let that = self.clone();
         let input = self.unwrap();
-        let total_lines = input.len();
+        let total_lines = input.as_ref().len();
         let is_truncated = total_lines > max_lines;
 
         let truncated = if is_truncated {
-            input
-                .into_iter()
-                .skip(start_line)
-                .take(max_lines)
-                .collect::<Vec<_>>()
+            input.into_iter().skip(start_line).take(max_lines).collect()
         } else {
             input
         };
 
-        if truncated.len() != total_lines {
+        let truncated_len = truncated.as_ref().len();
+        if truncated_len != total_lines {
             TruncationResult::Line(truncated)
         } else {
             that
         }
     }
 
-    /// Apply byte size truncation to a vector of strings
+    /// Apply byte size truncation to any collection of string-like items
     /// ensures the total byte size does not exceed the specified limit
     pub fn apply_byte_size_truncation(self, max_bytes: usize) -> Self {
         let that = self.clone();
         let input = self.unwrap();
-        let original_size = input.len();
+        let original_size = input.as_ref().len();
 
         let mut total_bytes = 0;
-        let mut truncated = Vec::with_capacity(input.len());
-        for out in input {
-            let current_bytes = out.len();
+        let mut truncated = Vec::new();
+        for item in input.into_iter() {
+            let current_bytes = item.as_ref().len();
             total_bytes += current_bytes;
             if total_bytes >= max_bytes {
                 break;
             }
-            truncated.push(out);
+            truncated.push(item);
         }
 
-        if original_size != truncated.len() {
-            TruncationResult::ByteSize(truncated)
+        let truncated_collection: T = truncated.into_iter().collect();
+        let truncated_size = truncated_collection.as_ref().len();
+        if original_size != truncated_size {
+            TruncationResult::ByteSize(truncated_collection)
         } else {
             that
         }
