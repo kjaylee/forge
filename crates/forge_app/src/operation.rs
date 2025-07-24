@@ -198,14 +198,14 @@ impl Operation {
                 Some(out) => {
                     let max_lines = min(
                         env.max_search_lines,
-                        input.max_search_lines.unwrap_or(usize::MAX),
+                        input.max_search_lines.unwrap_or(i32::MAX) as usize,
                     );
                     let start_index = input.start_index.unwrap_or(1);
                     let start_index = if start_index > 0 { start_index - 1 } else { 0 };
                     let search_dir = Path::new(&input.path);
                     let truncated_output = truncate_search_output(
                         &out.matches,
-                        start_index,
+                        start_index as usize,
                         max_lines,
                         env.max_search_result_bytes,
                         search_dir,
