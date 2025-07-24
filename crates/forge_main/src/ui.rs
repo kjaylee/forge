@@ -899,6 +899,7 @@ mod tests {
             tools_supported,
             supports_parallel_tool_calls: None,
             supports_reasoning: None,
+            supports_tool_choice: None,
         }
     }
 

@@ -234,26 +234,12 @@ impl ForgeProvider {
 
 impl From<Model> for forge_app::domain::Model {
     fn from(value: Model) -> Self {
-        let tools_supported = value
-            .supported_parameters
-            .iter()
-            .flatten()
-            .any(|param| param == "tools");
-        let supports_parallel_tool_calls = value
-            .supported_parameters
-            .iter()
-            .flatten()
-            .any(|param| param == "supports_parallel_tool_calls");
-        let is_reasoning_supported = value
-            .supported_parameters
-            .iter()
-            .flatten()
-            .any(|param| param == "reasoning");
-        let supports_tool_choice = value
-            .supported_parameters
-            .iter()
-            .flatten()
-            .any(|param| param == "tool_choice");
+        let supported_parameters = value.supported_parameters.unwrap_or_default();
+        let tools_supported = supported_parameters.contains(&"tools".to_string());
+        let supports_parallel_tool_calls =
+            supported_parameters.contains(&"supports_parallel_tool_calls".to_string());
+        let is_reasoning_supported = supported_parameters.contains(&"reasoning".to_string());
+        let supports_tool_choice = supported_parameters.contains(&"tool_choice".to_string());
 
         forge_app::domain::Model {
             id: value.id,
@@ -402,5 +388,43 @@ mod tests {
 
         assert!(message.is_err());
         Ok(())
+    }
+
+    #[test]
+    fn test_to_model_conversion() {
+        let model = Model {
+            id: ModelId::new("gpt-4"),
+            name: Some("GPT-4".to_string()),
+            created: None,
+            description: Some("A powerful language model".to_string()),
+            context_length: Some(8192),
+            architecture: None,
+            pricing: None,
+            top_provider: None,
+            per_request_limits: None,
+            supported_parameters: Some(vec![
+                "tools".to_string(),
+                "supports_parallel_tool_calls".to_string(),
+                "tool_choice".to_string(),
+                "reasoning".to_string(),
+            ]),
+        };
+
+        let converted_model: forge_app::domain::Model = model.into();
+        assert_eq!(converted_model.id, ModelId::new("gpt-4"));
+        assert_eq!(converted_model.name, Some("GPT-4".to_string()));
+        assert_eq!(
+            converted_model.description,
+            Some("A powerful language model".to_string())
+        );
+        assert_eq!(converted_model.context_length, Some(8192));
+        assert!(converted_model.tools_supported.unwrap_or(false));
+        assert!(
+            converted_model
+                .supports_parallel_tool_calls
+                .unwrap_or(false)
+        );
+        assert!(converted_model.supports_tool_choice.unwrap_or(false));
+        assert!(converted_model.supports_reasoning.unwrap_or(false));
     }
 }
