@@ -28,6 +28,7 @@ impl From<Model> for forge_app::domain::Model {
             tools_supported: Some(true),
             supports_parallel_tool_calls: None,
             supports_reasoning: None,
+            supports_tool_choice: None,
         }
     }
 }

@@ -42,6 +42,7 @@ agents:
       {{/if}}
     reasoning:
       enabled: true
+    tool_choice: required
     tools:
       - forge_tool_fs_read
       - forge_tool_fs_create
@@ -57,6 +58,7 @@ agents:
     description: |-
       Strategic planning agent that analyzes codebases and creates comprehensive implementation plans without making any actual changes. Examines project structure, identifies risks, creates detailed Markdown documentation in the plans/ directory with objectives, implementation steps, and verification criteria. Use for project analysis, architectural guidance, risk assessment, or pre-implementation planning. Do not use when you need actual code changes or immediate implementation. Provides advisory recommendations and strategic roadmaps only.
     model: *advanced_model
+    tool_choice: required
     system_prompt: |-
       {{> forge-system-prompt-engineer-plan.hbs }}
     user_prompt: |-

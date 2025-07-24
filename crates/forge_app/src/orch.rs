@@ -181,6 +181,26 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(reasoning_supported)
     }
 
+    fn is_tool_choice_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
+        let model_id = agent
+            .model
+            .as_ref()
+            .ok_or(Error::MissingModel(agent.id.clone()))?;
+
+        let model = self.models.iter().find(|model| &model.id == model_id);
+        let tool_choice_supported = model
+            .and_then(|model| model.supports_tool_choice)
+            .unwrap_or_default();
+
+        debug!(
+            agent_id = %agent.id,
+            model_id = %model_id,
+            tool_choice_supported,
+            "Tool choice support check"
+        );
+        Ok(tool_choice_supported)
+    }
+
     async fn set_system_prompt(
         &mut self,
         context: Context,
@@ -327,6 +347,11 @@ impl<S: AgentService> Orchestrator<S> {
 
         if let Some(top_k) = agent.top_k {
             context = context.top_k(top_k);
+        }
+
+        // If tool choice is supported, add it to the context
+        if let Some(ref tool_choice) = agent.tool_choice && self.is_tool_choice_supported(&agent)? {
+            context = context.tool_choice(tool_choice.clone());
         }
 
         if let Some(max_tokens) = agent.max_tokens {

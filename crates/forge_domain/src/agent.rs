@@ -11,8 +11,7 @@ use crate::merge::Key;
 use crate::temperature::Temperature;
 use crate::template::Template;
 use crate::{
-    Context, Error, EventContext, MaxTokens, ModelId, Result, SystemContext, ToolDefinition,
-    ToolName, TopK, TopP,
+    Context, Error, EventContext, MaxTokens, ModelId, Result, SystemContext, ToolChoice, ToolDefinition, ToolName, TopK, TopP
 };
 
 // Unique identifier for an agent
@@ -168,6 +167,13 @@ pub struct Agent {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub reasoning: Option<ReasoningConfig>,
+
+    /// Tool choice configuration for the agent.
+    /// Will be applied only if the underlying model supports tool choice.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub tool_choice: Option<ToolChoice>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters, JsonSchema, PartialEq)]
@@ -235,6 +241,7 @@ impl Agent {
             top_k: Default::default(),
             max_tokens: Default::default(),
             reasoning: Default::default(),
+            tool_choice: Default::default(),
         }
     }
 

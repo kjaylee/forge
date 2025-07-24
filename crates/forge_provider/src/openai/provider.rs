@@ -249,6 +249,11 @@ impl From<Model> for forge_app::domain::Model {
             .iter()
             .flatten()
             .any(|param| param == "reasoning");
+        let supports_tool_choice = value
+            .supported_parameters
+            .iter()
+            .flatten()
+            .any(|param| param == "tool_choice");
 
         forge_app::domain::Model {
             id: value.id,
@@ -258,6 +263,7 @@ impl From<Model> for forge_app::domain::Model {
             tools_supported: Some(tools_supported),
             supports_parallel_tool_calls: Some(supports_parallel_tool_calls),
             supports_reasoning: Some(is_reasoning_supported),
+            supports_tool_choice: Some(supports_tool_choice),
         }
     }
 }
