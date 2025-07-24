@@ -151,7 +151,7 @@ fn handle_prompt_submit(
                     Command::Empty
                 } else {
                     state.add_user_message(message.clone());
-                    Command::ShellCmd { command }
+                    Command::ShellCmd { command, restricted: state.restricted }
                 }
             } else {
                 state.add_user_message(message.clone());
@@ -525,7 +525,8 @@ mod tests {
         let key_event = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
 
         let actual_command = handle_prompt_submit(&mut fixture_state, key_event);
-        let expected_command = Command::ShellCmd { command: "echo hello".to_string() };
+        let expected_command =
+            Command::ShellCmd { command: "echo hello".to_string(), restricted: false };
 
         assert_eq!(actual_command, expected_command);
 

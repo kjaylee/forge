@@ -183,15 +183,15 @@ impl<T: API + 'static> Executor<T> {
     async fn execute_shell_command(
         &self,
         command_str: String,
+        restricted: bool,
         tx: &Sender<anyhow::Result<Action>>,
     ) -> anyhow::Result<()> {
         use tokio::process::Command;
 
         // Execute the shell command using the environment's shell
         let env = self.api.environment();
-
         let is_windows = cfg!(target_os = "windows");
-        let shell = if !is_windows {
+        let shell = if restricted && !is_windows {
             "rbash"
         } else {
             env.shell.as_str()
@@ -336,8 +336,8 @@ impl<T: API + 'static> Executor<T> {
                 // Send InterruptStream action to trigger state update
                 tx.send(Ok(Action::InterruptStream)).await?;
             }
-            Command::ShellCmd { command } => {
-                self.execute_shell_command(command, &tx).await?;
+            Command::ShellCmd { command, restricted } => {
+                self.execute_shell_command(command, restricted, &tx).await?;
             }
         }
         Ok(())

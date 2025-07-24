@@ -30,6 +30,7 @@ pub enum Command {
     },
     ShellCmd {
         command: String,
+        restricted: bool,
     },
 }
 
