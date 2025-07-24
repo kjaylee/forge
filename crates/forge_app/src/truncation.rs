@@ -340,6 +340,7 @@ where
         if truncated_len != total_items {
             TruncationResult::Line(truncated)
         } else {
+            // preserve the original variant
             to_variant(truncated)
         }
     }
@@ -369,6 +370,7 @@ where
         if original_size != truncated_size {
             TruncationResult::ByteSize(truncated_collection)
         } else {
+            // preserve the original variant
             to_variant(truncated_collection)
         }
     }
