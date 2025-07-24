@@ -339,7 +339,7 @@ impl TruncationResult<Vec<String>> {
         let mut total_bytes = 0;
         let mut truncated = Vec::with_capacity(input.len());
         for out in input {
-            let current_bytes = out.bytes().count();
+            let current_bytes = out.len();
             total_bytes += current_bytes;
             if total_bytes >= max_bytes {
                 break;
@@ -421,7 +421,7 @@ pub fn truncate_search_output(
         },
         output,
         total_lines,
-        start_line: start_line,
+        start_line,
     }
 }
 
