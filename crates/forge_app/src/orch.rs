@@ -270,8 +270,8 @@ impl<S: AgentService> Orchestrator<S> {
         context: &Context,
     ) -> anyhow::Result<Option<Context>> {
         // Estimate token count for compaction decision
-        let estimated_tokens = context.token_count();
-        if agent.should_compact(context, estimated_tokens) {
+        let token_count = context.token_count();
+        if agent.should_compact(context, *token_count) {
             info!(agent_id = %agent.id, "Compaction needed");
             Compactor::new(self.services.clone())
                 .compact(agent, context.clone(), false)
@@ -350,20 +350,23 @@ impl<S: AgentService> Orchestrator<S> {
             .fold(context.clone(), |ctx, attachment| {
                 ctx.add_message(match attachment.content {
                     AttachmentContent::Image(image) => ContextMessage::Image(image),
-                    AttachmentContent::FileContent(content) => {
+                    AttachmentContent::FileContent {
+                        content,
+                        start_line,
+                        end_line,
+                        total_lines,
+                    } => {
                         let elm = Element::new("file_content")
                             .attr("path", attachment.path)
-                            .attr("start_line", 1)
-                            .attr("end_line", content.lines().count())
-                            .attr("total_lines", content.lines().count())
+                            .attr("start_line", start_line)
+                            .attr("end_line", end_line)
+                            .attr("total_lines", total_lines)
                             .cdata(content);
 
                         ContextMessage::user(elm, model_id.clone().into())
                     }
                 })
             });
-
-        self.conversation.context = Some(context.clone());
 
         // Indicates whether the tool execution has been completed
         let mut is_complete = false;
@@ -406,7 +409,7 @@ impl<S: AgentService> Orchestrator<S> {
                 ChatCompletionMessageFull {
                     tool_calls,
                     content,
-                    mut usage,
+                    usage,
                     reasoning,
                     reasoning_details,
                 },
@@ -424,17 +427,16 @@ impl<S: AgentService> Orchestrator<S> {
                 }
             }
 
-            // Set estimated tokens
-            usage.estimated_tokens = context.token_count();
-
             info!(
-                token_usage = usage.prompt_tokens,
-                estimated_token_usage = usage.estimated_tokens,
+                token_usage = format!("{}", usage.prompt_tokens),
+                total_tokens = format!("{}", usage.total_tokens),
                 "Processing usage information"
             );
 
             // Send the usage information if available
             self.send(ChatResponse::Usage(usage.clone())).await?;
+
+            context = context.usage(usage);
 
             let has_no_tool_calls = tool_calls.is_empty();
 
@@ -470,7 +472,7 @@ impl<S: AgentService> Orchestrator<S> {
 
             // Check if tool calls are within allowed limits if max_tool_failure_per_turn is
             // configured
-            let allowed_limits_exceeded =
+            let mut allowed_limits_exceeded =
                 self.check_tool_call_failures(&tool_failure_attempts, &tool_calls);
 
             // Process tool calls and update context
@@ -534,6 +536,7 @@ impl<S: AgentService> Orchestrator<S> {
                         empty_tool_call_count,
                         "Forced completion due to repeated empty tool calls"
                     );
+                    allowed_limits_exceeded = true;
                 }
             } else {
                 empty_tool_call_count = 0;

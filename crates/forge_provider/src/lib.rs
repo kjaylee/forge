@@ -1,12 +1,12 @@
 mod anthropic;
 mod client;
 mod error;
-mod forge_provider;
 #[cfg(test)]
 mod mock_server;
+mod openai;
 mod retry;
 
 mod utils;
 
 // Re-export from builder.rs
-pub use client::Client;
+pub use client::{Client, ClientBuilder};
