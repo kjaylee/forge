@@ -227,20 +227,18 @@ impl Operation {
                     elm = elm.attr_if_some("file_pattern", input.file_pattern);
 
                     match truncated_output.output {
-                        Truncator::ByteSize(mut output) => {
-                            let instruction = format!(
-                                "\n[Results truncated due to exceeding the {} bytes size limit. Please use a more specific search pattern.]",
+                        Truncator::ByteSize(output) => {
+                            let reason = format!(
+                                "Results truncated due to exceeding the {} bytes size limit. Please use a more specific search pattern",
                                 env.max_search_result_bytes
                             );
-                            output.push_str(&instruction);
-                            elm = elm.cdata(output);
+                            elm = elm.cdata(output).attr("reason", reason);
                         }
-                        Truncator::Line(mut output) => {
-                            let instruction = format!(
-                                "\n[Results truncated due to exceeding the {max_lines} lines limit. Please use a more specific search pattern.]"
+                        Truncator::Line(output) => {
+                            let reason = format!(
+                                "Results truncated due to exceeding the {max_lines} lines limit. Please use a more specific search pattern"
                             );
-                            output.push_str(&instruction);
-                            elm = elm.cdata(output);
+                            elm = elm.cdata(output).attr("reason", reason);
                         }
                         Truncator::Full(output) => {
                             elm = elm.cdata(output);
