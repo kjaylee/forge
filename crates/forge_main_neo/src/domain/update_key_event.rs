@@ -73,8 +73,10 @@ fn handle_spotlight_navigation(
                     }
                     crate::domain::slash_command::SlashCommand::Compact => {
                         if let Some(conversation_id) = state.conversation.conversation_id {
-                            state.show_spinner = true;
-                            state.spinner_message = Some("Compacting".to_owned());
+                            state.spinner = Some(
+                                crate::domain::state::Spinner::new()
+                                    .message(Some("Compacting".to_owned())),
+                            );
 
                             let compact_command = Command::Compact { conversation_id };
                             Command::Interval { duration: std::time::Duration::from_millis(100) }
@@ -157,7 +159,7 @@ fn handle_prompt_submit(
             Command::Empty
         } else {
             state.add_user_message(message.clone());
-            state.show_spinner = true;
+            state.spinner = Some(crate::domain::state::Spinner::new());
             let chat_command = Command::ChatMessage {
                 message,
                 conversation_id: state.conversation.conversation_id,
@@ -694,7 +696,7 @@ mod tests {
 
         assert_eq!(actual, expected);
         assert_eq!(fixture.messages.len(), 0);
-        assert!(!fixture.show_spinner);
+        assert!(fixture.spinner.is_none());
     }
 
     #[test]
@@ -725,9 +727,12 @@ mod tests {
         }
 
         // Should set spinner state
-        assert!(fixture_state.show_spinner);
+        assert!(fixture_state.spinner.is_some());
         assert_eq!(
-            fixture_state.spinner_message,
+            fixture_state
+                .spinner
+                .as_ref()
+                .and_then(|s| s.message.clone()),
             Some("Compacting".to_string())
         );
 
@@ -756,8 +761,14 @@ mod tests {
         assert_eq!(actual_command, expected_command);
 
         // Should not set spinner state when no conversation ID
-        assert!(!fixture_state.show_spinner);
-        assert_eq!(fixture_state.spinner_message, None);
+        assert!(fixture_state.spinner.is_none());
+        assert_eq!(
+            fixture_state
+                .spinner
+                .as_ref()
+                .and_then(|s| s.message.clone()),
+            None
+        );
 
         // Spotlight should still be hidden after command execution
         assert!(!fixture_state.spotlight.is_visible);

@@ -16,7 +16,6 @@ pub struct State {
     pub editor: EditorState,
     pub messages: Vec<Message>,
     pub spinner: Option<Spinner>,
-    pub timer: Option<Timer>,
     pub spotlight: SpotlightState,
     pub conversation: ConversationState,
     pub chat_stream: Option<CancelId>,
@@ -32,7 +31,6 @@ impl Default for State {
             editor: prompt_editor,
             messages: Default::default(),
             spinner: Default::default(),
-            timer: Default::default(),
             spotlight: Default::default(),
             conversation: Default::default(),
             chat_stream: None,
@@ -46,21 +44,27 @@ pub struct Spinner {
     pub message: Option<String>,
 
     #[setters(skip)]
-    cancel_id: CancelId,
+    pub throbber: ThrobberState,
 
     #[setters(skip)]
-    throbber: ThrobberState,
+    pub timer: Option<Timer>,
 }
 
 impl Spinner {
-    pub fn new(cancel_id: CancelId) -> Self {
-        Self { message: None, cancel_id, throbber: ThrobberState::default() }
+    pub fn new() -> Self {
+        Self {
+            message: None,
+            throbber: ThrobberState::default(),
+            timer: Default::default(),
+        }
     }
 }
 
 impl Drop for Spinner {
     fn drop(&mut self) {
-        self.cancel_id.cancel();
+        if let Some(ref timer) = self.timer {
+            timer.cancel.cancel();
+        }
     }
 }
 

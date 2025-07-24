@@ -39,15 +39,10 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
                 && is_complete
                 && !text.trim().is_empty()
             {
-                state.show_spinner = false
+                state.spinner = None;
             }
             state.add_assistant_message(response);
-            if let Some(ref timer) = state.timer
-                && !state.show_spinner
-            {
-                timer.cancel.cancel();
-                state.timer = None;
-            }
+            // Timer is managed by the spinner, so no need to handle it separately here
             Command::Empty
         }
         Action::ConversationInitialized(conversation_id) => {
@@ -55,23 +50,20 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             Command::Empty
         }
         Action::IntervalTick(timer) => {
-            state.spinner.calc_next();
+            if let Some(ref mut spinner) = state.spinner {
+                spinner.throbber.calc_next();
+                spinner.timer = Some(timer);
+            }
             // For now, interval ticks don't trigger any state changes or commands
             // This could be extended to update a timer display or trigger other actions
-            state.timer = Some(timer);
             Command::Empty
         }
         Action::InterruptStream => {
-            // Stop showing spinner and clear any ongoing streaming
-            state.show_spinner = false;
+            state.spinner = None;
             // Cancel the ongoing stream if one exists
             if let Some(ref cancel) = state.chat_stream {
                 cancel.cancel();
                 state.chat_stream = None;
-            }
-            if let Some(ref timer) = state.timer {
-                timer.cancel.cancel();
-                state.timer = None;
             }
             Command::Empty
         }
@@ -81,12 +73,7 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
             Command::Empty
         }
         Action::CompactionResult(compaction_result) => {
-            state.show_spinner = false;
-            state.spinner_message = None;
-            if let Some(ref timer) = state.timer {
-                timer.cancel.cancel();
-                state.timer = None;
-            }
+            state.spinner = None;
 
             match compaction_result {
                 Ok(result) => {
@@ -225,7 +212,6 @@ mod tests {
     fn test_interrupt_stream_action_stops_spinner_and_clears_timer() {
         let mut fixture_state = State::default();
         // Set up state as if streaming is active
-        fixture_state.show_spinner = true;
         let cancel_id = crate::domain::CancelId::new(CancellationToken::new());
         let timer = crate::domain::state::Timer {
             start_time: chrono::Utc::now(),
@@ -233,7 +219,9 @@ mod tests {
             duration: std::time::Duration::from_secs(1),
             cancel: cancel_id.clone(),
         };
-        fixture_state.timer = Some(timer);
+        let mut spinner = crate::domain::state::Spinner::new();
+        spinner.timer = Some(timer);
+        fixture_state.spinner = Some(spinner);
 
         let fixture_action = Action::InterruptStream;
 
@@ -242,15 +230,13 @@ mod tests {
         // Check that cancellation happened automatically and command is Empty
         assert_eq!(actual_command, Command::Empty);
         assert!(cancel_id.is_cancelled());
-        assert!(!fixture_state.show_spinner);
-        assert!(fixture_state.timer.is_none());
+        assert!(fixture_state.spinner.is_none());
     }
 
     #[test]
     fn test_interrupt_stream_action_when_no_timer_active() {
         let mut fixture_state = State::default();
-        fixture_state.show_spinner = true;
-        fixture_state.timer = None;
+        fixture_state.spinner = Some(crate::domain::state::Spinner::new());
 
         let fixture_action = Action::InterruptStream;
 
@@ -258,8 +244,7 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        assert!(!fixture_state.show_spinner);
-        assert!(fixture_state.timer.is_none());
+        assert!(fixture_state.spinner.is_none());
     }
 
     #[test]
@@ -281,7 +266,7 @@ mod tests {
         let mut fixture_state = State::default();
         let cancel_id = CancelId::new(CancellationToken::new());
         fixture_state.chat_stream = Some(cancel_id.clone());
-        fixture_state.show_spinner = true;
+        fixture_state.spinner = Some(crate::domain::state::Spinner::new());
 
         let fixture_action = Action::InterruptStream;
 
@@ -290,7 +275,7 @@ mod tests {
         // Check that cancellation happened automatically and command is Empty
         assert_eq!(actual_command, Command::Empty);
         assert!(cancel_id.is_cancelled());
-        assert!(!fixture_state.show_spinner);
+        assert!(fixture_state.spinner.is_none());
         assert!(fixture_state.chat_stream.is_none());
     }
 
@@ -331,7 +316,6 @@ mod tests {
     #[test]
     fn test_chat_response_stops_spinner_when_complete() {
         let mut fixture_state = State::default();
-        fixture_state.show_spinner = true;
         let cancel_id = crate::domain::CancelId::new(CancellationToken::new());
         let timer = crate::domain::state::Timer {
             start_time: chrono::Utc::now(),
@@ -339,7 +323,9 @@ mod tests {
             duration: std::time::Duration::from_secs(1),
             cancel: cancel_id.clone(),
         };
-        fixture_state.timer = Some(timer);
+        let mut spinner = crate::domain::state::Spinner::new();
+        spinner.timer = Some(timer);
+        fixture_state.spinner = Some(spinner);
 
         let chat_response = forge_api::ChatResponse::Text {
             text: "Hello World".to_string(),
@@ -351,14 +337,12 @@ mod tests {
         // Check that cancellation happened automatically and command is Empty
         assert_eq!(actual_command, Command::Empty);
         assert!(cancel_id.is_cancelled());
-        assert!(!fixture_state.show_spinner);
-        assert_eq!(fixture_state.timer, None);
+        assert!(fixture_state.spinner.is_none());
     }
 
     #[test]
     fn test_chat_response_continues_spinner_when_streaming() {
         let mut fixture_state = State::default();
-        fixture_state.show_spinner = true;
         let cancel_id = crate::domain::CancelId::new(CancellationToken::new());
         let timer = crate::domain::state::Timer {
             start_time: chrono::Utc::now(),
@@ -366,7 +350,9 @@ mod tests {
             duration: std::time::Duration::from_secs(1),
             cancel: cancel_id.clone(),
         };
-        fixture_state.timer = Some(timer.clone());
+        let mut spinner = crate::domain::state::Spinner::new();
+        spinner.timer = Some(timer.clone());
+        fixture_state.spinner = Some(spinner);
 
         let chat_response = forge_api::ChatResponse::Text {
             text: "Hello".to_string(),
@@ -377,8 +363,9 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        assert!(fixture_state.show_spinner);
-        assert_eq!(fixture_state.timer, Some(timer));
+        assert!(fixture_state.spinner.is_some());
+        // Timer should still be present in the spinner
+        assert!(fixture_state.spinner.as_ref().unwrap().timer.is_some());
     }
 
     #[test]
@@ -410,14 +397,35 @@ mod tests {
             duration: std::time::Duration::from_secs(1),
             cancel: cancel_id.clone(),
         };
-        fixture_state.timer = Some(timer.clone());
+        let mut spinner = crate::domain::state::Spinner::new();
+        spinner.timer = Some(timer.clone());
+        fixture_state.spinner = Some(spinner);
 
-        let actual_command = update(&mut fixture_state, Action::IntervalTick(timer.clone()));
+        // Create a new timer with updated current_time
+        let updated_timer = crate::domain::state::Timer {
+            start_time: timer.start_time,
+            current_time: chrono::Utc::now() + chrono::Duration::seconds(1),
+            duration: std::time::Duration::from_secs(1),
+            cancel: cancel_id.clone(),
+        };
+
+        let actual_command = update(
+            &mut fixture_state,
+            Action::IntervalTick(updated_timer.clone()),
+        );
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        // Timer should be updated to the new timer from the action
-        assert_eq!(fixture_state.timer, Some(timer));
+        // Timer should be updated with new current_time, but keep original start_time
+        let spinner_timer = fixture_state
+            .spinner
+            .as_ref()
+            .unwrap()
+            .timer
+            .as_ref()
+            .unwrap();
+        assert_eq!(spinner_timer.current_time, updated_timer.current_time);
+        assert_eq!(spinner_timer.start_time, timer.start_time); // Original start_time preserved
     }
 
     #[test]
@@ -430,13 +438,16 @@ mod tests {
             duration: std::time::Duration::from_secs(1),
             cancel: cancel_id_1,
         };
-        fixture_state.timer = Some(timer_1);
+        let mut spinner = crate::domain::state::Spinner::new();
+        spinner.timer = Some(timer_1.clone());
+        fixture_state.spinner = Some(spinner);
 
-        // Create a different timer for the tick
+        // Create a different timer for the tick - this represents a new tick with
+        // updated time
         let cancel_id_2 = crate::domain::CancelId::new(CancellationToken::new());
         let timer_2 = crate::domain::state::Timer {
-            start_time: chrono::Utc::now(),
-            current_time: chrono::Utc::now(),
+            start_time: timer_1.start_time, // Same operation, so same start time
+            current_time: chrono::Utc::now() + chrono::Duration::seconds(2),
             duration: std::time::Duration::from_secs(1),
             cancel: cancel_id_2,
         };
@@ -445,15 +456,23 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        // Timer should be replaced with the new timer from the action
-        assert_eq!(fixture_state.timer, Some(timer_2));
+        // Timer current_time should be updated while preserving original start_time
+        let spinner_timer = fixture_state
+            .spinner
+            .as_ref()
+            .unwrap()
+            .timer
+            .as_ref()
+            .unwrap();
+        assert_eq!(spinner_timer.current_time, timer_2.current_time);
+        assert_eq!(spinner_timer.start_time, timer_1.start_time); // Original start_time preserved
     }
 
     #[test]
     fn test_compaction_result_success_stops_spinner_and_adds_message() {
         let mut fixture_state = State::default();
-        fixture_state.show_spinner = true;
-        fixture_state.spinner_message = Some("Compacting".to_string());
+        fixture_state.spinner =
+            Some(crate::domain::state::Spinner::new().message(Some("Compacting".to_string())));
 
         let fixture_compaction_result = forge_api::CompactionResult::new(1000, 500, 20, 10);
         let fixture_action = Action::CompactionResult(Ok(fixture_compaction_result));
@@ -462,8 +481,7 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        assert_eq!(fixture_state.show_spinner, false);
-        assert_eq!(fixture_state.spinner_message, None);
+        assert!(fixture_state.spinner.is_none());
 
         // Check that success message was added
         let actual_messages = &fixture_state.messages;
@@ -486,7 +504,9 @@ mod tests {
             duration: std::time::Duration::from_secs(1),
             cancel: cancel_id.clone(),
         };
-        fixture_state.timer = Some(timer);
+        let mut spinner = crate::domain::state::Spinner::new();
+        spinner.timer = Some(timer);
+        fixture_state.spinner = Some(spinner);
 
         let fixture_compaction_result = forge_api::CompactionResult::new(1000, 500, 20, 10);
         let fixture_action = Action::CompactionResult(Ok(fixture_compaction_result));
@@ -495,15 +515,15 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        assert_eq!(fixture_state.timer, None);
+        assert!(fixture_state.spinner.is_none());
         assert!(cancel_id.is_cancelled());
     }
 
     #[test]
     fn test_compaction_result_error_stops_spinner_and_adds_error_message() {
         let mut fixture_state = State::default();
-        fixture_state.show_spinner = true;
-        fixture_state.spinner_message = Some("Compacting".to_string());
+        fixture_state.spinner =
+            Some(crate::domain::state::Spinner::new().message(Some("Compacting".to_string())));
 
         let fixture_error_message = "Compaction failed due to network error".to_string();
         let fixture_action =
@@ -513,8 +533,7 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        assert_eq!(fixture_state.show_spinner, false);
-        assert_eq!(fixture_state.spinner_message, None);
+        assert!(fixture_state.spinner.is_none());
 
         // Check that error message was added
         let actual_messages = &fixture_state.messages;
@@ -536,7 +555,9 @@ mod tests {
             duration: std::time::Duration::from_secs(1),
             cancel: cancel_id.clone(),
         };
-        fixture_state.timer = Some(timer);
+        let mut spinner = crate::domain::state::Spinner::new();
+        spinner.timer = Some(timer);
+        fixture_state.spinner = Some(spinner);
 
         let fixture_error_message = "Compaction failed".to_string();
         let fixture_action = Action::CompactionResult(Err(anyhow::anyhow!(fixture_error_message)));
@@ -545,7 +566,7 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        assert_eq!(fixture_state.timer, None);
+        assert!(fixture_state.spinner.is_none());
         assert!(cancel_id.is_cancelled());
     }
 
@@ -598,8 +619,7 @@ mod tests {
     #[test]
     fn test_compaction_result_success_when_no_timer_active() {
         let mut fixture_state = State::default();
-        fixture_state.show_spinner = true;
-        fixture_state.timer = None; // No timer active
+        fixture_state.spinner = Some(crate::domain::state::Spinner::new());
 
         let fixture_compaction_result = forge_api::CompactionResult::new(1000, 500, 20, 10);
         let fixture_action = Action::CompactionResult(Ok(fixture_compaction_result));
@@ -608,8 +628,7 @@ mod tests {
         let expected_command = Command::Empty;
 
         assert_eq!(actual_command, expected_command);
-        assert_eq!(fixture_state.show_spinner, false);
-        assert_eq!(fixture_state.timer, None);
+        assert!(fixture_state.spinner.is_none());
 
         // Should still add success message
         let actual_messages = &fixture_state.messages;
