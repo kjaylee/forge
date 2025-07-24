@@ -150,10 +150,10 @@ pub struct FSSearch {
     pub regex: Option<String>,
 
     /// Starting index for the search results (1-based).
-    pub start_index: Option<i32>,
+    pub start_index: Option<usize>,
 
     /// Maximum number of lines to return in the search results.
-    pub max_search_lines: Option<i32>,
+    pub max_search_lines: Option<usize>,
 
     /// Glob pattern to filter files (e.g., '*.ts' for TypeScript files).
     /// If not provided, it will search all files (*).

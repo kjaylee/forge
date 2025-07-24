@@ -285,17 +285,74 @@ pub fn truncate_fetch_content(content: &str, truncation_limit: usize) -> Truncat
 #[derive(Debug)]
 pub struct TruncatedSearchOutput {
     pub output: TruncationResult<String>,
-    pub total_lines: u64,
-    pub start_line: u64,
-    pub end_line: u64,
+    pub total_lines: usize,
+    pub start_line: usize,
+    pub end_line: usize,
 }
 
 /// Represents a truncation result
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TruncationResult<T> {
     Line(T),
     ByteSize(T),
     Full(T),
+}
+
+impl<T> From<T> for TruncationResult<T> {
+    fn from(value: T) -> Self {
+        TruncationResult::Full(value)
+    }
+}
+
+impl TruncationResult<Vec<String>> {
+    /// Apply line truncation to a vector of strings
+    pub fn apply_line_truncation(self, start_line: usize, max_lines: usize) -> Self {
+        let that = self.clone();
+        let input = self.unwrap();
+        let total_lines = input.len();
+        let is_truncated = total_lines > max_lines;
+
+        let truncated = if is_truncated {
+            input
+                .into_iter()
+                .skip(start_line)
+                .take(max_lines)
+                .collect::<Vec<_>>()
+        } else {
+            input
+        };
+
+        if truncated.len() != total_lines {
+            TruncationResult::Line(truncated)
+        } else {
+            that
+        }
+    }
+
+    /// Apply byte size truncation to a vector of strings
+    /// ensures the total byte size does not exceed the specified limit
+    pub fn apply_byte_size_truncation(self, max_bytes: usize) -> Self {
+        let that = self.clone();
+        let input = self.unwrap();
+        let original_size = input.len();
+
+        let mut total_bytes = 0;
+        let mut truncated = Vec::with_capacity(input.len());
+        for out in input {
+            let current_bytes = out.bytes().count();
+            total_bytes += current_bytes;
+            if total_bytes >= max_bytes {
+                break;
+            }
+            truncated.push(out);
+        }
+
+        if original_size != truncated.len() {
+            TruncationResult::ByteSize(truncated)
+        } else {
+            that
+        }
+    }
 }
 
 impl<T> TruncationResult<T> {
@@ -310,29 +367,30 @@ impl<T> TruncationResult<T> {
             TruncationResult::Full(value) => TruncationResult::Full(f(value)),
         }
     }
-}
 
-fn truncate_by_byte_size(input: Vec<String>, max_bytes: usize) -> Vec<String> {
-    let mut total_bytes = 0;
-    let mut output = Vec::with_capacity(input.len());
-    for out in input {
-        let current_bytes = out.len();
-        if total_bytes + current_bytes > max_bytes {
-            break;
+    pub fn is_truncated(&self) -> bool {
+        match self {
+            TruncationResult::Line(_) => true,
+            TruncationResult::ByteSize(_) => true,
+            TruncationResult::Full(_) => false,
         }
-        output.push(out);
-        total_bytes += current_bytes;
     }
 
-    output
+    pub fn unwrap(self) -> T {
+        match self {
+            TruncationResult::Line(value) => value,
+            TruncationResult::ByteSize(value) => value,
+            TruncationResult::Full(value) => value,
+        }
+    }
 }
 
 /// Truncates search output based on line limit, using search directory for
 /// relative paths
 pub fn truncate_search_output(
     output: &[Match],
-    start_line: u64,
-    max_lines: u64,
+    start_line: usize,
+    max_lines: usize,
     max_bytes: usize,
     search_dir: &Path,
 ) -> TruncatedSearchOutput {
@@ -340,44 +398,101 @@ pub fn truncate_search_output(
         .iter()
         .map(|v| format_match(v, search_dir))
         .collect::<Vec<_>>();
+    let total_lines = output.len();
 
-    // Count the actual number of lines in the output
-    let total_lines = output.iter().map(|s| s.lines().count()).sum::<usize>() as u64;
-    let is_truncated = total_lines > max_lines;
-
-    let truncated_output = if is_truncated {
-        output
-            .iter()
-            .skip(start_line as usize)
-            .take(max_lines as usize)
-            .map(String::from)
-            .collect::<Vec<_>>()
+    let output = TruncationResult::from(output)
+        .apply_line_truncation(start_line, max_lines)
+        .apply_byte_size_truncation(max_bytes)
+        .map(|lines| lines.join("\n"));
+    let total_lines_output = output.map(|out| out.lines().count()).unwrap();
+    let start_line = if total_lines_output > start_line {
+        start_line.saturating_add(1)
     } else {
-        output
-    };
-
-    // Note: after truncating by line count, we may still need to truncate by byte
-    // size as there's possibility that lines are too long.
-    let line_truncated_output_len = truncated_output.len();
-    let byte_truncated_output = truncate_by_byte_size(truncated_output, max_bytes);
-    let byte_truncated_output_len = byte_truncated_output.len();
-    let truncated_output = match (
-        byte_truncated_output_len < line_truncated_output_len,
-        is_truncated,
-    ) {
-        (true, _) => TruncationResult::ByteSize(byte_truncated_output),
-        (false, true) => TruncationResult::Line(byte_truncated_output),
-        (false, false) => TruncationResult::Full(byte_truncated_output),
+        0
     };
 
     TruncatedSearchOutput {
-        output: truncated_output.map(|lines| lines.join("\n")),
-        total_lines,
-        start_line: start_line + 1,
-        end_line: if is_truncated {
-            start_line + byte_truncated_output_len as u64
+        end_line: if output.is_truncated() {
+            start_line
+                .saturating_add(total_lines_output)
+                .saturating_sub(1)
         } else {
-            byte_truncated_output_len as u64
+            total_lines_output
         },
+        output,
+        total_lines,
+        start_line: start_line,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_line_based_truncation() {
+        let data = vec![
+            "line 1".to_string(),
+            "line 2".to_string(),
+            "line 3".to_string(),
+            "line 4".to_string(),
+            "line 5".to_string(),
+        ];
+
+        let actual = TruncationResult::from(data.clone()).apply_line_truncation(1, 3);
+        let expected = TruncationResult::Line(data.into_iter().skip(1).take(3).collect::<Vec<_>>());
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_bytes_based_truncation() {
+        // total entries = 5
+        // each entry 5 bytes long
+        // total size = 25 bytes
+        let data = vec![
+            "A".repeat(5),
+            "B".repeat(5),
+            "C".repeat(5),
+            "D".repeat(5),
+            "E".repeat(5),
+        ];
+        let actual = TruncationResult::from(data.clone()).apply_byte_size_truncation(20);
+        let expected = TruncationResult::ByteSize(data.into_iter().take(3).collect::<Vec<_>>());
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_both_truncation_strategies() {
+        let data = vec![
+            "A".repeat(900),
+            "B".repeat(10),
+            "C".repeat(25),
+            "D".repeat(35),
+            "E".repeat(45),
+        ];
+        let actual = TruncationResult::from(data.clone())
+            .apply_line_truncation(0, 10)
+            .apply_byte_size_truncation(925);
+
+        let expected = TruncationResult::ByteSize(data.into_iter().take(2).collect::<Vec<_>>());
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_both_truncation_strategies_with_lower_byte_limit() {
+        let data = vec![
+            "A".repeat(900),
+            "B".repeat(10),
+            "C".repeat(25),
+            "D".repeat(35),
+            "E".repeat(45),
+        ];
+        let actual = TruncationResult::from(data.clone())
+            .apply_line_truncation(0, 10)
+            .apply_byte_size_truncation(120);
+        let expected = TruncationResult::ByteSize(vec![]);
+        assert_eq!(actual, expected);
     }
 }

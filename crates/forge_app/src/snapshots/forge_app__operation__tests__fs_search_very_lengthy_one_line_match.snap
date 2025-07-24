@@ -6,7 +6,7 @@ expression: to_value(actual)
   path="/home/user/project"
   max_bytes_allowed="1049"
   total_lines="1"
-  display_lines="6-0"
+  display_lines="0-0"
   regex="search"
   file_pattern="*.txt"
 ><![CDATA[

@@ -96,7 +96,8 @@ expression: tools
       "max_search_lines": {
         "description": "Maximum number of lines to return in the search results.",
         "type": "integer",
-        "format": "int32",
+        "format": "uint",
+        "minimum": 0.0,
         "nullable": true
       },
       "path": {
@@ -111,7 +112,8 @@ expression: tools
       "start_index": {
         "description": "Starting index for the search results (1-based).",
         "type": "integer",
-        "format": "int32",
+        "format": "uint",
+        "minimum": 0.0,
         "nullable": true
       }
     }
