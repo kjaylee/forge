@@ -11,8 +11,8 @@ use forge_domain::{
 use forge_template::Element;
 
 use crate::truncation::{
-    StreamElement, Truncator, create_temp_file, truncate_fetch_content, truncate_search_output,
-    truncate_shell_output,
+    StreamElement, TruncatedContent, create_temp_file, truncate_fetch_content,
+    truncate_search_output, truncate_shell_output,
 };
 use crate::utils::format_display_path;
 use crate::{
@@ -203,7 +203,7 @@ impl Operation {
                     let start_index = input.start_index.unwrap_or(1);
                     let start_index = if start_index > 0 { start_index - 1 } else { 0 };
                     let search_dir = Path::new(&input.path);
-                    let truncated_output = truncate_search_output(
+                    let mut truncated_output = truncate_search_output(
                         &out.matches,
                         start_index as usize,
                         max_lines,
@@ -211,38 +211,45 @@ impl Operation {
                         search_dir,
                     );
 
+
+                    if truncated_output.start < truncated_output.end {
+                        // 1 Line based indexing
+                        truncated_output.start = truncated_output.start.saturating_add(1);
+                    }
+
                     let mut elm = Element::new("search_results")
                         .attr("path", &input.path)
                         .attr("max_bytes_allowed", env.max_search_result_bytes)
-                        .attr("total_lines", truncated_output.total_lines)
+                        .attr("total_lines", truncated_output.total)
                         .attr(
                             "display_lines",
-                            format!(
-                                "{}-{}",
-                                truncated_output.start_line, truncated_output.end_line
-                            ),
+                            format!("{}-{}", truncated_output.start, truncated_output.end),
                         );
 
                     elm = elm.attr_if_some("regex", input.regex);
                     elm = elm.attr_if_some("file_pattern", input.file_pattern);
 
-                    match truncated_output.output {
-                        Truncator::ByteSize(output) => {
+                    match truncated_output.content {
+                        TruncatedContent::Byte(output) => {
                             let reason = format!(
                                 "Results truncated due to exceeding the {} bytes size limit. Please use a more specific search pattern",
                                 env.max_search_result_bytes
                             );
+                            let output = output
+                                .into_iter()
+                                .map(|vec| String::from_utf8_lossy(&vec).to_string())
+                                .collect::<Vec<_>>()
+                                .join("\n");
                             elm = elm.cdata(output).attr("reason", reason);
                         }
-                        Truncator::Line(output) => {
+                        TruncatedContent::Line(output) => {
                             let reason = format!(
                                 "Results truncated due to exceeding the {max_lines} lines limit. Please use a more specific search pattern"
                             );
+                            let output = output.join("\n");
                             elm = elm.cdata(output).attr("reason", reason);
                         }
-                        Truncator::Full(output) => {
-                            elm = elm.cdata(output);
-                        }
+                        TruncatedContent::Full(output) => elm = elm.cdata(output.join("\n")),
                     }
 
                     forge_domain::ToolOutput::text(elm)
