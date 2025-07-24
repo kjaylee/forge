@@ -17,5 +17,6 @@ pub enum Action {
     IntervalTick(Timer),
     InterruptStream,
     StartStream(CancelId),
-    ShowTools(Vec<ToolDefinition>),
+    ShowTools,
+    ToolsFetched(Vec<ToolDefinition>),
 }

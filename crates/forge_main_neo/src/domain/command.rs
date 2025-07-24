@@ -29,6 +29,7 @@ pub enum Command {
         duration: Duration,
     },
     ShowTools,
+    FetchTools,
 }
 
 #[derive(Clone, From, PartialEq, Eq, Debug)]
