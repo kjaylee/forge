@@ -120,7 +120,7 @@ mod tests {
     }
 
     fn fixture_environment() -> Environment {
-        let max_bytes: f64 = 0.25 * 1024.0 * 1024.0; // 0.25 MB
+        let max_bytes: f64 = 250.0 * 1024.0; // 250kb
         Environment {
             os: "linux".to_string(),
             pid: 12345,

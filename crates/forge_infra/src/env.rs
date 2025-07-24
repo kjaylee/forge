@@ -113,7 +113,7 @@ impl ForgeEnvironmentInfra {
             .and_then(|url| Url::parse(url.as_str()).ok())
             .unwrap_or_else(|| Url::parse(Provider::FORGE_URL).unwrap());
 
-        // convet 0.25 MB to bytes
+        // Convert 0.25 MB to bytes
         let max_bytes: f64 = 0.25 * 1024.0 * 1024.0;
 
         Environment {

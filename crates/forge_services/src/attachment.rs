@@ -111,7 +111,7 @@ pub mod tests {
     #[async_trait::async_trait]
     impl EnvironmentInfra for MockEnvironmentInfra {
         fn get_environment(&self) -> Environment {
-            let max_bytes: f64 = 0.25 * 1024.0 * 1024.0; // 0.25 MB
+            let max_bytes: f64 = 250.0 * 1024.0; // 250 KB
             Environment {
                 os: "test".to_string(),
                 pid: 12345,
