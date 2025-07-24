@@ -28,6 +28,9 @@ pub enum Command {
     Interval {
         duration: Duration,
     },
+    ShellCmd {
+        command: String,
+    },
 }
 
 #[derive(Clone, From, PartialEq, Eq, Debug)]
