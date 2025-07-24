@@ -11,7 +11,7 @@ use forge_domain::{
 use forge_template::Element;
 
 use crate::truncation::{
-    StreamElement, TruncationResult, create_temp_file, truncate_fetch_content,
+    StreamElement, Truncator, create_temp_file, truncate_fetch_content,
     truncate_search_output, truncate_shell_output,
 };
 use crate::utils::format_display_path;
@@ -227,7 +227,7 @@ impl Operation {
                     elm = elm.attr_if_some("file_pattern", input.file_pattern);
 
                     match truncated_output.output {
-                        TruncationResult::ByteSize(mut output) => {
+                        Truncator::ByteSize(mut output) => {
                             let instruction = format!(
                                 "\n[Results truncated due to exceeding the {} bytes size limit. Please use a more specific search pattern.]",
                                 env.max_search_result_bytes
@@ -235,14 +235,14 @@ impl Operation {
                             output.push_str(&instruction);
                             elm = elm.cdata(output);
                         }
-                        TruncationResult::Line(mut output) => {
+                        Truncator::Line(mut output) => {
                             let instruction = format!(
                                 "\n[Results truncated due to exceeding the {max_lines} lines limit. Please use a more specific search pattern.]"
                             );
                             output.push_str(&instruction);
                             elm = elm.cdata(output);
                         }
-                        TruncationResult::Full(output) => {
+                        Truncator::Full(output) => {
                             elm = elm.cdata(output);
                         }
                     }

@@ -284,7 +284,7 @@ pub fn truncate_fetch_content(content: &str, truncation_limit: usize) -> Truncat
 /// Represents the result of fs_search truncation
 #[derive(Debug)]
 pub struct TruncatedSearchOutput {
-    pub output: TruncationResult<String>,
+    pub output: Truncator<String>,
     pub total_lines: usize,
     pub start_line: usize,
     pub end_line: usize,
@@ -294,19 +294,19 @@ pub struct TruncatedSearchOutput {
 /// Can hold collections that have been truncated by line count, byte size, or
 /// not truncated at all.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TruncationResult<T> {
+pub enum Truncator<T> {
     Line(T),
     ByteSize(T),
     Full(T),
 }
 
-impl<T> From<T> for TruncationResult<T> {
+impl<T> From<T> for Truncator<T> {
     fn from(value: T) -> Self {
-        TruncationResult::Full(value)
+        Truncator::Full(value)
     }
 }
 
-impl<T, I> TruncationResult<T>
+impl<T, I> Truncator<T>
 where
     T: IntoIterator<Item = I> + FromIterator<I> + Clone,
     T: AsRef<[I]>,
@@ -315,9 +315,9 @@ where
     /// Helper method to extract variant constructor and data without cloning
     fn into_parts(self) -> (fn(T) -> Self, T) {
         match self {
-            TruncationResult::Line(data) => (TruncationResult::Line, data),
-            TruncationResult::ByteSize(data) => (TruncationResult::ByteSize, data),
-            TruncationResult::Full(data) => (TruncationResult::Full, data),
+            Truncator::Line(data) => (Truncator::Line, data),
+            Truncator::ByteSize(data) => (Truncator::ByteSize, data),
+            Truncator::Full(data) => (Truncator::Full, data),
         }
     }
 
@@ -338,7 +338,7 @@ where
 
         let truncated_len = truncated.as_ref().len();
         if truncated_len != total_items {
-            TruncationResult::Line(truncated)
+            Truncator::Line(truncated)
         } else {
             // preserve the original variant
             to_variant(truncated)
@@ -368,7 +368,7 @@ where
         let truncated_collection: T = truncated.into_iter().collect();
         let truncated_size = truncated_collection.as_ref().len();
         if original_size != truncated_size {
-            TruncationResult::ByteSize(truncated_collection)
+            Truncator::ByteSize(truncated_collection)
         } else {
             // preserve the original variant
             to_variant(truncated_collection)
@@ -376,19 +376,19 @@ where
     }
 }
 
-impl<T> TruncationResult<T> {
+impl<T> Truncator<T> {
     /// Maps the contained value of type T to type U using the provided
     /// function. Preserves the truncation variant (Line, ByteSize, or
     /// Full).
-    pub fn map<F, U>(&self, f: F) -> TruncationResult<U>
+    pub fn map<F, U>(&self, f: F) -> Truncator<U>
     where
         F: FnOnce(&T) -> U,
         U: Clone,
     {
         match self {
-            TruncationResult::Line(value) => TruncationResult::Line(f(value)),
-            TruncationResult::ByteSize(value) => TruncationResult::ByteSize(f(value)),
-            TruncationResult::Full(value) => TruncationResult::Full(f(value)),
+            Truncator::Line(value) => Truncator::Line(f(value)),
+            Truncator::ByteSize(value) => Truncator::ByteSize(f(value)),
+            Truncator::Full(value) => Truncator::Full(f(value)),
         }
     }
 
@@ -396,9 +396,9 @@ impl<T> TruncationResult<T> {
     /// false if the content is complete (Full variant).
     pub fn is_truncated(&self) -> bool {
         match self {
-            TruncationResult::Line(_) => true,
-            TruncationResult::ByteSize(_) => true,
-            TruncationResult::Full(_) => false,
+            Truncator::Line(_) => true,
+            Truncator::ByteSize(_) => true,
+            Truncator::Full(_) => false,
         }
     }
 
@@ -406,9 +406,9 @@ impl<T> TruncationResult<T> {
     /// consuming the TruncationResult in the process.
     pub fn unwrap(self) -> T {
         match self {
-            TruncationResult::Line(value) => value,
-            TruncationResult::ByteSize(value) => value,
-            TruncationResult::Full(value) => value,
+            Truncator::Line(value) => value,
+            Truncator::ByteSize(value) => value,
+            Truncator::Full(value) => value,
         }
     }
 }
@@ -429,7 +429,7 @@ pub fn truncate_search_output(
     let total_lines = output.len();
 
     // Apply truncation strategies
-    let output = TruncationResult::from(output)
+    let output = Truncator::from(output)
         .truncate_items(start_line, max_lines)
         .truncate_bytes(max_bytes)
         .map(|lines| lines.join("\n"));
@@ -470,8 +470,8 @@ mod tests {
             "line 5".to_string(),
         ];
 
-        let actual = TruncationResult::from(data.clone()).truncate_items(1, 3);
-        let expected = TruncationResult::Line(data.into_iter().skip(1).take(3).collect::<Vec<_>>());
+        let actual = Truncator::from(data.clone()).truncate_items(1, 3);
+        let expected = Truncator::Line(data.into_iter().skip(1).take(3).collect::<Vec<_>>());
         assert_eq!(actual, expected);
     }
 
@@ -487,8 +487,8 @@ mod tests {
             "D".repeat(5),
             "E".repeat(5),
         ];
-        let actual = TruncationResult::from(data.clone()).truncate_bytes(20);
-        let expected = TruncationResult::ByteSize(data.into_iter().take(3).collect::<Vec<_>>());
+        let actual = Truncator::from(data.clone()).truncate_bytes(20);
+        let expected = Truncator::ByteSize(data.into_iter().take(3).collect::<Vec<_>>());
         assert_eq!(actual, expected);
     }
 
@@ -501,11 +501,11 @@ mod tests {
             "D".repeat(35),
             "E".repeat(45),
         ];
-        let actual = TruncationResult::from(data.clone())
+        let actual = Truncator::from(data.clone())
             .truncate_items(0, 10)
             .truncate_bytes(925);
 
-        let expected = TruncationResult::ByteSize(data.into_iter().take(2).collect::<Vec<_>>());
+        let expected = Truncator::ByteSize(data.into_iter().take(2).collect::<Vec<_>>());
         assert_eq!(actual, expected);
     }
 
@@ -518,10 +518,10 @@ mod tests {
             "D".repeat(35),
             "E".repeat(45),
         ];
-        let actual = TruncationResult::from(data.clone())
+        let actual = Truncator::from(data.clone())
             .truncate_items(0, 10)
             .truncate_bytes(120);
-        let expected = TruncationResult::ByteSize(vec![]);
+        let expected = Truncator::ByteSize(vec![]);
         assert_eq!(actual, expected);
     }
 }
