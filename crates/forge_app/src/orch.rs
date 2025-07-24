@@ -350,7 +350,9 @@ impl<S: AgentService> Orchestrator<S> {
         }
 
         // If tool choice is supported, add it to the context
-        if let Some(ref tool_choice) = agent.tool_choice && self.is_tool_choice_supported(&agent)? {
+        if let Some(ref tool_choice) = agent.tool_choice
+            && self.is_tool_choice_supported(&agent)?
+        {
             context = context.tool_choice(tool_choice.clone());
         }
 

@@ -12,4 +12,3 @@ pub enum ToolChoice {
     Required,
     Call(ToolName),
 }
-
