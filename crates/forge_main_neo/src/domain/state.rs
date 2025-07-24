@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use derive_setters::Setters;
 use edtui::EditorState;
 use forge_api::{ChatResponse, ConversationId};
 use throbber_widgets_tui::ThrobberState;
@@ -14,10 +15,8 @@ pub struct State {
     pub workspace: Workspace,
     pub editor: EditorState,
     pub messages: Vec<Message>,
-    pub spinner: ThrobberState,
+    pub spinner: Option<Spinner>,
     pub timer: Option<Timer>,
-    pub show_spinner: bool,
-    pub spinner_message: Option<String>,
     pub spotlight: SpotlightState,
     pub conversation: ConversationState,
     pub chat_stream: Option<CancelId>,
@@ -34,13 +33,34 @@ impl Default for State {
             messages: Default::default(),
             spinner: Default::default(),
             timer: Default::default(),
-            show_spinner: Default::default(),
-            spinner_message: None,
             spotlight: Default::default(),
             conversation: Default::default(),
             chat_stream: None,
             message_scroll_state: ScrollViewState::default(),
         }
+    }
+}
+
+#[derive(Setters, Clone)]
+pub struct Spinner {
+    pub message: Option<String>,
+
+    #[setters(skip)]
+    cancel_id: CancelId,
+
+    #[setters(skip)]
+    throbber: ThrobberState,
+}
+
+impl Spinner {
+    pub fn new(cancel_id: CancelId) -> Self {
+        Self { message: None, cancel_id, throbber: ThrobberState::default() }
+    }
+}
+
+impl Drop for Spinner {
+    fn drop(&mut self) {
+        self.cancel_id.cancel();
     }
 }
 
