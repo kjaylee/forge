@@ -1,7 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use derive_setters::Setters;
-
 use crate::utils::format_match;
 use crate::{FsCreateService, Match};
 
@@ -283,136 +281,90 @@ pub fn truncate_fetch_content(content: &str, truncation_limit: usize) -> Truncat
     TruncatedFetchOutput { content: truncated_content }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TruncatedContent {
-    Line(Vec<String>),
-    Byte(Vec<Vec<u8>>),
-    Full(Vec<String>),
+#[derive(PartialEq, Eq, Debug)]
+pub enum TruncationMode {
+    Line,
+    Byte,
+    Full,
 }
 
-impl From<Vec<String>> for TruncatedContent {
-    fn from(value: Vec<String>) -> Self {
-        TruncatedContent::Full(value)
-    }
-}
-
-/// Represents the result of truncation
-#[derive(Debug, Clone, PartialEq, Eq, Setters)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct TruncatedOutput {
-    pub content: TruncatedContent,
-    pub total: usize,
-    pub start: usize,
-    pub end: usize,
+    pub data: Vec<String>,
+    start: usize,
+    total: usize,
+    end: usize,
+    strategy: TruncationMode,
+}
+
+impl From<Vec<String>> for TruncatedOutput {
+    fn from(value: Vec<String>) -> Self {
+        TruncatedOutput {
+            start: 0,
+            end: value.len(),
+            total: value.len(),
+            data: value,
+            strategy: TruncationMode::Full,
+        }
+    }
 }
 
 impl TruncatedOutput {
-    pub fn from_lines(lines: Vec<String>) -> Self {
-        TruncatedOutput {
-            total: lines.len(),
-            end: lines.len(),
-            content: TruncatedContent::Line(lines),
-            start: 0,
-        }
+    pub fn start(&self) -> usize {
+        self.start
     }
 
-    #[cfg(test)]
-    pub fn from_bytes(bytes: Vec<Vec<u8>>) -> Self {
-        TruncatedOutput {
-            total: bytes.len(),
-            end: bytes.len(),
-            content: TruncatedContent::Byte(bytes),
-            start: 0,
-        }
+    pub fn end(&self) -> usize {
+        self.end
     }
 
-    pub fn truncate_items(mut self, start: usize, max_items: usize) -> Self {
-        match &self.content {
-            TruncatedContent::Full(content) | TruncatedContent::Line(content) => {
-                let total_items = content.len();
-                let is_truncated = total_items > max_items;
-                let truncated = if is_truncated {
-                    content
-                        .into_iter()
-                        .skip(start)
-                        .take(max_items)
-                        .cloned()
-                        .collect::<Vec<_>>()
-                } else {
-                    content.clone()
-                };
+    pub fn total(&self) -> usize {
+        self.total
+    }
 
-                if is_truncated {
-                    self.start = start;
-                    self.end = start.saturating_add(truncated.len());
-                    self.content = TruncatedContent::Line(truncated);
-                }
-            }
-            TruncatedContent::Byte(content) => {
-                let total_items = content.len();
-                let is_truncated = total_items > max_items;
-                let truncated = if is_truncated {
-                    content
-                        .into_iter()
-                        .skip(start)
-                        .take(max_items)
-                        .cloned()
-                        .collect::<Vec<_>>()
-                } else {
-                    content.clone()
-                };
+    pub fn strategy(&self) -> &TruncationMode {
+        &self.strategy
+    }
 
-                if is_truncated {
-                    self.start = start;
-                    self.end = start.saturating_add(truncated.len());
-                    self.content = TruncatedContent::Line(
-                        truncated
-                            .into_iter()
-                            .map(|vec| String::from_utf8_lossy(&vec).to_string())
-                            .collect(),
-                    );
-                }
-            }
+    pub fn truncate_items(mut self, start: usize, max_lines: usize) -> Self {
+        let total_lines = self.data.len();
+        let is_truncated = total_lines > max_lines;
+        self.data = if is_truncated {
+            self.data.into_iter().skip(start).take(max_lines).collect()
+        } else {
+            self.data
+        };
+
+        if total_lines != self.data.len() {
+            self.start = start;
+            self.end = self.start.saturating_add(max_lines);
+            self.strategy = TruncationMode::Line;
         }
+
         self
     }
-    
-    pub fn truncate_bytes(mut self, max_bytes: usize) -> Self {
-        match &self.content {
-           TruncatedContent::Full(content) | TruncatedContent::Line(content) => {
-                let original_size = content.len();
-                let mut total_bytes = 0;
-                let mut truncated = Vec::with_capacity(original_size);
-                for item in content {
-                    let current_bytes = item.as_bytes();
-                    total_bytes += current_bytes.len();
-                    if total_bytes >= max_bytes {
-                        break;
-                    }
-                    truncated.push(current_bytes.to_vec());
-                }
 
-                if original_size != truncated.len() {
-                    self.end = self.start + truncated.len();
-                    self.content = TruncatedContent::Byte(truncated);
-                }
+    pub fn truncate_bytes(mut self, max_bytes: usize) -> Self {
+        let total_lines = self.data.len();
+        let input = self.data;
+
+        let mut total_bytes = 0;
+        let mut truncated = Vec::new();
+        for item in input.into_iter() {
+            let current_bytes = item.bytes().count();
+            total_bytes += current_bytes;
+            if total_bytes >= max_bytes {
+                break;
             }
-            TruncatedContent::Byte(content) => {
-                let original_size = content.len();
-                let mut total_bytes = 0;
-                let mut truncated = Vec::with_capacity(original_size);
-                for item in content {
-                    total_bytes += item.len();
-                    if total_bytes >= max_bytes {
-                        break;
-                    }
-                    truncated.push(item.clone());
-                }
-                if original_size != truncated.len() {
-                    self.end = self.start + truncated.len();
-                    self.content = TruncatedContent::Byte(truncated);
-                }
-            }
+            truncated.push(item);
         }
+        self.data = truncated;
+
+        if self.data.len() != total_lines {
+            self.end = self.start.saturating_add(self.data.len());
+            self.strategy = TruncationMode::Byte;
+        }
+
         self
     }
 }
@@ -432,7 +384,7 @@ pub fn truncate_search_output(
         .collect::<Vec<_>>();
 
     // Apply truncation strategies
-    TruncatedOutput::from_lines(output)
+    TruncatedOutput::from(output)
         .truncate_items(start_line, max_lines)
         .truncate_bytes(max_bytes)
 }
@@ -442,6 +394,28 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    impl TruncatedOutput {
+        pub fn with_start(mut self, start: usize) -> Self {
+            self.start = start;
+            self
+        }
+
+        pub fn with_end(mut self, end: usize) -> Self {
+            self.end = end;
+            self
+        }
+
+        pub fn with_total(mut self, total: usize) -> Self {
+            self.total = total;
+            self
+        }
+
+        pub fn with_strategy(mut self, strategy: TruncationMode) -> Self {
+            self.strategy = strategy;
+            self
+        }
+    }
 
     #[test]
     fn test_line_based_truncation() {
@@ -453,12 +427,12 @@ mod tests {
             "line 5".to_string(),
         ];
 
-        let actual = TruncatedOutput::from_lines(data.clone()).truncate_items(1, 3);
-        let expected =
-            TruncatedOutput::from_lines(data.into_iter().skip(1).take(3).collect::<Vec<_>>())
-                .start(1)
-                .end(4)
-                .total(5);
+        let actual = TruncatedOutput::from(data.clone()).truncate_items(1, 3);
+        let expected = TruncatedOutput::from(data.into_iter().skip(1).take(3).collect::<Vec<_>>())
+            .with_start(1)
+            .with_end(4)
+            .with_total(5)
+            .with_strategy(TruncationMode::Line);
         assert_eq!(actual, expected);
     }
 
@@ -468,16 +442,18 @@ mod tests {
         // each entry 5 bytes long
         // total size = 25 bytes
         let data = vec![
-            "A".repeat(5).into_bytes(),
-            "B".repeat(5).into_bytes(),
-            "C".repeat(5).into_bytes(),
-            "D".repeat(5).into_bytes(),
-            "E".repeat(5).into_bytes(),
+            "A".repeat(5),
+            "B".repeat(5),
+            "C".repeat(5),
+            "D".repeat(5),
+            "E".repeat(5),
         ];
-        let actual = TruncatedOutput::from_bytes(data.clone()).truncate_bytes(20);
-        let expected = TruncatedOutput::from_bytes(data.into_iter().take(3).collect::<Vec<_>>())
-            .end(3)
-            .total(5);
+
+        let actual = TruncatedOutput::from(data.clone()).truncate_bytes(20);
+        let expected = TruncatedOutput::from(data.into_iter().take(3).collect::<Vec<_>>())
+            .with_end(3)
+            .with_total(5)
+            .with_strategy(TruncationMode::Byte);
         assert_eq!(actual, expected);
     }
 
@@ -490,18 +466,14 @@ mod tests {
             "D".repeat(35),
             "E".repeat(45),
         ];
-        let actual = TruncatedOutput::from_lines(data.clone())
+        let actual = TruncatedOutput::from(data.clone())
             .truncate_items(0, 10)
             .truncate_bytes(925);
 
-        let expected = TruncatedOutput::from_bytes(
-            data.into_iter()
-                .map(|s| s.into_bytes())
-                .take(2)
-                .collect::<Vec<_>>(),
-        )
-        .end(2)
-        .total(5);
+        let expected = TruncatedOutput::from(data.into_iter().take(2).collect::<Vec<_>>())
+            .with_end(2)
+            .with_total(5)
+            .with_strategy(TruncationMode::Byte);
 
         assert_eq!(actual, expected);
     }
@@ -515,10 +487,13 @@ mod tests {
             "D".repeat(35),
             "E".repeat(45),
         ];
-        let actual = TruncatedOutput::from_lines(data.clone())
+        let actual = TruncatedOutput::from(data.clone())
             .truncate_items(0, 10)
             .truncate_bytes(120);
-        let expected = TruncatedOutput::from_bytes(vec![]).total(5);
+        let expected = TruncatedOutput::from(vec![])
+            .with_total(5)
+            .with_strategy(TruncationMode::Byte);
         assert_eq!(actual, expected);
     }
 }
+//
