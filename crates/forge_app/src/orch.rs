@@ -389,17 +389,14 @@ impl<S: AgentService> Orchestrator<S> {
                     let sender = sender.clone();
                     let agent_id = agent.id.clone();
                     let model_id = model_id.clone();
-                    let suppress_retry_errors = self.environment.retry_config.suppress_retry_errors;
                     move |error: &anyhow::Error, duration: Duration| {
                         let root_cause = error.root_cause();
                         tracing::error!(agent_id = %agent_id, error = ?root_cause, model=%model_id, "Retry Attempt");
-                        if !suppress_retry_errors {
-                            let retry_event = ChatResponse::RetryAttempt {
-                                cause: error.into(),
-                                duration,
-                            };
-                            let _ = sender.try_send(Ok(retry_event));
-                        }
+                        let retry_event = ChatResponse::RetryAttempt {
+                            cause: error.into(),
+                            duration,
+                        };
+                        let _ = sender.try_send(Ok(retry_event));
                     }
                 }),
             );
