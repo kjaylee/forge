@@ -82,7 +82,7 @@ pub fn update(state: &mut State, action: impl Into<Action>) -> Command {
         }
         Action::AgentSelected(agent_id) => {
             // Update the current agent in the state
-            state.current_agent = agent_id;
+            state.agent_selection.current_agent = agent_id;
             // Hide agent selection
             state.agent_selection.is_visible = false;
             state.agent_selection.selected_index = 0;

@@ -207,7 +207,7 @@ fn handle_prompt_submit(
                 message,
                 conversation_id: state.conversation.conversation_id,
                 is_first: state.conversation.is_first,
-                agent: state.current_agent.clone(),
+                agent: state.agent_selection.current_agent.clone(),
             };
             Command::Interval { duration: Duration::from_millis(100) }.and(chat_command)
         }
