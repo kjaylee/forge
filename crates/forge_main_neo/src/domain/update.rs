@@ -304,7 +304,7 @@ mod tests {
         let mut fixture_state = State::default();
 
         let actual_command = update(&mut fixture_state, Action::Initialize);
-        let expected_command = Command::ReadWorkspace;
+        let expected_command = Command::ReadWorkspace.and(Command::ReadWorkflow);
 
         assert_eq!(actual_command, expected_command);
     }
