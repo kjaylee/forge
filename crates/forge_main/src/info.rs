@@ -411,17 +411,17 @@ mod tests {
     fn test_create_progress_bar() {
         // Test normal case - 70% of 20 = 14 filled, 6 empty
         let actual = super::create_progress_bar(70, 100, 20);
-        let expected = "▐██████████████░░░░░░▌ 70.0%";
+        let expected = "▐██████████████░░░░░░ 70.0%";
         assert_eq!(actual, expected);
 
         // Test 100% case
         let actual = super::create_progress_bar(100, 100, 20);
-        let expected = "▐████████████████████▌ 100.0%";
+        let expected = "▐████████████████████ 100.0%";
         assert_eq!(actual, expected);
 
         // Test 0% case
         let actual = super::create_progress_bar(0, 100, 20);
-        let expected = "▐░░░░░░░░░░░░░░░░░░░░▌ 0.0%";
+        let expected = "▐░░░░░░░░░░░░░░░░░░░░ 0.0%";
         assert_eq!(actual, expected);
 
         // Test zero limit case
@@ -431,7 +431,7 @@ mod tests {
 
         // Test over 100% case (should cap at 100%)
         let actual = super::create_progress_bar(150, 100, 20);
-        let expected = "▐████████████████████▌ 100.0%";
+        let expected = "▐████████████████████ 100.0%";
         assert_eq!(actual, expected);
     }
     #[test]
