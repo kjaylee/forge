@@ -2,7 +2,7 @@ use std::fmt;
 use std::path::Path;
 
 use colored::Colorize;
-use forge_api::{Environment, LoginInfo};
+use forge_api::{Environment, LoginInfo, UserUsage};
 use forge_tracker::VERSION;
 
 use crate::model::ForgeCommandManager;
@@ -46,6 +46,42 @@ impl Info {
 
     pub fn extend(mut self, other: Info) -> Self {
         self.sections.extend(other.sections);
+        self
+    }
+
+    pub fn merge_into_section(mut self, title: &str, other: Info) -> Self {
+        // Find the index of the title section
+        if let Some(title_index) = self
+            .sections
+            .iter()
+            .position(|s| matches!(s, Section::Title(t) if t == title))
+        {
+            // Find the end of this section (next title or end of vector)
+            let next_title_index = self.sections[title_index + 1..]
+                .iter()
+                .position(|s| matches!(s, Section::Title(_)))
+                .map(|i| i + title_index + 1)
+                .unwrap_or(self.sections.len());
+
+            // Insert the other info's items (excluding any titles) at the end of this
+            // section
+            let mut insert_index = next_title_index;
+            for section in other.sections {
+                match section {
+                    Section::Items(key, value) => {
+                        self.sections
+                            .insert(insert_index, Section::Items(key, value));
+                        insert_index += 1;
+                    }
+                    Section::Title(_) => {
+                        // Skip titles when merging
+                    }
+                }
+            }
+        } else {
+            // If the title doesn't exist, just extend normally
+            self.sections.extend(other.sections);
+        }
         self
     }
 }
@@ -232,6 +268,83 @@ impl From<&LoginInfo> for Info {
     }
 }
 
+fn create_progress_bar(current: u32, limit: u32, width: usize) -> String {
+    if limit == 0 {
+        return "N/A".to_string();
+    }
+
+    let percentage = (current as f64 / limit as f64 * 100.0).min(100.0);
+    let filled_chars = ((current as f64 / limit as f64) * width as f64).round() as usize;
+    let filled_chars = filled_chars.min(width);
+    let empty_chars = width - filled_chars;
+
+    // Option 1: Unicode block characters (most visually appealing)
+    format!(
+        "▐{}{}▌ {:.1}%",
+        "█".repeat(filled_chars),
+        "░".repeat(empty_chars),
+        percentage
+    )
+
+    // Alternative options (comment/uncomment to try different styles):
+
+    // Option 2: Circle-based progress
+    // format!(
+    //     "[{}{}] {:.1}%",
+    //     "●".repeat(filled_chars),
+    //     "○".repeat(empty_chars),
+    //     percentage
+    // )
+
+    // Option 3: Square-based progress
+    // format!(
+    //     "[{}{}] {:.1}%",
+    //     "■".repeat(filled_chars),
+    //     "□".repeat(empty_chars),
+    //     percentage
+    // )
+
+    // Option 4: Arrow-style progress
+    // format!(
+    //     "⟦{}{}⟧ {:.1}%",
+    //     "▶".repeat(filled_chars),
+    //     "▷".repeat(empty_chars),
+    //     percentage
+    // )
+
+    // Option 5: Gradient blocks (for a more sophisticated look)
+    // let mut bar = String::new();
+    // for i in 0..width {
+    //     if i < filled_chars {
+    //         bar.push('█');
+    //     } else if i == filled_chars && filled_chars < width {
+    //         // Add a partial block for smoother transition
+    //         let partial_progress = (current as f64 / limit as f64) * width as
+    // f64 - filled_chars as f64;         if partial_progress > 0.75 {
+    // bar.push('▓'); }         else if partial_progress > 0.5 {
+    // bar.push('▒'); }         else if partial_progress > 0.25 {
+    // bar.push('░'); }         else { bar.push(' '); }
+    //     } else {
+    //         bar.push(' ');
+    //     }
+    // }
+    // format!("▐{}▌ {:.1}%", bar, percentage)
+}
+
+impl From<&UserUsage> for Info {
+    fn from(user_usage: &UserUsage) -> Self {
+        let progress_bar =
+            create_progress_bar(user_usage.usage.current, user_usage.usage.limit, 20);
+
+        Info::new()
+            .add_key_value("Plan", &user_usage.plan.r#type)
+            .add_key_value("Daily Usage", progress_bar)
+            .add_key_value("Current Usage", format!("{}", user_usage.usage.current))
+            .add_key_value("Total Quota", format!("{}", user_usage.usage.limit))
+            .add_key_value("Remaining", format!("{}", user_usage.usage.remaining))
+    }
+}
+
 fn truncate_key(key: &str) -> String {
     if key.len() <= 20 {
         key.to_string()
@@ -244,7 +357,7 @@ fn truncate_key(key: &str) -> String {
 mod tests {
     use std::path::PathBuf;
 
-    use forge_api::{Environment, LoginInfo};
+    use forge_api::{Environment, LoginInfo, Plan, UsageInfo, UserUsage};
     use pretty_assertions::assert_eq;
 
     use crate::info::Info;
@@ -379,5 +492,119 @@ mod tests {
         let actual = super::format_path_for_display(&fixture, &path);
         let expected = "/home/user/project";
         assert_eq!(actual, expected);
+    }
+    #[test]
+    fn test_user_usage_display() {
+        let fixture = UserUsage {
+            user_id: "user123".to_string(),
+            plan: Plan { r#type: "pro".to_string(), id: "plan-pro-123".to_string() },
+            usage: UsageInfo { current: 150, limit: 1000, remaining: 850 },
+        };
+
+        let actual = Info::from(&fixture);
+
+        let expected = Info::new()
+            .add_key_value("Plan", "pro")
+            .add_key_value("Daily Usage", "▐███░░░░░░░░░░░░░░░░░▌ 15.0%")
+            .add_key_value("Current Usage", "150")
+            .add_key_value("Total Quota", "1000")
+            .add_key_value("Remaining", "850");
+
+        assert_eq!(actual.sections, expected.sections);
+    }
+
+    #[test]
+    fn test_create_progress_bar() {
+        // Test normal case - 70% of 20 = 14 filled, 6 empty
+        let actual = super::create_progress_bar(70, 100, 20);
+        let expected = "▐██████████████░░░░░░▌ 70.0%";
+        assert_eq!(actual, expected);
+
+        // Test 100% case
+        let actual = super::create_progress_bar(100, 100, 20);
+        let expected = "▐████████████████████▌ 100.0%";
+        assert_eq!(actual, expected);
+
+        // Test 0% case
+        let actual = super::create_progress_bar(0, 100, 20);
+        let expected = "▐░░░░░░░░░░░░░░░░░░░░▌ 0.0%";
+        assert_eq!(actual, expected);
+
+        // Test zero limit case
+        let actual = super::create_progress_bar(50, 0, 20);
+        let expected = "N/A";
+        assert_eq!(actual, expected);
+
+        // Test over 100% case (should cap at 100%)
+        let actual = super::create_progress_bar(150, 100, 20);
+        let expected = "▐████████████████████▌ 100.0%";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_merge_into_section() {
+        let base_info = Info::new()
+            .add_title("Usage")
+            .add_key_value("Prompt", "100")
+            .add_key_value("Completion", "200")
+            .add_title("Model")
+            .add_key_value("Current", "gpt-4");
+
+        let merge_info = Info::new()
+            .add_key_value("Plan", "pro")
+            .add_key_value("Daily Usage", "▐██████████░░░░░░░░░░▌ 50.0%");
+
+        let actual = base_info.merge_into_section("Usage", merge_info);
+
+        let expected = Info::new()
+            .add_title("Usage")
+            .add_key_value("Prompt", "100")
+            .add_key_value("Completion", "200")
+            .add_key_value("Plan", "pro")
+            .add_key_value("Daily Usage", "▐██████████░░░░░░░░░░▌ 50.0%")
+            .add_title("Model")
+            .add_key_value("Current", "gpt-4");
+
+        assert_eq!(actual.sections, expected.sections);
+    }
+
+    #[test]
+    fn test_user_section_merge() {
+        // Test how user usage info merges into existing User section
+        let base_info = Info::new()
+            .add_title("Usage")
+            .add_key_value("Prompt", "100")
+            .add_key_value("Completion", "200")
+            .add_title("User")
+            .add_key_value("Name", "John Doe")
+            .add_key_value("Email", "john@example.com")
+            .add_title("Model")
+            .add_key_value("Current", "gpt-4");
+
+        let user_usage_info = Info::new()
+            .add_key_value("Plan", "pro")
+            .add_key_value("Daily Usage", "▐██████████░░░░░░░░░░▌ 50.0%")
+            .add_key_value("Current Usage", "500")
+            .add_key_value("Total Quota", "1000")
+            .add_key_value("Remaining", "500");
+
+        let actual = base_info.merge_into_section("User", user_usage_info);
+
+        let expected = Info::new()
+            .add_title("Usage")
+            .add_key_value("Prompt", "100")
+            .add_key_value("Completion", "200")
+            .add_title("User")
+            .add_key_value("Name", "John Doe")
+            .add_key_value("Email", "john@example.com")
+            .add_key_value("Plan", "pro")
+            .add_key_value("Daily Usage", "▐██████████░░░░░░░░░░▌ 50.0%")
+            .add_key_value("Current Usage", "500")
+            .add_key_value("Total Quota", "1000")
+            .add_key_value("Remaining", "500")
+            .add_title("Model")
+            .add_key_value("Current", "gpt-4");
+
+        assert_eq!(actual.sections, expected.sections);
     }
 }
