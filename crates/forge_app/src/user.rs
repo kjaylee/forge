@@ -32,6 +32,10 @@ pub struct UsageInfo {
     pub current: u32,
     pub limit: u32,
     pub remaining: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reset_time: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reset_in: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

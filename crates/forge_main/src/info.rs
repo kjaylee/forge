@@ -244,16 +244,26 @@ impl From<&UserUsage> for Info {
         let usage = &user_usage.usage;
         let plan = &user_usage.plan;
 
+        let mut info = Info::new()
+            .add_title("Plan")
+            .add_key_value("Type", &plan.r#type);
+
         // Create progress bar for usage visualization
         let progress_bar = create_progress_bar(usage.current, usage.limit, 20);
 
-        Info::new()
-            .add_title("Usage")
-            .add_key_value("Plan", &plan.r#type)
+        info = info
+            .add_title("Quota")
             .add_key_value("Current", usage.current)
             .add_key_value("Limit", usage.limit)
-            .add_key_value("Remaining", usage.remaining)
-            .add_key_value("Progress", progress_bar)
+            .add_key_value("Remaining", usage.remaining);
+
+        // Add reset information if available
+        if let Some(reset_in) = usage.reset_in {
+            let reset_info = format_reset_time(reset_in);
+            info = info.add_key_value("Resets in", reset_info);
+        }
+
+        info.add_key_value("Progress", progress_bar)
     }
 }
 
@@ -274,6 +284,31 @@ pub fn create_progress_bar(current: u32, limit: u32, width: usize) -> String {
         "░".repeat(empty_chars),
         percentage
     )
+}
+pub fn format_reset_time(seconds: u32) -> String {
+    if seconds == 0 {
+        return "now".to_string();
+    }
+
+    let hours = seconds / 3600;
+    let minutes = (seconds % 3600) / 60;
+    let remaining_seconds = seconds % 60;
+
+    if hours > 0 {
+        if minutes > 0 {
+            format!("{hours}h {minutes}m")
+        } else {
+            format!("{hours}h")
+        }
+    } else if minutes > 0 {
+        if remaining_seconds > 0 {
+            format!("{minutes}m {remaining_seconds}s")
+        } else {
+            format!("{minutes}m")
+        }
+    } else {
+        format!("{remaining_seconds}s")
+    }
 }
 
 #[cfg(test)]
@@ -397,6 +432,54 @@ mod tests {
         // Test over 100% case (should cap at 100%)
         let actual = super::create_progress_bar(150, 100, 20);
         let expected = "▐████████████████████▌ 100.0%";
+        assert_eq!(actual, expected);
+    }
+    #[test]
+    fn test_format_reset_time_hours_and_minutes() {
+        let actual = super::format_reset_time(3661); // 1 hour, 1 minute, 1 second
+        let expected = "1h 1m";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_format_reset_time_hours_only() {
+        let actual = super::format_reset_time(3600); // exactly 1 hour
+        let expected = "1h";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_format_reset_time_minutes_and_seconds() {
+        let actual = super::format_reset_time(125); // 2 minutes, 5 seconds
+        let expected = "2m 5s";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_format_reset_time_minutes_only() {
+        let actual = super::format_reset_time(120); // exactly 2 minutes
+        let expected = "2m";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_format_reset_time_seconds_only() {
+        let actual = super::format_reset_time(45); // 45 seconds
+        let expected = "45s";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_format_reset_time_zero() {
+        let actual = super::format_reset_time(0);
+        let expected = "now";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_format_reset_time_large_value() {
+        let actual = super::format_reset_time(7265); // 2 hours, 1 minute, 5 seconds
+        let expected = "2h 1m";
         assert_eq!(actual, expected);
     }
 }
