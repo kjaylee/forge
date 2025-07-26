@@ -51,12 +51,13 @@ impl ForgeProvider {
         });
 
         if let Ok(ref mut url) = url
-            && self.is_azure_openai() {
-                let api_version = std::env::var("OPENAI_AZURE_VERSION")
-                    .unwrap_or_else(|_| "2024-10-21".to_string());
-                url.query_pairs_mut()
-                    .append_pair("api-version", &api_version);
-            };
+            && self.is_azure_openai()
+        {
+            let api_version =
+                std::env::var("OPENAI_AZURE_VERSION").unwrap_or_else(|_| "2024-10-21".to_string());
+            url.query_pairs_mut()
+                .append_pair("api-version", &api_version);
+        };
 
         url
     }
