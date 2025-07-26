@@ -23,7 +23,6 @@ pub struct User {
 #[serde(rename_all = "camelCase")]
 pub struct Plan {
     pub r#type: String,
-    pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,15 +32,12 @@ pub struct UsageInfo {
     pub limit: u32,
     pub remaining: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reset_time: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reset_in: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserUsage {
-    pub user_id: String,
     pub plan: Plan,
     pub usage: UsageInfo,
 }
