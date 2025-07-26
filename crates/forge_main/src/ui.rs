@@ -6,8 +6,8 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use convert_case::{Case, Casing};
 use forge_api::{
-    AgentId, AppConfig, ChatRequest, ChatResponse, Conversation, ConversationId, Event,
-    InterruptionReason, Model, ModelId, Workflow, API,
+    API, AgentId, AppConfig, ChatRequest, ChatResponse, Conversation, ConversationId, Event,
+    InterruptionReason, Model, ModelId, Workflow,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_domain::{McpConfig, McpServerConfig, Provider, Scope};
@@ -26,7 +26,7 @@ use crate::model::{Command, ForgeCommandManager};
 use crate::select::ForgeSelect;
 use crate::state::UIState;
 use crate::update::on_update;
-use crate::{banner, tracker, TRACKER};
+use crate::{TRACKER, banner, tracker};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -660,7 +660,6 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
                     self.spinner.stop(None)?;
                     let usage_limit_error = err
                         .chain()
-                        .into_iter()
                         .map(|e| e.to_string())
                         .find(|e| e.contains("USAGE_LIMIT_EXCEEDED"));
                     if let Some(err_msg) = usage_limit_error {
