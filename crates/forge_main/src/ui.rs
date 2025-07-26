@@ -23,6 +23,7 @@ use crate::cli::{Cli, McpCommand, TopLevelCommand, Transport};
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
+use crate::pretty_errors::{unsupported_model, usage_limits};
 use crate::select::ForgeSelect;
 use crate::state::UIState;
 use crate::update::on_update;
@@ -658,27 +659,10 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
                 Ok(message) => self.handle_chat_response(message).await?,
                 Err(err) => {
                     self.spinner.stop(None)?;
-                    let usage_limit_error = err
-                        .chain()
-                        .map(|e| e.to_string())
-                        .find(|e| e.contains("USAGE_LIMIT_EXCEEDED"));
-                    if let Some(err_msg) = usage_limit_error {
-                        let json_start = err_msg
-                            .find("Reason: ")
-                            .map(|i| i + "Reason: ".len())
-                            .unwrap_or(0);
-                        let json_str = &err_msg[json_start..];
-
-                        let outer: Value = serde_json::from_str(json_str)
-                            .expect("Failed to parse the response message");
-                        let message_str =
-                            outer["message"].as_str().expect("Missing 'message' field");
-                        let error: Value =
-                            serde_json::from_str(message_str).expect("Missing 'error' field");
-                        let details = error["details"].as_str().expect("Missing 'details' field");
-
-                        println!("{}", TitleFormat::upgrade(details));
-                        return Ok(());
+                    if let Some(err_msg) = usage_limits(&err)? {
+                        println!("{err_msg}");
+                    } else if let Some(err_msg) = unsupported_model(&err)? {
+                        println!("{err_msg}");
                     } else {
                         return Err(err);
                     }
