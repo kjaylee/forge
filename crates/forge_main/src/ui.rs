@@ -334,10 +334,9 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
                     info = info.extend(Info::from(login_info));
                 }
 
-                // Merge usage information into existing User section
+                // Add usage information
                 if let Ok(Some(user_usage)) = self.api.user_usage().await {
-                    let user_usage_info = Info::from(&user_usage);
-                    info = info.merge_into_section("User", user_usage_info);
+                    info = info.extend(Info::from(&user_usage));
                 }
 
                 self.writeln(info)?;
