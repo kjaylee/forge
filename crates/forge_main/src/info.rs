@@ -244,18 +244,18 @@ impl From<&UserUsage> for Info {
         let usage = &user_usage.usage;
         let plan = &user_usage.plan;
 
-        let mut info = Info::new()
-            .add_title("Plan")
-            .add_key_value("Type", &plan.r#type);
-
         // Create progress bar for usage visualization
         let progress_bar = create_progress_bar(usage.current, usage.limit, 20);
 
-        info = info
-            .add_title("Quota")
-            .add_key_value("Current", usage.current)
-            .add_key_value("Limit", usage.limit)
-            .add_key_value("Remaining", usage.remaining);
+        let mut info = Info::new()
+            .add_title(format!("{} Quota", plan.r#type.to_uppercase()))
+            .add_key_value(
+                "Usage",
+                format!(
+                    "{} / {} [{} Remaining]",
+                    usage.current, usage.limit, usage.remaining
+                ),
+            );
 
         // Add reset information if available
         if let Some(reset_in) = usage.reset_in {
@@ -279,7 +279,7 @@ pub fn create_progress_bar(current: u32, limit: u32, width: usize) -> String {
 
     // Option 1: Unicode block characters (most visually appealing)
     format!(
-        "▐{}{}▌ {:.1}%",
+        "▐{}{} {:.1}%",
         "█".repeat(filled_chars),
         "░".repeat(empty_chars),
         percentage
