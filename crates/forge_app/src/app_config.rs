@@ -13,8 +13,6 @@ pub struct InitAuth {
 #[serde(rename_all = "camelCase")]
 pub struct AppConfig {
     pub key_info: Option<LoginInfo>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub plan: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize, From)]
