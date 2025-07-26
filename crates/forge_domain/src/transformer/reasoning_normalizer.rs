@@ -164,8 +164,11 @@ mod tests {
 
         // All reasoning details should be removed since first assistant has no
         // reasoning
-        let snapshot =
-            TransformationSnapshot::new("ReasoningNormalizer_first_no_assistant_message_present", context, actual);
+        let snapshot = TransformationSnapshot::new(
+            "ReasoningNormalizer_first_no_assistant_message_present",
+            context,
+            actual,
+        );
         assert_yaml_snapshot!(snapshot);
     }
 }
