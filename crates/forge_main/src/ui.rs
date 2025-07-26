@@ -6,8 +6,8 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use convert_case::{Case, Casing};
 use forge_api::{
-    API, AgentId, AppConfig, ChatRequest, ChatResponse, Conversation, ConversationId, Event,
-    InterruptionReason, Model, ModelId, Workflow,
+    AgentId, AppConfig, ChatRequest, ChatResponse, Conversation, ConversationId, Event,
+    InterruptionReason, Model, ModelId, Workflow, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_domain::{McpConfig, McpServerConfig, Provider, Scope};
@@ -26,7 +26,7 @@ use crate::model::{Command, ForgeCommandManager};
 use crate::select::ForgeSelect;
 use crate::state::UIState;
 use crate::update::on_update;
-use crate::{TRACKER, banner, tracker};
+use crate::{banner, tracker, TRACKER};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -658,7 +658,31 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
                 Ok(message) => self.handle_chat_response(message).await?,
                 Err(err) => {
                     self.spinner.stop(None)?;
-                    return Err(err);
+                    let usage_limit_error = err
+                        .chain()
+                        .into_iter()
+                        .map(|e| e.to_string())
+                        .find(|e| e.contains("USAGE_LIMIT_EXCEEDED"));
+                    if let Some(err_msg) = usage_limit_error {
+                        let json_start = err_msg
+                            .find("Reason: ")
+                            .map(|i| i + "Reason: ".len())
+                            .unwrap_or(0);
+                        let json_str = &err_msg[json_start..];
+
+                        let outer: Value = serde_json::from_str(json_str)
+                            .expect("Failed to parse the response message");
+                        let message_str =
+                            outer["message"].as_str().expect("Missing 'message' field");
+                        let error: Value =
+                            serde_json::from_str(message_str).expect("Missing 'error' field");
+                        let details = error["details"].as_str().expect("Missing 'details' field");
+
+                        println!("{}", TitleFormat::upgrade(details));
+                        return Ok(());
+                    } else {
+                        return Err(err);
+                    }
                 }
             }
         }
