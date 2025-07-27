@@ -325,8 +325,8 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
                 self.on_new().await?;
             }
             Command::Info => {
-                let mut info = Info::from(&self.state).extend(Info::from(&self.api.environment()));
                 self.spinner.start(Some("Loading Info"))?;
+                let mut info = Info::from(&self.state).extend(Info::from(&self.api.environment()));
 
                 // Add user information if available
                 if let Ok(config) = self.api.app_config().await
@@ -334,7 +334,6 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
                 {
                     info = info.extend(Info::from(login_info));
                 }
-                self.spinner.stop(None)?;
 
                 // Add usage information
                 if let Ok(Some(user_usage)) = self.api.user_usage().await {
@@ -342,6 +341,7 @@ impl<A: API + 'static, F: Fn() -> A> UI<A, F> {
                 }
 
                 self.writeln(info)?;
+                self.spinner.stop(None)?;
             }
             Command::Message(ref content) => {
                 self.spinner.start(None)?;
